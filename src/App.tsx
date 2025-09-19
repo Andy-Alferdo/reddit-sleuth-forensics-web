@@ -12,6 +12,7 @@ import Monitoring from "./pages/Monitoring";
 import Analysis from "./pages/Analysis";
 import UserProfiling from "./pages/UserProfiling";
 import LinkAnalysis from "./pages/LinkAnalysis";
+import CommunityAnalysis from "./pages/CommunityAnalysis";
 import Report from "./pages/Report";
 import NotFound from "./pages/NotFound";
 import Header from "./components/Header";
@@ -54,6 +55,7 @@ const App = () => {
                     <Route path="/analysis" element={<Analysis />} />
                     <Route path="/user-profiling" element={<UserProfiling />} />
                     <Route path="/link-analysis" element={<LinkAnalysis />} />
+                    <Route path="/community-analysis" element={<CommunityAnalysis />} />
                     <Route path="/report" element={<Report />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

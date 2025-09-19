@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Monitor, BarChart3, User, Network, FileText } from "lucide-react";
+import { Monitor, BarChart3, User, Network, FileText, Users } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
 import {
@@ -19,6 +19,7 @@ const menuItems = [
   { title: "Analysis", url: "/analysis", icon: BarChart3 },
   { title: "User Profiling", url: "/user-profiling", icon: User },
   { title: "Link Analysis", url: "/link-analysis", icon: Network },
+  { title: "Community Analysis", url: "/community-analysis", icon: Users },
   { title: "Report", url: "/report", icon: FileText },
 ];
 
