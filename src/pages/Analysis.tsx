@@ -4,11 +4,52 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BarChart3, MapPin, Calendar, TrendingUp, Users, MessageCircle } from 'lucide-react';
+import { WordCloud } from '@/components/WordCloud';
+import { AnalyticsChart } from '@/components/AnalyticsChart';
 
 const Analysis = () => {
   const [keyword, setKeyword] = useState('');
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sample data for word cloud
+  const wordCloudData = [
+    { word: "cybersecurity", frequency: 95, category: "high" as const },
+    { word: "malware", frequency: 78, category: "high" as const },
+    { word: "phishing", frequency: 67, category: "medium" as const },
+    { word: "encryption", frequency: 89, category: "high" as const },
+    { word: "vulnerability", frequency: 56, category: "medium" as const },
+    { word: "firewall", frequency: 45, category: "medium" as const },
+    { word: "authentication", frequency: 34, category: "low" as const },
+    { word: "breach", frequency: 87, category: "high" as const },
+    { word: "privacy", frequency: 76, category: "high" as const },
+    { word: "hack", frequency: 54, category: "medium" as const },
+    { word: "trojan", frequency: 32, category: "low" as const },
+    { word: "ransomware", frequency: 71, category: "high" as const },
+  ];
+
+  // Sample data for charts
+  const trendChartData = [
+    { name: 'Jan', value: 400 },
+    { name: 'Feb', value: 300 },
+    { name: 'Mar', value: 600 },
+    { name: 'Apr', value: 800 },
+    { name: 'May', value: 500 },
+    { name: 'Jun', value: 900 },
+  ];
+
+  const communityChartData = [
+    { name: 'r/cybersecurity', value: 2100 },
+    { name: 'r/privacy', value: 1800 },
+    { name: 'r/netsec', value: 850 },
+    { name: 'r/hacking', value: 650 },
+  ];
+
+  const sentimentChartData = [
+    { name: 'Positive', value: 45 },
+    { name: 'Neutral', value: 35 },
+    { name: 'Negative', value: 20 },
+  ];
 
   const handleAnalysis = async () => {
     if (!keyword.trim()) return;
@@ -161,6 +202,36 @@ const Analysis = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Analytics Visualizations */}
+      {analysisData && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <WordCloud words={wordCloudData} title="Top Keywords Analysis" />
+            <AnalyticsChart 
+              data={trendChartData} 
+              title="Activity Trends Over Time" 
+              type="line" 
+              height={250}
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AnalyticsChart 
+              data={communityChartData} 
+              title="Top Communities by Activity" 
+              type="bar" 
+              height={250}
+            />
+            <AnalyticsChart 
+              data={sentimentChartData} 
+              title="Sentiment Analysis" 
+              type="pie" 
+              height={250}
+            />
+          </div>
         </div>
       )}
 

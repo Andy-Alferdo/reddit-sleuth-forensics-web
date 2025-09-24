@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderOpen, Eye } from 'lucide-react';
+import { Plus, FolderOpen, Eye, TrendingUp, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -34,6 +34,32 @@ const Dashboard = () => {
         <Card className="border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
+              <Plus className="h-5 w-5 text-primary" />
+              <span>Create New Case</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center space-y-4">
+              <div className="bg-primary/10 rounded-full w-16 h-16 flex items-center justify-center mx-auto">
+                <Plus className="h-8 w-8 text-primary" />
+              </div>
+              <p className="text-muted-foreground">
+                Start a new forensic investigation case
+              </p>
+              <Button 
+                variant="forensic" 
+                className="w-full"
+                onClick={() => navigate('/new-case')}
+              >
+                Create New Case
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
               <FolderOpen className="h-5 w-5 text-primary" />
               <span>Active Cases</span>
             </CardTitle>
@@ -46,6 +72,11 @@ const Dashboard = () => {
                   className="relative p-3 rounded-lg bg-card border border-border hover:border-primary/50 transition-all duration-200 cursor-pointer"
                   onMouseEnter={() => setHoveredCase(case_.id)}
                   onMouseLeave={() => setHoveredCase(null)}
+                  onClick={() => {
+                    // Set selected case and navigate to monitoring
+                    localStorage.setItem('selectedCase', JSON.stringify(case_));
+                    navigate('/monitoring');
+                  }}
                 >
                   <div className="flex justify-between items-start">
                     <div>
@@ -70,29 +101,56 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Trends and Analytics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <span>Trending Topics</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="font-medium">#cybersecurity</span>
+                <span className="text-sm text-forensic-accent">+145%</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="font-medium">#digitalforensics</span>
+                <span className="text-sm text-forensic-accent">+89%</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="font-medium">#privacy</span>
+                <span className="text-sm text-forensic-warning">+67%</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Plus className="h-5 w-5 text-primary" />
-              <span>Create New Case</span>
+              <Users className="h-5 w-5 text-primary" />
+              <span>Top Communities</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center space-y-4">
-              <div className="bg-primary/10 rounded-full w-16 h-16 flex items-center justify-center mx-auto">
-                <Plus className="h-8 w-8 text-primary" />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="font-medium">r/cybersecurity</span>
+                <span className="text-sm text-muted-foreground">2.1M members</span>
               </div>
-              <p className="text-muted-foreground">
-                Start a new forensic investigation case
-              </p>
-              <Button 
-                variant="forensic" 
-                className="w-full"
-                onClick={() => navigate('/new-case')}
-              >
-                Create New Case
-              </Button>
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="font-medium">r/privacy</span>
+                <span className="text-sm text-muted-foreground">1.8M members</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <span className="font-medium">r/netsec</span>
+                <span className="text-sm text-muted-foreground">850K members</span>
+              </div>
             </div>
           </CardContent>
         </Card>
