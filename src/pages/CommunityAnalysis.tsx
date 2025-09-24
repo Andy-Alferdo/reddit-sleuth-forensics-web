@@ -5,11 +5,51 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { WordCloud } from '@/components/WordCloud';
+import { AnalyticsChart } from '@/components/AnalyticsChart';
 
 const CommunityAnalysis = () => {
   const [subreddit, setSubreddit] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Sample data for visualizations
+  const communityWordCloud = [
+    { word: "technology", frequency: 95, category: "high" as const },
+    { word: "innovation", frequency: 78, category: "high" as const },
+    { word: "artificial intelligence", frequency: 67, category: "medium" as const },
+    { word: "startup", frequency: 58, category: "medium" as const },
+    { word: "programming", frequency: 45, category: "medium" as const },
+    { word: "cybersecurity", frequency: 42, category: "low" as const },
+    { word: "blockchain", frequency: 38, category: "low" as const },
+    { word: "software", frequency: 71, category: "high" as const },
+  ];
+
+  const memberGrowthData = [
+    { name: 'Jan', value: 12500 },
+    { name: 'Feb', value: 13200 },
+    { name: 'Mar', value: 13800 },
+    { name: 'Apr', value: 14100 },
+    { name: 'May', value: 14200 },
+    { name: 'Jun', value: 14200 },
+  ];
+
+  const activityData = [
+    { name: 'Posts', value: 1247 },
+    { name: 'Comments', value: 8934 },
+    { name: 'Upvotes', value: 23456 },
+    { name: 'Awards', value: 456 },
+  ];
+
+  const postFrequencyData = [
+    { name: 'Mon', value: 45 },
+    { name: 'Tue', value: 52 },
+    { name: 'Wed', value: 48 },
+    { name: 'Thu', value: 61 },
+    { name: 'Fri', value: 55 },
+    { name: 'Sat', value: 38 },
+    { name: 'Sun', value: 42 },
+  ];
 
   const handleSearch = async () => {
     if (!subreddit.trim()) return;
@@ -112,79 +152,109 @@ const CommunityAnalysis = () => {
 
         {/* Results Section */}
         {hasSearched && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Community Information */}
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  Community Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-semibold text-lg">{communityData.name}</h3>
-                  <Badge variant="secondary" className="mt-1">
-                    {communityData.members} members
-                  </Badge>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  Created: {communityData.created}
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h4 className="font-medium mb-2">Description</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {communityData.description}
-                  </p>
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h4 className="font-medium mb-2">Moderators</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {communityData.moderators.map((mod) => (
-                      <Badge key={mod} variant="outline" className="text-xs">
-                        u/{mod}
-                      </Badge>
-                    ))}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Community Information */}
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Community Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-lg">{communityData.name}</h3>
+                    <Badge variant="secondary" className="mt-1">
+                      {communityData.members} members
+                    </Badge>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    Created: {communityData.created}
+                  </div>
 
-            {/* Recent Posts */}
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-primary" />
-                  Recent Posts
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {communityData.recentPosts.map((post, index) => (
-                  <div key={index} className="border border-border/50 rounded-lg p-3 space-y-2">
-                    <h4 className="font-medium text-sm leading-tight">
-                      {post.title}
-                    </h4>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>by u/{post.author}</span>
-                      <span>{post.timestamp}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Badge variant="secondary" className="text-xs">
-                        ▲ {post.upvotes}
-                      </Badge>
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-medium mb-2">Description</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {communityData.description}
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-medium mb-2">Moderators</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {communityData.moderators.map((mod) => (
+                        <Badge key={mod} variant="outline" className="text-xs">
+                          u/{mod}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+
+              {/* Recent Posts */}
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    Recent Posts
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {communityData.recentPosts.map((post, index) => (
+                    <div key={index} className="border border-border/50 rounded-lg p-3 space-y-2">
+                      <h4 className="font-medium text-sm leading-tight">
+                        {post.title}
+                      </h4>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>by u/{post.author}</span>
+                        <span>{post.timestamp}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="secondary" className="text-xs">
+                          ▲ {post.upvotes}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Community Analytics */}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <WordCloud words={communityWordCloud} title="Popular Topics" />
+                <AnalyticsChart 
+                  data={memberGrowthData} 
+                  title="Member Growth Over Time" 
+                  type="line" 
+                  height={250}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AnalyticsChart 
+                  data={activityData} 
+                  title="Community Activity Breakdown" 
+                  type="bar" 
+                  height={250}
+                />
+                <AnalyticsChart 
+                  data={postFrequencyData} 
+                  title="Post Frequency by Day" 
+                  type="line" 
+                  height={250}
+                />
+              </div>
+            </div>
           </div>
         )}
 

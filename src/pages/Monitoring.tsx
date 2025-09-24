@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Search, User, MessageSquare, Calendar, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { WordCloud } from '@/components/WordCloud';
+import { AnalyticsChart } from '@/components/AnalyticsChart';
 
 const Monitoring = () => {
   const { toast } = useToast();
@@ -12,6 +14,35 @@ const Monitoring = () => {
   const [searchType, setSearchType] = useState<'username' | 'keyword'>('keyword');
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sample data for visualizations
+  const keywordTrendData = [
+    { name: '6h ago', value: 15 },
+    { name: '5h ago', value: 23 },
+    { name: '4h ago', value: 18 },
+    { name: '3h ago', value: 32 },
+    { name: '2h ago', value: 28 },
+    { name: '1h ago', value: 45 },
+    { name: 'Now', value: 38 },
+  ];
+
+  const activitySpikeData = [
+    { name: 'Posts', value: 156 },
+    { name: 'Comments', value: 284 },
+    { name: 'Shares', value: 97 },
+    { name: 'Mentions', value: 67 },
+  ];
+
+  const realTimeWordCloud = [
+    { word: searchQuery || "trending", frequency: 89, category: "high" as const },
+    { word: "discussion", frequency: 76, category: "high" as const },
+    { word: "breaking", frequency: 65, category: "medium" as const },
+    { word: "update", frequency: 58, category: "medium" as const },
+    { word: "news", frequency: 71, category: "high" as const },
+    { word: "analysis", frequency: 45, category: "medium" as const },
+    { word: "community", frequency: 42, category: "low" as const },
+    { word: "response", frequency: 38, category: "low" as const },
+  ];
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -209,6 +240,30 @@ const Monitoring = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Real-time Analytics */}
+      {results.length > 0 && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <WordCloud words={realTimeWordCloud} title="Real-time Trending Words" />
+            <AnalyticsChart 
+              data={keywordTrendData} 
+              title="Activity Timeline (Last 6 Hours)" 
+              type="line" 
+              height={250}
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6">
+            <AnalyticsChart 
+              data={activitySpikeData} 
+              title="Current Activity Breakdown" 
+              type="bar" 
+              height={250}
+            />
+          </div>
+        </div>
       )}
 
       {results.length === 0 && !isLoading && (

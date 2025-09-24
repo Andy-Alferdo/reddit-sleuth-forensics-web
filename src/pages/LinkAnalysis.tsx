@@ -4,11 +4,39 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Network, Users, Share2, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
+import { AnalyticsChart } from '@/components/AnalyticsChart';
 
 const LinkAnalysis = () => {
   const [username, setUsername] = useState('');
   const [linkData, setLinkData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sample data for visualizations
+  const connectionTimelineData = [
+    { name: 'Week 1', value: 2 },
+    { name: 'Week 2', value: 4 },
+    { name: 'Week 3', value: 6 },
+    { name: 'Week 4', value: 8 },
+    { name: 'Week 5', value: 12 },
+    { name: 'Week 6', value: 15 },
+  ];
+
+  const platformDistributionData = [
+    { name: 'Reddit', value: 35 },
+    { name: 'Twitter', value: 25 },
+    { name: 'GitHub', value: 20 },
+    { name: 'LinkedIn', value: 15 },
+    { name: 'Other', value: 5 },
+  ];
+
+  const connectionStrengthData = [
+    { name: 'Jan', value: 65 },
+    { name: 'Feb', value: 72 },
+    { name: 'Mar', value: 78 },
+    { name: 'Apr', value: 85 },
+    { name: 'May', value: 82 },
+    { name: 'Jun', value: 88 },
+  ];
 
   const handleAnalyzeLinks = async () => {
     if (!username.trim()) return;
@@ -238,6 +266,33 @@ const LinkAnalysis = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Link Analysis Visualizations */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <AnalyticsChart 
+                data={connectionTimelineData} 
+                title="Connection Discovery Timeline" 
+                type="line" 
+                height={250}
+              />
+              <AnalyticsChart 
+                data={platformDistributionData} 
+                title="Platform Distribution" 
+                type="pie" 
+                height={250}
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 gap-6">
+              <AnalyticsChart 
+                data={connectionStrengthData} 
+                title="Connection Strength Over Time" 
+                type="bar" 
+                height={250}
+              />
+            </div>
           </div>
         </div>
       )}
