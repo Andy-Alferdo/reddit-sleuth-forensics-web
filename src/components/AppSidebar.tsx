@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Monitor, BarChart3, User, Network, FileText, Users } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft } from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import {
   Sidebar,
@@ -26,6 +26,7 @@ const menuItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
   
@@ -37,18 +38,37 @@ export function AppSidebar() {
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive ? "bg-primary/20 text-primary font-medium border-r-2 border-primary" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
+  const handleBackToCases = () => {
+    localStorage.removeItem('selectedCase');
+    navigate('/');
+  };
+
   return (
     <Sidebar
       collapsible="icon"
     >
       <SidebarContent className="border-r border-border">
         {hasSelectedCase ? (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-primary font-semibold">
-              Case: {JSON.parse(selectedCase).name}
-            </SidebarGroupLabel>
+          <>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={handleBackToCases} className="hover:bg-muted/50 text-muted-foreground hover:text-foreground">
+                      <ArrowLeft className="h-4 w-4" />
+                      {!isCollapsed && <span>Back to Cases</span>}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
 
-            <SidebarGroupContent>
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-primary font-semibold">
+                Case: {JSON.parse(selectedCase).name}
+              </SidebarGroupLabel>
+
+              <SidebarGroupContent>
               <SidebarMenu>
                 {menuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
@@ -67,6 +87,7 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+          </>
         ) : (
           <SidebarGroup>
             <SidebarGroupLabel className="text-muted-foreground text-sm">
