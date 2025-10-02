@@ -89,7 +89,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 type="button" 
                 variant="outline" 
                 className="w-full"
-                onClick={() => window.location.href = '/admin/login'}
+                onClick={() => window.location.replace('/admin/login')}
               >
                 <Shield className="w-4 h-4 mr-2" />
                 Admin Access
