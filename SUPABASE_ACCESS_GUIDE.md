@@ -1,61 +1,205 @@
 # Supabase Database Access Guide
 
-## Current Setup
+## Connecting Your Own Supabase Account
 
-This project is currently connected to **Lovable Cloud**, which automatically provisions a Supabase backend for you. This means you already have a fully functional Supabase database without needing to create a separate Supabase account.
+Since you've disabled Lovable Cloud, you now need to connect your own Supabase account to this project.
 
-## Project Connection Details
+### Step 1: Create a Supabase Project
 
-Your project is already connected to Supabase with the following details (found in `.env`):
+1. Go to [https://supabase.com](https://supabase.com) and sign up/login
+2. Click "New Project"
+3. Fill in your project details (name, database password, region)
+4. Wait for the project to be created (takes ~2 minutes)
 
-- **Project ID**: `djcdnudwnyhajnzwykoq`
-- **Supabase URL**: `https://djcdnudwnyhajnzwykoq.supabase.co`
-- **Anon Key**: Available in `.env` file
+### Step 2: Get Your Project Credentials
 
-## Accessing Your Database
+Once your project is created, you need to get three pieces of information:
 
-### Option 1: Through Lovable (Recommended)
-You can access your database, tables, authentication, and all backend features directly through the Lovable interface:
-1. Click on the backend/database icon in Lovable
-2. You'll have full access to:
-   - Database tables and data
-   - Authentication settings and users
-   - Storage buckets
-   - Edge functions
-   - Secrets management
+1. **Project URL**: 
+   - Go to Project Settings → API
+   - Copy the "Project URL" (looks like `https://xxxxxxxxxxxxx.supabase.co`)
 
-### Option 2: Direct Supabase Access
-If you want to access the Supabase dashboard directly:
+2. **Anon/Public Key**:
+   - Same page (Project Settings → API)
+   - Copy the "anon" key under "Project API keys"
 
-**Note**: This project is managed through Lovable Cloud, so you won't be able to access it through a personal Supabase account. The project is owned by Lovable's infrastructure.
+3. **Project ID**:
+   - Go to Project Settings → General
+   - Copy the "Reference ID"
 
-## Important Notes
+### Step 3: Update Your Project Configuration
 
-1. **Cannot Link Personal Supabase Account**: Since this project uses Lovable Cloud, it cannot be linked to a separate personal Supabase account. The Supabase project is automatically managed by Lovable.
+**IMPORTANT**: You need to enter these credentials in the `.env` file at the root of your project.
 
-2. **Cannot Disconnect from Lovable Cloud**: Once Lovable Cloud is enabled on a project, it cannot be disconnected or migrated to a personal Supabase account.
+Open the `.env` file and replace the existing values with your own:
 
-3. **Full Backend Access**: Despite not having a personal Supabase account, you have full access to all backend features through Lovable's interface - this includes all the capabilities you would have with a personal Supabase account.
+```
+VITE_SUPABASE_PROJECT_ID="your-project-id-here"
+VITE_SUPABASE_PUBLISHABLE_KEY="your-anon-key-here"
+VITE_SUPABASE_URL="https://your-project-id.supabase.co"
+```
 
-## If You Need a Personal Supabase Account
+**Example**:
+```
+VITE_SUPABASE_PROJECT_ID="abcdefghijklmnop"
+VITE_SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+VITE_SUPABASE_URL="https://abcdefghijklmnop.supabase.co"
+```
 
-If you want to use your own Supabase account for future projects:
-1. Go to Settings → Tools in Lovable
-2. Disable Lovable Cloud for future projects
-3. New projects can then be connected to your personal Supabase account
+### Step 4: Set Up Your Database Schema
 
-However, this current project will remain on Lovable Cloud and cannot be migrated.
+You need to create the required tables in your Supabase database. Go to your Supabase dashboard → SQL Editor and run these commands:
 
-## Database Connection in Code
+```sql
+-- Create app_role enum
+CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user');
 
-Your application connects to the database using the Supabase client at `src/integrations/supabase/client.ts`. The connection details are automatically configured from the `.env` file.
+-- Create profiles table
+CREATE TABLE public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  full_name TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-## Existing Database Tables
+-- Enable RLS on profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-Current tables in your database:
-- `profiles` - User profile information
-- `user_roles` - User role assignments (admin, moderator, user)
+-- Create user_roles table
+CREATE TABLE public.user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  role app_role NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, role)
+);
 
-## Need Help?
+-- Enable RLS on user_roles
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
-All database management, viewing data, and configuration can be done through the Lovable backend interface. You have the same capabilities as managing a personal Supabase project, just through Lovable's integrated interface.
+-- Create security definer function for role checking
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
+RETURNS BOOLEAN
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.user_roles
+    WHERE user_id = _user_id
+      AND role = _role
+  )
+$$;
+
+-- Create trigger function for new users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    NEW.raw_user_meta_data->>'full_name'
+  );
+  
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (NEW.id, 'user');
+  
+  RETURN NEW;
+END;
+$$;
+
+-- Create trigger for new user signups
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- RLS Policies for profiles
+CREATE POLICY "Users can view their own profile"
+  ON public.profiles FOR SELECT
+  USING (auth.uid() = id);
+
+CREATE POLICY "Admins can view all profiles"
+  ON public.profiles FOR SELECT
+  USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Users can update their own profile"
+  ON public.profiles FOR UPDATE
+  USING (auth.uid() = id);
+
+CREATE POLICY "Admins can update all profiles"
+  ON public.profiles FOR UPDATE
+  USING (public.has_role(auth.uid(), 'admin'));
+
+-- RLS Policies for user_roles
+CREATE POLICY "Users can view their own roles"
+  ON public.user_roles FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can view all roles"
+  ON public.user_roles FOR SELECT
+  USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Admins can insert roles"
+  ON public.user_roles FOR INSERT
+  WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Admins can update roles"
+  ON public.user_roles FOR UPDATE
+  USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Admins can delete roles"
+  ON public.user_roles FOR DELETE
+  USING (public.has_role(auth.uid(), 'admin'));
+```
+
+### Step 5: Create Your First Admin User
+
+After setting up the database, you need to create an admin user:
+
+1. Sign up through your app's signup page
+2. Go to Supabase Dashboard → SQL Editor
+3. Run this command (replace with your email):
+
+```sql
+INSERT INTO public.user_roles (user_id, role)
+SELECT id, 'admin'::app_role
+FROM auth.users
+WHERE email = 'your-email@example.com';
+```
+
+### Step 6: Restart Your Development Server
+
+After updating the `.env` file, restart your development server for the changes to take effect.
+
+## Accessing Your Supabase Dashboard
+
+Once connected, you can access your database at:
+`https://supabase.com/dashboard/project/YOUR-PROJECT-ID`
+
+From there you can:
+- View and edit database tables
+- Manage authentication settings
+- Configure storage buckets
+- Write SQL queries
+- Monitor your project
+
+## Troubleshooting
+
+**Error: "Invalid API key"**
+- Double-check you copied the correct anon key from Project Settings → API
+
+**Error: "Failed to fetch"**
+- Verify the VITE_SUPABASE_URL is correct
+- Make sure you restarted your development server after updating .env
+
+**Can't login as admin**
+- Make sure you ran the SQL command to grant admin role to your user
+- Check the user_roles table in your Supabase dashboard to verify the role was added
