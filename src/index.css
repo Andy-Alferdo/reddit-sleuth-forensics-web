@@ -8,50 +8,53 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Forensic Dark Theme */
-    --background: 220 13% 8%;
-    --foreground: 210 40% 95%;
+    /* Forensic Investigation Theme - Dark Command Center */
+    --background: 222 15% 6%;
+    --foreground: 180 5% 92%;
 
-    --card: 220 13% 10%;
-    --card-foreground: 210 40% 95%;
+    --card: 222 15% 8%;
+    --card-foreground: 180 5% 92%;
 
-    --popover: 220 13% 10%;
-    --popover-foreground: 210 40% 95%;
+    --popover: 222 15% 8%;
+    --popover-foreground: 180 5% 92%;
 
-    --primary: 197 100% 50%;
-    --primary-foreground: 220 13% 8%;
+    --primary: 175 70% 41%;
+    --primary-foreground: 222 15% 6%;
 
-    --secondary: 220 13% 15%;
-    --secondary-foreground: 210 40% 95%;
+    --secondary: 222 15% 12%;
+    --secondary-foreground: 180 5% 92%;
 
-    --muted: 220 13% 15%;
-    --muted-foreground: 210 20% 60%;
+    --muted: 222 15% 12%;
+    --muted-foreground: 180 5% 65%;
 
-    --accent: 197 100% 50%;
-    --accent-foreground: 220 13% 8%;
+    --accent: 175 70% 41%;
+    --accent-foreground: 222 15% 6%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 180 5% 98%;
 
-    --border: 220 13% 20%;
-    --input: 220 13% 15%;
-    --ring: 197 100% 50%;
+    --border: 222 15% 18%;
+    --input: 222 15% 12%;
+    --ring: 175 70% 41%;
 
     /* Custom forensic colors */
-    --forensic-cyan: 197 100% 50%;
-    --forensic-dark: 220 13% 8%;
-    --forensic-darker: 220 13% 6%;
-    --forensic-light: 220 13% 15%;
-    --forensic-accent: 120 100% 50%;
-    --forensic-warning: 45 100% 60%;
+    --forensic-teal: 175 70% 41%;
+    --forensic-dark: 222 15% 6%;
+    --forensic-darker: 222 15% 4%;
+    --forensic-light: 222 15% 12%;
+    --forensic-accent: 160 60% 45%;
+    --forensic-warning: 38 92% 50%;
+    --forensic-evidence: 200 70% 50%;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(197 100% 50%), hsl(220 100% 60%));
-    --gradient-dark: linear-gradient(180deg, hsl(220 13% 8%), hsl(220 13% 6%));
+    --gradient-primary: linear-gradient(135deg, hsl(175 70% 41%), hsl(200 70% 50%));
+    --gradient-dark: linear-gradient(180deg, hsl(222 15% 6%), hsl(222 15% 4%));
+    --gradient-command: linear-gradient(135deg, hsl(222 15% 8%), hsl(222 15% 12%));
     
     /* Shadows */
-    --shadow-forensic: 0 0 30px hsl(197 100% 50% / 0.3);
-    --shadow-glow: 0 0 20px hsl(197 100% 50% / 0.5);
+    --shadow-forensic: 0 0 30px hsl(175 70% 41% / 0.2);
+    --shadow-glow: 0 0 20px hsl(175 70% 41% / 0.4);
+    --shadow-evidence: 0 4px 20px hsl(200 70% 50% / 0.15);
 
     --radius: 0.5rem;
 
