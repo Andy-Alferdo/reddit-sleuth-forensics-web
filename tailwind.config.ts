@@ -53,12 +53,13 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				forensic: {
+					blue: 'hsl(var(--forensic-blue))',
 					cyan: 'hsl(var(--forensic-cyan))',
 					dark: 'hsl(var(--forensic-dark))',
-					darker: 'hsl(var(--forensic-darker))',
-					light: 'hsl(var(--forensic-light))',
-					accent: 'hsl(var(--forensic-accent))',
-					warning: 'hsl(var(--forensic-warning))'
+					gray: 'hsl(var(--forensic-gray))',
+					warning: 'hsl(var(--forensic-warning))',
+					critical: 'hsl(var(--forensic-critical))',
+					success: 'hsl(var(--forensic-success))'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
