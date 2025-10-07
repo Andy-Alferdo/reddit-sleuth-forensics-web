@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, FolderOpen, Eye, TrendingUp, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AnalyticsChart } from '@/components/AnalyticsChart';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -105,53 +106,49 @@ const Dashboard = () => {
 
       {/* Trends and Analytics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-primary/20">
+        <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
+              <TrendingUp className="h-5 w-5 text-forensic-accent" />
               <span>Trending Topics</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="font-medium">#cybersecurity</span>
-                <span className="text-sm text-forensic-accent">+145%</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="font-medium">#digitalforensics</span>
-                <span className="text-sm text-forensic-accent">+89%</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="font-medium">#privacy</span>
-                <span className="text-sm text-forensic-warning">+67%</span>
-              </div>
-            </div>
+            <AnalyticsChart 
+              data={[
+                { name: '#cybersecurity', value: 145 },
+                { name: '#digitalforensics', value: 89 },
+                { name: '#privacy', value: 67 },
+                { name: '#OSINT', value: 54 },
+                { name: '#infosec', value: 42 },
+              ]} 
+              title="" 
+              type="bar" 
+              height={250}
+            />
           </CardContent>
         </Card>
 
-        <Card className="border-primary/20">
+        <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-primary" />
+              <Users className="h-5 w-5 text-forensic-accent" />
               <span>Top Communities</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="font-medium">r/cybersecurity</span>
-                <span className="text-sm text-muted-foreground">2.1M members</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="font-medium">r/privacy</span>
-                <span className="text-sm text-muted-foreground">1.8M members</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <span className="font-medium">r/netsec</span>
-                <span className="text-sm text-muted-foreground">850K members</span>
-              </div>
-            </div>
+            <AnalyticsChart 
+              data={[
+                { name: 'r/cybersecurity', value: 2100000 },
+                { name: 'r/privacy', value: 1800000 },
+                { name: 'r/netsec', value: 850000 },
+                { name: 'r/hacking', value: 720000 },
+                { name: 'r/OSINT', value: 450000 },
+              ]} 
+              title="" 
+              type="bar" 
+              height={250}
+            />
           </CardContent>
         </Card>
       </div>

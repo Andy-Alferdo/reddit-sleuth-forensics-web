@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft } from "lucide-react";
+import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, LayoutDashboard } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import {
@@ -15,11 +15,10 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: BarChart3 },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Monitoring", url: "/monitoring", icon: Monitor },
   { title: "Analysis", url: "/analysis", icon: BarChart3 },
   { title: "User Profiling", url: "/user-profiling", icon: User },
-  { title: "Community Analysis", url: "/community-analysis", icon: Users },
   { title: "Report", url: "/report", icon: FileText },
 ];
 
@@ -41,6 +40,11 @@ export function AppSidebar() {
   const handleBackToCases = () => {
     localStorage.removeItem('selectedCase');
     navigate('/');
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/login');
   };
 
   return (
@@ -84,6 +88,20 @@ export function AppSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          {/* Logout Button */}
+          <SidebarGroup className="mt-auto">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton onClick={handleLogout} className="hover:bg-destructive/20 text-destructive hover:text-destructive">
+                    <LogOut className="h-4 w-4" />
+                    {!isCollapsed && <span>Logout</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

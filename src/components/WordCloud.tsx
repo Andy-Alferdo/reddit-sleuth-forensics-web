@@ -23,8 +23,8 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
 
   const getWordColor = (category: string) => {
     switch (category) {
-      case 'high': return 'text-forensic-accent hover:text-forensic-accent/80';
-      case 'medium': return 'text-primary hover:text-primary/80';
+      case 'high': return 'text-forensic-critical hover:text-forensic-critical/80';
+      case 'medium': return 'text-forensic-accent hover:text-forensic-accent/80';
       case 'low': return 'text-muted-foreground hover:text-foreground';
       default: return 'text-foreground';
     }
@@ -56,11 +56,11 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
         </div>
         <div className="flex justify-center gap-4 mt-4 text-sm">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-forensic-accent rounded"></div>
+            <div className="w-3 h-3 bg-forensic-critical rounded"></div>
             <span>High Frequency</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-primary rounded"></div>
+            <div className="w-3 h-3 bg-forensic-accent rounded"></div>
             <span>Medium</span>
           </div>
           <div className="flex items-center gap-2">
