@@ -390,12 +390,6 @@ const AdminDashboard = () => {
                       {users.filter(u => u.role === 'admin').length}
                     </p>
                   </div>
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="font-semibold mb-2">Regular Users</h3>
-                    <p className="text-3xl font-bold text-primary">
-                      {users.filter(u => u.role === 'user').length}
-                    </p>
-                  </div>
                   <Button 
                     variant="outline" 
                     className="w-full"

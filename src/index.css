@@ -8,54 +8,54 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Dark Cyber Forensic Theme */
-    --background: 220 15% 13%;  /* #1C1F26 Dark Charcoal */
-    --foreground: 0 0% 92%;  /* #EAEAEA Off-White */
+    /* Professional Cyber Forensic Theme */
+    --background: 200 50% 8%;  /* #0A1A1F Deep bluish-black */
+    --foreground: 210 15% 80%;  /* #C9D1D9 Light gray text */
 
-    --card: 220 13% 19%;  /* #2A2F38 Graphite Gray */
-    --card-foreground: 0 0% 92%;
+    --card: 197 40% 14%;  /* #163A42 Lighter panel shade */
+    --card-foreground: 210 15% 80%;
 
-    --popover: 220 13% 19%;
-    --popover-foreground: 0 0% 92%;
+    --popover: 197 40% 14%;
+    --popover-foreground: 210 15% 80%;
 
-    --primary: 197 100% 50%;  /* #00B8FF Cyber Blue */
+    --primary: 199 100% 50%;  /* #00A3FF Cyan-blue */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 13% 19%;  /* #2A2F38 Graphite Gray */
-    --secondary-foreground: 0 0% 92%;
+    --secondary: 197 40% 14%;
+    --secondary-foreground: 210 15% 80%;
 
-    --muted: 220 13% 19%;
-    --muted-foreground: 0 0% 63%;  /* #A0A0A0 Muted Gray */
+    --muted: 197 40% 14%;
+    --muted-foreground: 210 10% 60%;
 
-    --accent: 183 96% 46%;  /* #05E0E9 Electric Cyan */
-    --accent-foreground: 220 15% 13%;
+    --accent: 162 100% 50%;  /* #00FFC6 Teal */
+    --accent-foreground: 200 50% 8%;
 
     --destructive: 354 70% 54%;  /* #E63946 Crimson Red */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 13% 26%;  /* #3B4049 Steel Gray */
-    --input: 220 13% 19%;
-    --ring: 197 100% 50%;
+    --border: 162 100% 50%;  /* #00FFC6 Teal border */
+    --input: 197 40% 14%;
+    --ring: 162 100% 50%;
 
     /* Custom forensic colors */
-    --forensic-blue: 197 100% 50%;  /* #00B8FF Cyber Blue */
-    --forensic-cyan: 183 96% 46%;  /* #05E0E9 Electric Cyan */
-    --forensic-dark: 220 15% 13%;  /* #1C1F26 */
-    --forensic-gray: 220 13% 19%;  /* #2A2F38 */
+    --forensic-blue: 199 100% 50%;  /* #00A3FF Cyan-blue */
+    --forensic-cyan: 162 100% 50%;  /* #00FFC6 Teal */
+    --forensic-dark: 200 50% 8%;  /* #0A1A1F */
+    --forensic-gray: 197 40% 14%;  /* #163A42 */
     --forensic-warning: 38 100% 56%;  /* #FFB020 Amber */
     --forensic-critical: 354 70% 54%;  /* #E63946 Crimson Red */
     --forensic-success: 145 63% 49%;  /* #2ECC71 Lime Green */
     
     /* Gradients */
-    --gradient-primary: linear-gradient(90deg, hsl(197 100% 50%), hsl(183 100% 50%));  /* Blue to Cyan */
-    --gradient-dark: linear-gradient(180deg, hsl(220 15% 13%), hsl(220 13% 19%));
-    --gradient-glow: linear-gradient(135deg, hsl(197 100% 50% / 0.2), hsl(183 96% 46% / 0.2));
+    --gradient-primary: linear-gradient(90deg, hsl(199 100% 50%), hsl(162 100% 50%));  /* Cyan-blue to Teal */
+    --gradient-dark: linear-gradient(180deg, hsl(200 50% 8%), hsl(197 40% 14%));
+    --gradient-glow: linear-gradient(135deg, hsl(199 100% 50% / 0.2), hsl(162 100% 50% / 0.3));
     
     /* Shadows & Effects */
-    --shadow-card: 0 2px 10px hsl(0 0% 0% / 0.4);
-    --shadow-glow: 0 0 10px hsl(197 100% 50% / 0.5);
-    --shadow-glow-hover: 0 0 15px hsl(197 100% 50% / 0.7);
-    --shadow-glow-cyan: 0 0 10px hsl(183 96% 46% / 0.5);
+    --shadow-card: 0 4px 20px hsl(0 0% 0% / 0.5);
+    --shadow-glow: 0 0 10px hsl(162 100% 50% / 0.3);
+    --shadow-glow-hover: 0 0 20px hsl(162 100% 50% / 0.5);
+    --shadow-glow-cyan: 0 0 15px hsl(162 100% 50% / 0.4);
 
     --radius: 0.75rem;
 

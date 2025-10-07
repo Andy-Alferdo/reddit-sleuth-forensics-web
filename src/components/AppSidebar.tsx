@@ -15,10 +15,10 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
+  { title: "Dashboard", url: "/", icon: BarChart3 },
   { title: "Monitoring", url: "/monitoring", icon: Monitor },
   { title: "Analysis", url: "/analysis", icon: BarChart3 },
   { title: "User Profiling", url: "/user-profiling", icon: User },
-  { title: "Link Analysis", url: "/link-analysis", icon: Network },
   { title: "Community Analysis", url: "/community-analysis", icon: Users },
   { title: "Report", url: "/report", icon: FileText },
 ];

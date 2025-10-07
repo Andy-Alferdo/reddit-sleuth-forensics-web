@@ -3,12 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BarChart3, MapPin, Calendar, TrendingUp, Users, MessageCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 
 const Analysis = () => {
   const [keyword, setKeyword] = useState('');
+  const [username, setUsername] = useState('');
+  const [community, setCommunity] = useState('');
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -51,14 +54,14 @@ const Analysis = () => {
     { name: 'Negative', value: 20 },
   ];
 
-  const handleAnalysis = async () => {
+  const handleKeywordAnalysis = async () => {
     if (!keyword.trim()) return;
     
     setIsLoading(true);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     setAnalysisData({
+      type: 'keyword',
       keyword,
       totalMentions: 847,
       sentiment: 'Neutral',
@@ -83,166 +86,461 @@ const Analysis = () => {
     setIsLoading(false);
   };
 
+  const handleCommunityAnalysis = async () => {
+    if (!community.trim()) return;
+    
+    setIsLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    setAnalysisData({
+      type: 'community',
+      community,
+      memberCount: 2100000,
+      activeUsers: 15000,
+      topUsers: [
+        { username: 'user1', posts: 234, karma: 45000 },
+        { username: 'user2', posts: 189, karma: 38000 },
+        { username: 'user3', posts: 156, karma: 31000 },
+      ],
+      topTopics: [
+        { topic: 'Security Vulnerabilities', mentions: 456 },
+        { topic: 'Best Practices', mentions: 389 },
+        { topic: 'New Threats', mentions: 312 },
+      ]
+    });
+    
+    setIsLoading(false);
+  };
+
+  const handleLinkAnalysis = async () => {
+    if (!username.trim()) return;
+    
+    setIsLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    
+    setAnalysisData({
+      type: 'link',
+      primaryUser: username,
+      userToCommunities: [
+        { community: 'r/cybersecurity', activity: 85, posts: 234 },
+        { community: 'r/privacy', activity: 72, posts: 156 },
+        { community: 'r/netsec', activity: 68, posts: 98 },
+      ],
+      communityCrossover: [
+        { from: 'r/cybersecurity', to: 'r/privacy', strength: 75 },
+        { from: 'r/privacy', to: 'r/netsec', strength: 62 },
+        { from: 'r/cybersecurity', to: 'r/netsec', strength: 58 },
+      ],
+      networkMetrics: {
+        totalCommunities: 8,
+        avgActivityScore: 78,
+        crossCommunityLinks: 12
+      }
+    });
+    
+    setIsLoading(false);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-primary mb-2">Keyword Analysis</h2>
-        <p className="text-muted-foreground">Perform in-depth analysis of keywords and trends</p>
+        <h2 className="text-2xl font-bold text-primary mb-2">Analysis Tools</h2>
+        <p className="text-muted-foreground">Comprehensive analysis across different dimensions</p>
       </div>
 
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            <span>Analyze Keyword</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="keyword">Keyword to Analyze</Label>
-            <div className="flex space-x-2">
-              <Input
-                id="keyword"
-                placeholder="Enter keyword for analysis..."
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                className="flex-1"
-              />
-              <Button 
-                onClick={handleAnalysis}
-                disabled={isLoading || !keyword.trim()}
-                variant="forensic"
-                className="px-6"
-              >
-                {isLoading ? 'Analyzing...' : 'Analyze'}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="keyword" className="w-full" onValueChange={() => setAnalysisData(null)}>
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="keyword">Keyword Analysis</TabsTrigger>
+          <TabsTrigger value="community">Community Analysis</TabsTrigger>
+          <TabsTrigger value="link">Link Analysis</TabsTrigger>
+        </TabsList>
 
-      {analysisData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-primary/20">
+        <TabsContent value="keyword" className="space-y-6">
+          <Card className="border-primary/20 shadow-glow">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                <span>Overview</span>
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <span>Analyze Keyword</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 rounded-lg bg-primary/10">
-                    <div className="text-2xl font-bold text-primary">{analysisData.totalMentions}</div>
-                    <p className="text-sm text-muted-foreground">Total Mentions</p>
-                  </div>
-                  <div className="text-center p-4 rounded-lg bg-forensic-accent/10">
-                    <div className="text-2xl font-bold text-forensic-accent">{analysisData.sentiment}</div>
-                    <p className="text-sm text-muted-foreground">Sentiment</p>
-                  </div>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="keyword">Keyword to Analyze</Label>
+                <div className="flex space-x-2">
+                  <Input
+                    id="keyword"
+                    placeholder="Enter keyword for analysis..."
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleKeywordAnalysis}
+                    disabled={isLoading || !keyword.trim()}
+                    className="px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    {isLoading ? 'Analyzing...' : 'Analyze'}
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                <span>Geographic Distribution</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {analysisData.geographicData.map((location: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border">
-                    <span className="font-medium">{location.location}</span>
-                    <span className="text-primary font-semibold">{location.mentions}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {analysisData?.type === 'keyword' && (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="border-primary/20 shadow-glow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                      <span>Overview</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                          <div className="text-2xl font-bold text-primary">{analysisData.totalMentions}</div>
+                          <p className="text-sm text-muted-foreground">Total Mentions</p>
+                        </div>
+                        <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/30">
+                          <div className="text-2xl font-bold text-accent">{analysisData.sentiment}</div>
+                          <p className="text-sm text-muted-foreground">Sentiment</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-          <Card className="border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                <span>Timeline Analysis</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {analysisData.timeline.map((point: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border">
-                    <span className="font-medium">{point.date}</span>
-                    <span className="text-primary font-semibold">{point.mentions} mentions</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                <Card className="border-primary/20 shadow-glow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <MapPin className="h-5 w-5 text-primary" />
+                      <span>Geographic Distribution</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analysisData.geographicData.map((location: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
+                          <span className="font-medium">{location.location}</span>
+                          <span className="text-primary font-semibold">{location.mentions}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
 
-          <Card className="border-primary/20">
+                <Card className="border-primary/20 shadow-glow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Calendar className="h-5 w-5 text-primary" />
+                      <span>Timeline Analysis</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analysisData.timeline.map((point: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
+                          <span className="font-medium">{point.date}</span>
+                          <span className="text-primary font-semibold">{point.mentions} mentions</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-primary/20 shadow-glow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      <span>Top Subreddits</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analysisData.topSubreddits.map((subreddit: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
+                          <span className="font-medium">{subreddit.name}</span>
+                          <span className="text-primary font-semibold">{subreddit.mentions} mentions</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <WordCloud words={wordCloudData} title="Top Keywords Analysis" />
+                  <AnalyticsChart 
+                    data={trendChartData} 
+                    title="Activity Trends Over Time" 
+                    type="line" 
+                    height={250}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <AnalyticsChart 
+                    data={communityChartData} 
+                    title="Top Communities by Activity" 
+                    type="bar" 
+                    height={250}
+                  />
+                  <AnalyticsChart 
+                    data={sentimentChartData} 
+                    title="Sentiment Analysis" 
+                    type="pie" 
+                    height={250}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {!analysisData && !isLoading && (
+            <Card className="border-dashed border-muted-foreground/30">
+              <CardContent className="py-12 text-center">
+                <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Enter a keyword to perform detailed analysis</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="community" className="space-y-6">
+          <Card className="border-primary/20 shadow-glow">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Users className="h-5 w-5 text-primary" />
-                <span>Top Subreddits</span>
+                <span>Analyze Community</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {analysisData.topSubreddits.map((subreddit: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border">
-                    <span className="font-medium">{subreddit.name}</span>
-                    <span className="text-primary font-semibold">{subreddit.mentions} mentions</span>
-                  </div>
-                ))}
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="community">Community Name</Label>
+                <div className="flex space-x-2">
+                  <Input
+                    id="community"
+                    placeholder="Enter community name (e.g., r/cybersecurity)..."
+                    value={community}
+                    onChange={(e) => setCommunity(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleCommunityAnalysis}
+                    disabled={isLoading || !community.trim()}
+                    className="px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    {isLoading ? 'Analyzing...' : 'Analyze'}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
-        </div>
-      )}
 
-      {/* Analytics Visualizations */}
-      {analysisData && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <WordCloud words={wordCloudData} title="Top Keywords Analysis" />
-            <AnalyticsChart 
-              data={trendChartData} 
-              title="Activity Trends Over Time" 
-              type="line" 
-              height={250}
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <AnalyticsChart 
-              data={communityChartData} 
-              title="Top Communities by Activity" 
-              type="bar" 
-              height={250}
-            />
-            <AnalyticsChart 
-              data={sentimentChartData} 
-              title="Sentiment Analysis" 
-              type="pie" 
-              height={250}
-            />
-          </div>
-        </div>
-      )}
+          {analysisData?.type === 'community' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border-primary/20 shadow-glow">
+                <CardHeader>
+                  <CardTitle>Community Overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                        <div className="text-2xl font-bold text-primary">{analysisData.memberCount.toLocaleString()}</div>
+                        <p className="text-sm text-muted-foreground">Members</p>
+                      </div>
+                      <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/30">
+                        <div className="text-2xl font-bold text-accent">{analysisData.activeUsers.toLocaleString()}</div>
+                        <p className="text-sm text-muted-foreground">Active Users</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-      {!analysisData && !isLoading && (
-        <Card className="border-dashed border-muted-foreground/30">
-          <CardContent className="py-12 text-center">
-            <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Enter a keyword to perform detailed analysis</p>
-          </CardContent>
-        </Card>
-      )}
+              <Card className="border-primary/20 shadow-glow">
+                <CardHeader>
+                  <CardTitle>Top Users</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {analysisData.topUsers.map((user: any, index: number) => (
+                      <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
+                        <div>
+                          <span className="font-medium">u/{user.username}</span>
+                          <p className="text-sm text-muted-foreground">{user.posts} posts</p>
+                        </div>
+                        <span className="text-primary font-semibold">{user.karma} karma</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-primary/20 shadow-glow lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Top Topics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {analysisData.topTopics.map((topic: any, index: number) => (
+                      <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
+                        <span className="font-medium">{topic.topic}</span>
+                        <span className="text-primary font-semibold">{topic.mentions} mentions</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {!analysisData && !isLoading && (
+            <Card className="border-dashed border-muted-foreground/30">
+              <CardContent className="py-12 text-center">
+                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Enter a community name to perform detailed analysis</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="link" className="space-y-6">
+          <Card className="border-primary/20 shadow-glow">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Network className="h-5 w-5 text-primary" />
+                <span>User to Community Link Analysis</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="link-username">Reddit Username</Label>
+                <div className="flex space-x-2">
+                  <Input
+                    id="link-username"
+                    placeholder="Enter username to analyze community connections..."
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleLinkAnalysis}
+                    disabled={isLoading || !username.trim()}
+                    className="px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    {isLoading ? 'Analyzing...' : 'Analyze'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {analysisData?.type === 'link' && (
+            <div className="space-y-6">
+              <Card className="border-primary/20 shadow-glow">
+                <CardHeader>
+                  <CardTitle>Network Overview - u/{analysisData.primaryUser}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                      <Share2 className="h-6 w-6 text-primary mx-auto mb-2" />
+                      <div className="font-bold text-primary">{analysisData.networkMetrics.totalCommunities}</div>
+                      <p className="text-sm text-muted-foreground">Communities</p>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/30">
+                      <Network className="h-6 w-6 text-accent mx-auto mb-2" />
+                      <div className="font-bold text-accent">{analysisData.networkMetrics.crossCommunityLinks}</div>
+                      <p className="text-sm text-muted-foreground">Cross-Links</p>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-card border border-border">
+                      <BarChart3 className="h-6 w-6 text-foreground mx-auto mb-2" />
+                      <div className="font-bold text-foreground">{analysisData.networkMetrics.avgActivityScore}%</div>
+                      <p className="text-sm text-muted-foreground">Avg Activity</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="border-primary/20 shadow-glow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      <span>User to Community Connections</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {analysisData.userToCommunities.map((conn: any, index: number) => (
+                        <div key={index} className="p-4 rounded-lg bg-card border border-border">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-semibold text-lg">{conn.community}</h3>
+                              <p className="text-sm text-muted-foreground">{conn.posts} posts</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold text-primary">{conn.activity}%</div>
+                              <p className="text-xs text-muted-foreground">Activity</p>
+                            </div>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${conn.activity}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-primary/20 shadow-glow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <AlertTriangle className="h-5 w-5 text-accent" />
+                      <span>Community to Community Links</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analysisData.communityCrossover.map((link: any, index: number) => (
+                        <div key={index} className="p-3 rounded-lg bg-card border border-border">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium">{link.from} → {link.to}</span>
+                            <span className="text-sm font-bold text-accent">{link.strength}%</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-accent h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${link.strength}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {!analysisData && !isLoading && (
+            <Card className="border-dashed border-muted-foreground/30">
+              <CardContent className="py-12 text-center">
+                <Network className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Enter a username to discover community connections</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
