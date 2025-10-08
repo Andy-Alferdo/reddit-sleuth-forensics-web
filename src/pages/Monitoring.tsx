@@ -11,7 +11,7 @@ import { AnalyticsChart } from '@/components/AnalyticsChart';
 const Monitoring = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchType, setSearchType] = useState<'username' | 'keyword'>('keyword');
+  const [searchType, setSearchType] = useState<'username' | 'subreddit'>('username');
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -80,36 +80,37 @@ const Monitoring = () => {
         }
       ]);
     } else {
-      // Simulate keyword search results
+      // Simulate subreddit/community search results
+      const subreddit = searchQuery.replace('r/', '');
       setResults([
         {
           type: 'post',
-          title: 'Discussion about ' + searchQuery,
+          title: 'Top discussion in ' + subreddit,
           author: 'user123',
-          subreddit: 'r/technology',
+          subreddit: searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit,
           score: 156,
           comments: 45,
           created: '2023-10-14',
-          url: 'https://reddit.com/r/technology/post1'
+          url: 'https://reddit.com/' + (searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit) + '/post1'
         },
         {
           type: 'post',
-          title: 'Analysis of ' + searchQuery + ' trends',
+          title: 'Popular post in ' + subreddit,
           author: 'analyst456',
-          subreddit: 'r/datascience',
+          subreddit: searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit,
           score: 89,
           comments: 23,
           created: '2023-10-13',
-          url: 'https://reddit.com/r/datascience/post2'
+          url: 'https://reddit.com/' + (searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit) + '/post2'
         },
         {
           type: 'comment',
-          content: 'This relates to ' + searchQuery + ' in many ways...',
+          content: 'Active discussion in ' + subreddit + ' community...',
           author: 'commentor789',
-          subreddit: 'r/science',
+          subreddit: searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit,
           score: 12,
           created: '2023-10-12',
-          url: 'https://reddit.com/r/science/comment1'
+          url: 'https://reddit.com/' + (searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit) + '/comment1'
         }
       ]);
     }
@@ -121,11 +122,14 @@ const Monitoring = () => {
     const value = e.target.value;
     setSearchQuery(value);
     
-    // Auto-detect if it's a username
+    // Auto-detect if it's a username or subreddit
     if (value.startsWith('u/')) {
       setSearchType('username');
+    } else if (value.startsWith('r/')) {
+      setSearchType('subreddit');
     } else {
-      setSearchType('keyword');
+      // Default to username if no prefix
+      setSearchType('username');
     }
   };
 
@@ -133,7 +137,7 @@ const Monitoring = () => {
     <div className="p-6 space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-primary mb-2">Reddit Monitoring</h2>
-        <p className="text-muted-foreground">Search for users, keywords, and monitor Reddit activity</p>
+        <p className="text-muted-foreground">Search for users, communities, and monitor Reddit activity</p>
       </div>
 
       <Card className="border-primary/20">
@@ -149,7 +153,7 @@ const Monitoring = () => {
             <div className="flex space-x-2">
               <Input
                 id="search"
-                placeholder="Enter keyword or u/username to search..."
+                placeholder="Enter u/username or r/community to search..."
                 value={searchQuery}
                 onChange={handleInputChange}
                 className="flex-1"
@@ -166,7 +170,7 @@ const Monitoring = () => {
             <p className="text-xs text-muted-foreground">
               {searchType === 'username' 
                 ? 'Searching for user profile' 
-                : 'Searching for keyword in posts and comments'
+                : 'Searching for community activity'
               }
             </p>
           </div>
@@ -270,7 +274,7 @@ const Monitoring = () => {
         <Card className="border-dashed border-muted-foreground/30">
           <CardContent className="py-12 text-center">
             <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Enter a search query to monitor Reddit activity</p>
+            <p className="text-muted-foreground">Enter a username (u/username) or community (r/community) to monitor Reddit activity</p>
           </CardContent>
         </Card>
       )}
