@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import MovingBackground from '@/components/MovingBackground';
-import logo from '@/assets/reddit-sleuth-logo.png';
+import logo from '@/assets/intel-reddit-logo.png';
 import { Shield } from 'lucide-react';
 
 interface LoginPageProps {
@@ -35,11 +35,11 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
             <div className="flex justify-center mb-4">
               <img 
                 src={logo} 
-                alt="Reddit Sleuth Logo" 
+                alt="Intel Reddit Logo" 
                 className="w-20 h-20 animate-glow-pulse"
               />
             </div>
-            <CardTitle className="text-2xl font-bold text-primary">Reddit Sleuth</CardTitle>
+            <CardTitle className="text-2xl font-bold text-primary">Intel Reddit</CardTitle>
             <p className="text-sm italic text-muted-foreground mt-2 font-serif">
               "Digital footprints never lie, they only wait to be discovered"
             </p>
