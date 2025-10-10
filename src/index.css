@@ -8,65 +8,65 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Professional Cyber Forensic Theme */
-    --background: 200 50% 8%;  /* #0A1A1F Deep bluish-black */
-    --foreground: 210 15% 80%;  /* #C9D1D9 Light gray text */
+    /* Professional Light Cyber Forensic Theme */
+    --background: 0 0% 98%;  /* Light gray background */
+    --foreground: 222 47% 11%;  /* Dark text */
 
-    --card: 197 40% 14%;  /* #163A42 Lighter panel shade */
-    --card-foreground: 210 15% 80%;
+    --card: 0 0% 100%;  /* White cards */
+    --card-foreground: 222 47% 11%;
 
-    --popover: 197 40% 14%;
-    --popover-foreground: 210 15% 80%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 199 100% 50%;  /* #00A3FF Cyan-blue */
+    --primary: 199 100% 40%;  /* Darker cyan-blue for better contrast */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 197 40% 14%;
-    --secondary-foreground: 210 15% 80%;
+    --secondary: 210 20% 92%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 197 40% 14%;
-    --muted-foreground: 210 10% 60%;
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 162 100% 50%;  /* #00FFC6 Teal */
-    --accent-foreground: 200 50% 8%;
+    --accent: 162 80% 45%;  /* Darker teal for better contrast */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 354 70% 54%;  /* #E63946 Crimson Red */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 162 100% 50%;  /* #00FFC6 Teal border */
-    --input: 197 40% 14%;
-    --ring: 162 100% 50%;
+    --border: 214 32% 91%;  /* Subtle light border */
+    --input: 214 32% 91%;
+    --ring: 199 100% 40%;
 
     /* Custom forensic colors */
-    --forensic-blue: 199 100% 50%;  /* #00A3FF Cyan-blue */
-    --forensic-cyan: 162 100% 50%;  /* #00FFC6 Teal */
-    --forensic-dark: 200 50% 8%;  /* #0A1A1F */
-    --forensic-gray: 197 40% 14%;  /* #163A42 */
-    --forensic-warning: 38 100% 56%;  /* #FFB020 Amber */
-    --forensic-critical: 354 70% 54%;  /* #E63946 Crimson Red */
-    --forensic-success: 145 63% 49%;  /* #2ECC71 Lime Green */
+    --forensic-blue: 199 100% 40%;  /* Darker cyan-blue */
+    --forensic-cyan: 162 80% 45%;  /* Darker teal */
+    --forensic-dark: 222 47% 11%;  /* Dark text */
+    --forensic-gray: 214 32% 91%;  /* Light gray */
+    --forensic-warning: 38 92% 50%;  /* Amber */
+    --forensic-critical: 354 70% 54%;  /* Crimson Red */
+    --forensic-success: 145 63% 42%;  /* Darker lime green */
     
     /* Gradients */
-    --gradient-primary: linear-gradient(90deg, hsl(199 100% 50%), hsl(162 100% 50%));  /* Cyan-blue to Teal */
-    --gradient-dark: linear-gradient(180deg, hsl(200 50% 8%), hsl(197 40% 14%));
-    --gradient-glow: linear-gradient(135deg, hsl(199 100% 50% / 0.2), hsl(162 100% 50% / 0.3));
+    --gradient-primary: linear-gradient(90deg, hsl(199 100% 40%), hsl(162 80% 45%));
+    --gradient-dark: linear-gradient(180deg, hsl(210 20% 95%), hsl(0 0% 100%));
+    --gradient-glow: linear-gradient(135deg, hsl(199 100% 40% / 0.1), hsl(162 80% 45% / 0.1));
     
     /* Shadows & Effects */
-    --shadow-card: 0 4px 20px hsl(0 0% 0% / 0.5);
-    --shadow-glow: 0 0 10px hsl(162 100% 50% / 0.3);
-    --shadow-glow-hover: 0 0 20px hsl(162 100% 50% / 0.5);
-    --shadow-glow-cyan: 0 0 15px hsl(162 100% 50% / 0.4);
+    --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.1);
+    --shadow-glow: 0 0 10px hsl(162 80% 45% / 0.15);
+    --shadow-glow-hover: 0 0 20px hsl(162 80% 45% / 0.25);
+    --shadow-glow-cyan: 0 0 15px hsl(162 80% 45% / 0.2);
 
     --radius: 0.75rem;
 
-    --sidebar-background: 220 13% 19%;
-    --sidebar-foreground: 0 0% 92%;
-    --sidebar-primary: 197 100% 50%;
-    --sidebar-primary-foreground: 220 15% 13%;
-    --sidebar-accent: 220 13% 26%;
-    --sidebar-accent-foreground: 0 0% 92%;
-    --sidebar-border: 220 13% 26%;
-    --sidebar-ring: 197 100% 50%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 199 100% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 95%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 199 100% 40%;
   }
 
   .dark {

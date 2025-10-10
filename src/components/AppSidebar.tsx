@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, LayoutDashboard } from "lucide-react";
+import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, LayoutDashboard, FolderOpen, Plus } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import {
@@ -22,6 +22,12 @@ const menuItems = [
   { title: "Report", url: "/report", icon: FileText },
 ];
 
+const savedCases = [
+  { id: 1, name: "Case #2023-001", description: "Reddit harassment investigation", date: "2023-10-15", status: "Active" },
+  { id: 2, name: "Case #2023-002", description: "Fraud detection analysis", date: "2023-10-12", status: "Closed" },
+  { id: 3, name: "Case #2023-003", description: "Missing person social media trace", date: "2023-10-08", status: "Pending" },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
@@ -37,8 +43,8 @@ export function AppSidebar() {
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive ? "bg-primary/20 text-primary font-medium border-r-2 border-primary" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
-  const handleBackToCases = () => {
-    localStorage.removeItem('selectedCase');
+  const handleSelectCase = (caseData: typeof savedCases[0]) => {
+    localStorage.setItem('selectedCase', JSON.stringify(caseData));
     navigate('/');
   };
 
@@ -52,27 +58,56 @@ export function AppSidebar() {
       collapsible="icon"
     >
       <SidebarContent className="border-r border-border">
-        {hasSelectedCase ? (
-          <>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton onClick={handleBackToCases} className="hover:bg-muted/50 text-muted-foreground hover:text-foreground">
-                      <ArrowLeft className="h-4 w-4" />
-                      {!isCollapsed && <span>Back to Cases</span>}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+        {/* Cases Section - Always Visible */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-primary font-semibold flex items-center gap-2">
+            <FolderOpen className="h-4 w-4" />
+            {!isCollapsed && <span>Cases</span>}
+          </SidebarGroupLabel>
 
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-primary font-semibold">
-                Case: {JSON.parse(selectedCase).name}
-              </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {/* Create New Case Button */}
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => navigate('/new-case')} className="hover:bg-primary/10 text-primary hover:text-primary">
+                  <Plus className="h-4 w-4" />
+                  {!isCollapsed && <span>New Case</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
-              <SidebarGroupContent>
+              {/* List of Cases */}
+              {savedCases.map((caseItem) => (
+                <SidebarMenuItem key={caseItem.id}>
+                  <SidebarMenuButton 
+                    onClick={() => handleSelectCase(caseItem)}
+                    className={
+                      hasSelectedCase && JSON.parse(selectedCase).id === caseItem.id
+                        ? "bg-primary/20 text-primary font-medium border-r-2 border-primary"
+                        : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                    }
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    {!isCollapsed && (
+                      <div className="flex flex-col items-start overflow-hidden">
+                        <span className="text-sm font-medium truncate w-full">{caseItem.name}</span>
+                        <span className="text-xs text-muted-foreground truncate w-full">{caseItem.status}</span>
+                      </div>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Navigation Menu - Only show when case is selected */}
+        {hasSelectedCase && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-foreground font-semibold">
+              {!isCollapsed && <span>Navigation</span>}
+            </SidebarGroupLabel>
+
+            <SidebarGroupContent>
               <SidebarMenu>
                 {menuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
@@ -91,28 +126,21 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-
-          {/* Logout Button */}
-          <SidebarGroup className="mt-auto">
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton onClick={handleLogout} className="hover:bg-destructive/20 text-destructive hover:text-destructive">
-                    <LogOut className="h-4 w-4" />
-                    {!isCollapsed && <span>Logout</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-          </>
-        ) : (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-muted-foreground text-sm">
-              Select a case to begin investigation
-            </SidebarGroupLabel>
-          </SidebarGroup>
         )}
+
+        {/* Logout Button */}
+        <SidebarGroup className="mt-auto">
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleLogout} className="hover:bg-destructive/20 text-destructive hover:text-destructive">
+                  <LogOut className="h-4 w-4" />
+                  {!isCollapsed && <span>Logout</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );

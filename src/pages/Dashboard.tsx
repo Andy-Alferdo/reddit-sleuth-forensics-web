@@ -7,17 +7,15 @@ import { AnalyticsChart } from '@/components/AnalyticsChart';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [hoveredCase, setHoveredCase] = useState<number | null>(null);
-
-  const savedCases = [
-    { id: 1, name: "Case #2023-001", description: "Reddit harassment investigation", date: "2023-10-15", status: "Active" },
-    { id: 2, name: "Case #2023-002", description: "Fraud detection analysis", date: "2023-10-12", status: "Closed" },
-    { id: 3, name: "Case #2023-003", description: "Missing person social media trace", date: "2023-10-08", status: "Pending" },
-  ];
+  
+  // Check if a case is selected
+  const selectedCase = localStorage.getItem('selectedCase');
+  const hasSelectedCase = selectedCase !== null;
+  const caseData = hasSelectedCase ? JSON.parse(selectedCase) : null;
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'text-forensic-accent';
+      case 'Active': return 'text-forensic-success';
       case 'Closed': return 'text-muted-foreground';
       case 'Pending': return 'text-forensic-warning';
       default: return 'text-foreground';
@@ -27,82 +25,74 @@ const Dashboard = () => {
   return (
     <div className="p-6 space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-primary mb-2">Case Management</h2>
-        <p className="text-muted-foreground">Manage and track your forensic investigations</p>
+        <h2 className="text-2xl font-bold text-primary mb-2">
+          {hasSelectedCase ? `Case Dashboard - ${caseData.name}` : 'Dashboard Overview'}
+        </h2>
+        <p className="text-muted-foreground">
+          {hasSelectedCase 
+            ? `${caseData.description} - Status: ${caseData.status}` 
+            : 'Select a case from the sidebar to begin investigation'}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Plus className="h-5 w-5 text-primary" />
-              <span>Create New Case</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center space-y-4">
-              <div className="bg-primary/10 rounded-full w-16 h-16 flex items-center justify-center mx-auto">
-                <Plus className="h-8 w-8 text-primary" />
-              </div>
-              <p className="text-muted-foreground">
-                Start a new forensic investigation case
-              </p>
-              <Button 
-                variant="forensic" 
-                className="w-full"
-                onClick={() => navigate('/new-case')}
-              >
-                Create New Case
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <FolderOpen className="h-5 w-5 text-primary" />
-              <span>Active Cases</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {savedCases.map((case_) => (
-                <div
-                  key={case_.id}
-                  className="relative p-3 rounded-lg bg-card border border-border hover:border-primary/50 transition-all duration-200 cursor-pointer"
-                  onMouseEnter={() => setHoveredCase(case_.id)}
-                  onMouseLeave={() => setHoveredCase(null)}
-                  onClick={() => {
-                    // Set selected case and navigate to monitoring
-                    localStorage.setItem('selectedCase', JSON.stringify(case_));
-                    navigate('/monitoring');
-                  }}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-foreground">{case_.name}</h3>
-                      <p className="text-sm text-muted-foreground">{case_.description}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{case_.date}</p>
-                    </div>
-                    <span className={`text-sm font-medium ${getStatusColor(case_.status)}`}>
-                      {case_.status}
-                    </span>
+      {hasSelectedCase ? (
+        <>
+          {/* Case Overview Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="border-primary/20">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <p className={`text-xl font-bold ${getStatusColor(caseData.status)}`}>
+                      {caseData.status}
+                    </p>
                   </div>
-                  
-                  {hoveredCase === case_.id && (
-                    <div className="absolute top-2 right-2 flex space-x-1">
-                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0">
-                        <Eye className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
+                  <FolderOpen className="h-8 w-8 text-primary" />
                 </div>
-              ))}
-            </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-primary/20">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Created</p>
+                    <p className="text-xl font-bold text-foreground">{caseData.date}</p>
+                  </div>
+                  <Eye className="h-8 w-8 text-forensic-cyan" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-primary/20">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Evidence Items</p>
+                    <p className="text-xl font-bold text-forensic-warning">24</p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-forensic-warning" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      ) : (
+        <Card className="border-dashed border-muted-foreground/30">
+          <CardContent className="py-12 text-center">
+            <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground mb-4">No case selected. Please select a case from the sidebar or create a new one.</p>
+            <Button 
+              variant="default" 
+              onClick={() => navigate('/new-case')}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Case
+            </Button>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       {/* Trends and Analytics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
