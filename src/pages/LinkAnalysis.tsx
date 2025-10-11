@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Network, Users, Share2, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { NetworkVisualization } from '@/components/NetworkVisualization';
+import { HeliosNetworkGraph } from '@/components/HeliosNetworkGraph';
 
 const LinkAnalysis = () => {
   const [username, setUsername] = useState('');
@@ -269,7 +270,35 @@ const LinkAnalysis = () => {
             </Card>
           </div>
 
-          {/* Network Graph Visualization */}
+          {/* Helios Network Graph Visualization */}
+          <HeliosNetworkGraph
+            title="Network Analysis (Helios Web)"
+            nodes={[
+              { id: 'user1', label: linkData.primaryUser, type: 'user' },
+              { id: 'reddit', label: 'r/technology', type: 'community' },
+              { id: 'twitter', label: 'r/programming', type: 'community' },
+              { id: 'github', label: 'r/datascience', type: 'community' },
+              { id: 'linkedin', label: 'r/MachineLearning', type: 'community' },
+              { id: 'user2', label: 'Related User 1', type: 'user' },
+              { id: 'user3', label: 'Related User 2', type: 'user' },
+              { id: 'platform1', label: 'Twitter', type: 'platform' },
+              { id: 'platform2', label: 'GitHub', type: 'platform' },
+            ]}
+            links={[
+              { source: 'user1', target: 'reddit', weight: 2 },
+              { source: 'user1', target: 'twitter', weight: 3 },
+              { source: 'user1', target: 'github', weight: 2 },
+              { source: 'user1', target: 'linkedin', weight: 1 },
+              { source: 'reddit', target: 'twitter', weight: 2 },
+              { source: 'twitter', target: 'github', weight: 1 },
+              { source: 'user2', target: 'reddit', weight: 1 },
+              { source: 'user3', target: 'twitter', weight: 1 },
+              { source: 'user1', target: 'platform1', weight: 2 },
+              { source: 'user1', target: 'platform2', weight: 2 },
+            ]}
+          />
+
+          {/* Force Graph Visualization */}
           <NetworkVisualization
             title="User to Community Connections & Community to Community Links"
             nodes={[

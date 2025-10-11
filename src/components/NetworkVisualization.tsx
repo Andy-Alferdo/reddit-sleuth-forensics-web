@@ -32,21 +32,39 @@ export const NetworkVisualization = ({ title, nodes, links }: NetworkVisualizati
 
   const getNodeColor = (node: NetworkNode) => {
     switch (node.type) {
-      case 'user': return '#0EA5E9'; // Primary blue
-      case 'community': return '#10B981'; // Green for communities
-      case 'platform': return '#8B5CF6'; // Purple for platforms
-      default: return '#6B7280';
+      case 'user': return 'hsl(var(--primary))';
+      case 'community': return 'hsl(var(--forensic-success))';
+      case 'platform': return 'hsl(var(--accent))';
+      default: return 'hsl(var(--muted-foreground))';
     }
   };
 
+  const parseColor = (hslString: string) => {
+    // Convert HSL CSS variable to hex for the library
+    const temp = document.createElement('div');
+    temp.style.color = hslString;
+    document.body.appendChild(temp);
+    const computed = window.getComputedStyle(temp).color;
+    document.body.removeChild(temp);
+    
+    const rgb = computed.match(/\d+/g)?.map(Number);
+    if (!rgb) return '#0EA5E9';
+    
+    const hex = '#' + rgb.map(x => x.toString(16).padStart(2, '0')).join('');
+    return hex;
+  };
+
   const graphData = {
-    nodes: nodes.map(node => ({
-      id: node.id,
-      name: node.label,
-      type: node.type,
-      color: getNodeColor(node),
-      val: node.type === 'user' ? 15 : 10
-    })),
+    nodes: nodes.map(node => {
+      const hslColor = getNodeColor(node);
+      return {
+        id: node.id,
+        name: node.label,
+        type: node.type,
+        color: parseColor(hslColor),
+        val: node.type === 'user' ? 15 : 10
+      };
+    }),
     links: links.map(link => ({
       source: link.source,
       target: link.target,
@@ -56,12 +74,12 @@ export const NetworkVisualization = ({ title, nodes, links }: NetworkVisualizati
   };
 
   return (
-    <Card className="border-primary/20">
+    <Card className="border-primary/20 bg-card/50 backdrop-blur-sm shadow-lg">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="w-full rounded-lg overflow-hidden bg-background border border-border">
+        <div className="w-full rounded-lg overflow-hidden bg-background border border-border shadow-inner">
           <ForceGraph2D
             ref={fgRef}
             graphData={graphData}
@@ -99,15 +117,15 @@ export const NetworkVisualization = ({ title, nodes, links }: NetworkVisualizati
         </div>
         <div className="mt-4 flex gap-4 justify-center text-sm">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-[#0EA5E9]"></div>
+            <div className="w-4 h-4 rounded-full bg-primary"></div>
             <span>Users</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-[#10B981]"></div>
+            <div className="w-4 h-4 rounded-full bg-forensic-success"></div>
             <span>Communities</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-[#8B5CF6]"></div>
+            <div className="w-4 h-4 rounded-full bg-accent"></div>
             <span>Platforms</span>
           </div>
         </div>
