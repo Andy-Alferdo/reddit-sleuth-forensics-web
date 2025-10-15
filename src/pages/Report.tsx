@@ -4,9 +4,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Download, Save, Calendar, User, Gavel, Shield } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { FileText, Download, Save, Calendar, User, Gavel, Shield, FileCode, FileCog } from 'lucide-react';
 
 const Report = () => {
+  const [reportType, setReportType] = useState<'automated' | 'customized'>('automated');
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'html'>('pdf');
+  const [selectedModules, setSelectedModules] = useState({
+    sentimentAnalysis: true,
+    userProfiling: true,
+    keywordTrends: true,
+    communityAnalysis: false,
+    linkAnalysis: false,
+    temporalAnalysis: false
+  });
+  
   const [reportData, setReportData] = useState({
     caseNumber: 'CASE-2023-001',
     investigator: 'Det. Sarah Johnson',
@@ -17,7 +30,8 @@ const Report = () => {
     findings: '',
     methodology: '',
     conclusions: '',
-    recommendations: ''
+    recommendations: '',
+    personalizedObservations: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -27,14 +41,25 @@ const Report = () => {
     });
   };
 
-  const generatePDFReport = () => {
-    // Simulate PDF generation
-    console.log('Generating PDF report...', reportData);
-    alert('PDF report generated successfully!');
+  const handleModuleToggle = (module: keyof typeof selectedModules) => {
+    setSelectedModules({
+      ...selectedModules,
+      [module]: !selectedModules[module]
+    });
+  };
+
+  const generateReport = () => {
+    const reportInfo = {
+      type: reportType,
+      format: exportFormat,
+      data: reportData,
+      ...(reportType === 'customized' && { modules: selectedModules })
+    };
+    console.log('Generating report...', reportInfo);
+    alert(`${exportFormat.toUpperCase()} report generated successfully!`);
   };
 
   const saveReportDraft = () => {
-    // Simulate saving draft
     console.log('Saving report draft...', reportData);
     alert('Report draft saved successfully!');
   };
@@ -43,8 +68,107 @@ const Report = () => {
     <div className="p-6 space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-primary mb-2">Forensic Report Generator</h2>
-        <p className="text-muted-foreground">Generate court-ready forensic investigation reports</p>
+        <p className="text-muted-foreground">Generate automated or customized investigation reports in PDF or HTML format</p>
       </div>
+
+      {/* Report Configuration */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <FileCog className="h-5 w-5 text-primary" />
+            <span>Report Configuration</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={reportType} onValueChange={(v) => setReportType(v as 'automated' | 'customized')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="automated">Automated Report</TabsTrigger>
+              <TabsTrigger value="customized">Customized Report</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="automated" className="space-y-4 mt-4">
+              <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Automated reports summarize all analytical results after each investigation, including all modules and findings.
+                </p>
+                <div className="space-y-2">
+                  <Label>Export Format</Label>
+                  <div className="flex space-x-4">
+                    <Button
+                      type="button"
+                      variant={exportFormat === 'pdf' ? 'default' : 'outline'}
+                      onClick={() => setExportFormat('pdf')}
+                      className="flex-1"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      PDF Format
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={exportFormat === 'html' ? 'default' : 'outline'}
+                      onClick={() => setExportFormat('html')}
+                      className="flex-1"
+                    >
+                      <FileCode className="h-4 w-4 mr-2" />
+                      HTML Format
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="customized" className="space-y-4 mt-4">
+              <div className="p-4 rounded-lg bg-muted/50 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Customized reports allow you to select specific modules and add personalized observations before exporting.
+                </p>
+                
+                <div className="space-y-3">
+                  <Label>Select Modules to Include</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {Object.entries(selectedModules).map(([key, value]) => (
+                      <div key={key} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={key}
+                          checked={value}
+                          onCheckedChange={() => handleModuleToggle(key as keyof typeof selectedModules)}
+                        />
+                        <Label htmlFor={key} className="cursor-pointer font-normal">
+                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Export Format</Label>
+                  <div className="flex space-x-4">
+                    <Button
+                      type="button"
+                      variant={exportFormat === 'pdf' ? 'default' : 'outline'}
+                      onClick={() => setExportFormat('pdf')}
+                      className="flex-1"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      PDF Format
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={exportFormat === 'html' ? 'default' : 'outline'}
+                      onClick={() => setExportFormat('html')}
+                      className="flex-1"
+                    >
+                      <FileCode className="h-4 w-4 mr-2" />
+                      HTML Format
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Report Header */}
       <Card className="border-primary/20">
@@ -187,6 +311,23 @@ const Report = () => {
             />
           </CardContent>
         </Card>
+
+        {reportType === 'customized' && (
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle>Personalized Observations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                name="personalizedObservations"
+                placeholder="Add your personalized observations and insights specific to this investigation..."
+                value={reportData.personalizedObservations}
+                onChange={handleInputChange}
+                className="min-h-[120px]"
+              />
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Report Statistics */}
@@ -232,9 +373,9 @@ const Report = () => {
               <Save className="h-4 w-4 mr-2" />
               Save Draft
             </Button>
-            <Button variant="forensic" onClick={generatePDFReport}>
+            <Button variant="forensic" onClick={generateReport}>
               <Download className="h-4 w-4 mr-2" />
-              Generate PDF Report
+              Generate {exportFormat.toUpperCase()} Report
             </Button>
           </div>
         </CardContent>
