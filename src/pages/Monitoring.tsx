@@ -1,19 +1,37 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Search, User, MessageSquare, Calendar, AlertCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Bell, Mail, Play, Square, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 
+interface Alert {
+  id: string;
+  message: string;
+  timestamp: string;
+  type: 'keyword' | 'activity' | 'mention';
+}
+
 const Monitoring = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchType, setSearchType] = useState<'username' | 'subreddit'>('username');
-  const [results, setResults] = useState<any[]>([]);
+  const [searchType, setSearchType] = useState<'user' | 'community'>('user');
+  const [results, setResults] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(false);
+  const [alerts, setAlerts] = useState<Alert[]>([
+    { id: '1', message: "Spike in keyword: 'breaking news'", timestamp: '2 mins ago', type: 'keyword' },
+    { id: '2', message: 'High activity detected in r/technology', timestamp: '5 mins ago', type: 'activity' },
+    { id: '3', message: 'New mention detected', timestamp: '10 mins ago', type: 'mention' },
+  ]);
 
   // Sample data for visualizations
   const keywordTrendData = [
@@ -44,240 +62,372 @@ const Monitoring = () => {
     { word: "response", frequency: 38, category: "low" as const },
   ];
 
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setResults(null);
+    setIsMonitoring(false);
+  };
+
+  const handleSendEmail = () => {
+    toast({
+      title: "Email Sent",
+      description: "Notification email has been sent successfully.",
+    });
+  };
+
+  useEffect(() => {
+    if (isMonitoring) {
+      const interval = setInterval(() => {
+        const newAlert: Alert = {
+          id: Date.now().toString(),
+          message: `Activity update at ${new Date().toLocaleTimeString()}`,
+          timestamp: 'Just now',
+          type: 'activity'
+        };
+        setAlerts(prev => [newAlert, ...prev.slice(0, 9)]);
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isMonitoring]);
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
     setIsLoading(true);
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    if (searchType === 'username') {
+    if (searchType === 'user') {
       const username = searchQuery.replace('u/', '');
       
-      // Simulate user not found
       if (username === 'nonexistentuser') {
         toast({
           title: "User Not Found",
-          description: "Ops User not found",
+          description: "User not found",
           variant: "destructive",
         });
-        setResults([]);
+        setResults(null);
         setIsLoading(false);
         return;
       }
 
-      // Simulate user found
-      setResults([
-        {
-          type: 'user',
-          username: username,
-          joinDate: '2020-03-15',
+      setResults({
+        type: 'user',
+        name: `u/${username}`,
+        data: {
+          accountAge: '3 years, 7 months',
           karma: 1247,
           posts: 89,
           comments: 342,
-          lastActive: '2023-10-15'
         }
-      ]);
+      });
     } else {
-      // Simulate subreddit/community search results
       const subreddit = searchQuery.replace('r/', '');
-      setResults([
-        {
-          type: 'post',
-          title: 'Top discussion in ' + subreddit,
-          author: 'user123',
-          subreddit: searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit,
-          score: 156,
-          comments: 45,
-          created: '2023-10-14',
-          url: 'https://reddit.com/' + (searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit) + '/post1'
-        },
-        {
-          type: 'post',
-          title: 'Popular post in ' + subreddit,
-          author: 'analyst456',
-          subreddit: searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit,
-          score: 89,
-          comments: 23,
-          created: '2023-10-13',
-          url: 'https://reddit.com/' + (searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit) + '/post2'
-        },
-        {
-          type: 'comment',
-          content: 'Active discussion in ' + subreddit + ' community...',
-          author: 'commentor789',
-          subreddit: searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit,
-          score: 12,
-          created: '2023-10-12',
-          url: 'https://reddit.com/' + (searchQuery.startsWith('r/') ? searchQuery : 'r/' + subreddit) + '/comment1'
+      setResults({
+        type: 'community',
+        name: `r/${subreddit}`,
+        data: {
+          created: '2015-06-20',
+          members: '2.5M',
+          posts: [
+            { title: 'Top discussion in ' + subreddit, score: 156, comments: 45 },
+            { title: 'Popular post in ' + subreddit, score: 89, comments: 23 },
+          ]
         }
-      ]);
+      });
     }
 
     setIsLoading(false);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    
-    // Auto-detect if it's a username or subreddit
-    if (value.startsWith('u/')) {
-      setSearchType('username');
-    } else if (value.startsWith('r/')) {
-      setSearchType('subreddit');
-    } else {
-      // Default to username if no prefix
-      setSearchType('username');
-    }
-  };
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-primary mb-2">Reddit Monitoring</h2>
-        <p className="text-muted-foreground">Search for users, communities, and monitor Reddit activity</p>
-      </div>
-
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Search className="h-5 w-5 text-primary" />
-            <span>Search Reddit</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="search">Search Query</Label>
-            <div className="flex space-x-2">
-              <Input
-                id="search"
-                placeholder="Enter u/username or r/community to search..."
-                value={searchQuery}
-                onChange={handleInputChange}
-                className="flex-1"
-              />
-              <Button 
-                onClick={handleSearch}
-                disabled={isLoading || !searchQuery.trim()}
-                variant="forensic"
-                className="px-6"
-              >
-                {isLoading ? 'Searching...' : 'Search'}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {searchType === 'username' 
-                ? 'Searching for user profile' 
-                : 'Searching for community activity'
-              }
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Header with Monitoring Control */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Reddit Monitoring</h1>
+            <p className="text-muted-foreground mt-1">
+              Start monitoring any Reddit user or community for activity and trends
             </p>
           </div>
-        </CardContent>
-      </Card>
+          {results && (
+            <Button
+              onClick={() => setIsMonitoring(!isMonitoring)}
+              variant={isMonitoring ? "destructive" : "default"}
+              size="lg"
+              className="gap-2"
+            >
+              {isMonitoring ? (
+                <>
+                  <Square className="h-4 w-4" />
+                  Stop Monitoring
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" />
+                  Start Monitoring
+                </>
+              )}
+            </Button>
+          )}
+        </div>
 
-      {results.length > 0 && (
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle>Search Results</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {results.map((result, index) => (
-                <div key={index} className="p-4 rounded-lg bg-card border border-border">
-                  {result.type === 'user' ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <User className="h-5 w-5 text-primary" />
-                        <h3 className="font-semibold text-lg">u/{result.username}</h3>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Joined</p>
-                          <p className="font-medium">{result.joinDate}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Karma</p>
-                          <p className="font-medium">{result.karma.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Posts</p>
-                          <p className="font-medium">{result.posts}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Comments</p>
-                          <p className="font-medium">{result.comments}</p>
-                        </div>
-                      </div>
+        {/* Search Panel */}
+        <Card className="border-2">
+          <CardContent className="pt-6">
+            <div className="flex gap-2">
+              <Select value={searchType} onValueChange={(value: 'user' | 'community') => setSearchType(value)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      u/username
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-foreground">
-                            {result.title || result.content}
-                          </h3>
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                            <span>u/{result.author}</span>
-                            <span>{result.subreddit}</span>
-                            <span className="flex items-center space-x-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>{result.created}</span>
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right text-sm">
-                          <p className="font-medium">{result.score} upvotes</p>
-                          {result.comments && (
-                            <p className="text-muted-foreground flex items-center space-x-1">
-                              <MessageSquare className="h-3 w-3" />
-                              <span>{result.comments} comments</span>
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                  </SelectItem>
+                  <SelectItem value="community">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      r/community
                     </div>
-                  )}
-                </div>
-              ))}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <div className="relative flex-1">
+                <Input
+                  placeholder={`Enter ${searchType === 'user' ? 'username' : 'community name'}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="pr-20"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-10 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={handleClearSearch}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={handleSearch}
+                  disabled={isLoading}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Real-time Analytics */}
-      {results.length > 0 && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <WordCloud words={realTimeWordCloud} title="Real-time Trending Words" />
-            <AnalyticsChart 
-              data={keywordTrendData} 
-              title="Activity Timeline (Last 6 Hours)" 
-              type="line" 
-              height={250}
-            />
+        {/* Main Content Area */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left/Main Column */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* User/Community Info Section */}
+            {results && (
+              <Card className="border-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    {results.type === 'user' ? (
+                      <User className="h-5 w-5" />
+                    ) : (
+                      <Users className="h-5 w-5" />
+                    )}
+                    {results.name}
+                  </CardTitle>
+                  <CardDescription>
+                    {results.type === 'user' ? 'User Profile Details' : 'Community Information'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="flex items-start gap-3">
+                      <Calendar className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Join Date</p>
+                        <p className="font-semibold">
+                          {results.type === 'user' ? results.data.accountAge : results.data.created}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <FileText className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Posts</p>
+                        <p className="font-semibold">{results.data.posts?.length || results.data.posts || 89}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <MessageSquare className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Comments</p>
+                        <p className="font-semibold">{results.data.comments || 342}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Activity className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Activity Level</p>
+                        <Badge variant={isMonitoring ? "default" : "secondary"}>
+                          {isMonitoring ? 'High' : 'Medium'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Monitoring Overview */}
+            {results && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold">Real-Time Monitoring Overview</h2>
+                  {isMonitoring && (
+                    <Badge variant="default" className="animate-pulse">
+                      <Activity className="h-3 w-3 mr-1" />
+                      Live
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Trending Keywords Cloud */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Trending Keywords Cloud</CardTitle>
+                    <CardDescription>
+                      Color coded by frequency: red = high, yellow = medium, green = low
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <WordCloud words={realTimeWordCloud} title="" />
+                  </CardContent>
+                </Card>
+
+                {/* Activity Timeline */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Activity Timeline</CardTitle>
+                    <CardDescription>Activity for the last 6 hours</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AnalyticsChart data={keywordTrendData} title="" type="line" height={250} />
+                  </CardContent>
+                </Card>
+
+                {/* Activity Breakdown */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Activity Breakdown</CardTitle>
+                    <CardDescription>Distribution across different activity types</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <AnalyticsChart data={activitySpikeData} title="" type="bar" height={250} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {!results && (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <Search className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-lg font-semibold mb-2">No Monitoring Active</p>
+                  <p className="text-muted-foreground text-center max-w-md">
+                    Enter a username or community above to start monitoring Reddit activity and trends in real-time.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
-          
-          <div className="grid grid-cols-1 gap-6">
-            <AnalyticsChart 
-              data={activitySpikeData} 
-              title="Current Activity Breakdown" 
-              type="bar" 
-              height={250}
-            />
+
+          {/* Right Column - Notifications & Email Panel */}
+          <div className="lg:col-span-1">
+            <Card className="sticky top-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Alerts & Notifications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Alerts List */}
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">Latest Alerts</Label>
+                  <ScrollArea className="h-64 rounded-md border p-4">
+                    <div className="space-y-3">
+                      {alerts.map((alert) => (
+                        <div key={alert.id} className="flex items-start gap-2 pb-3 border-b last:border-0">
+                          <Bell className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium leading-tight">{alert.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{alert.timestamp}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                {/* Email Controls */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="email-alerts" className="text-sm font-semibold">
+                      Enable Email Alerts
+                    </Label>
+                    <Switch
+                      id="email-alerts"
+                      checked={emailAlertsEnabled}
+                      onCheckedChange={setEmailAlertsEnabled}
+                    />
+                  </div>
+                  
+                  <Button
+                    onClick={handleSendEmail}
+                    className="w-full gap-2"
+                    variant="outline"
+                    disabled={!emailAlertsEnabled}
+                  >
+                    <Mail className="h-4 w-4" />
+                    Send Email Notification
+                  </Button>
+                </div>
+
+                {/* Status Info */}
+                {results && (
+                  <div className="pt-2 border-t space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Monitoring Status:</span>
+                      <Badge variant={isMonitoring ? "default" : "secondary"}>
+                        {isMonitoring ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Email Alerts:</span>
+                      <Badge variant={emailAlertsEnabled ? "default" : "secondary"}>
+                        {emailAlertsEnabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
-      )}
-
-      {results.length === 0 && !isLoading && (
-        <Card className="border-dashed border-muted-foreground/30">
-          <CardContent className="py-12 text-center">
-            <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Enter a username (u/username) or community (r/community) to monitor Reddit activity</p>
-          </CardContent>
-        </Card>
-      )}
+      </div>
     </div>
   );
 };
