@@ -93,6 +93,15 @@ const Monitoring = () => {
     { word: "insights", frequency: 38, category: "low" as const },
   ];
 
+  const activityTimelineData = [
+    { name: '6h ago', value: 7 },
+    { name: '5h ago', value: 7 },
+    { name: '4h ago', value: 7 },
+    { name: '3h ago', value: 7 },
+    { name: '2h ago', value: 9 },
+    { name: '1h ago', value: 8 },
+  ];
+
   const handleClearSearch = () => {
     setSearchQuery('');
     setProfileData(null);
@@ -346,34 +355,65 @@ const Monitoring = () => {
                   <CardDescription>Latest Reddit activities</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-80">
-                    <div className="space-y-3 pr-4">
-                      {activities.map((activity) => (
-                        <a
-                          key={activity.id}
-                          href={activity.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-start gap-3 p-3 rounded-lg border hover:bg-accent transition-colors"
-                        >
-                          <div className="mt-1">
-                            {activity.type === 'post' ? (
-                              <FileText className="h-4 w-4 text-primary" />
-                            ) : (
-                              <MessageSquare className="h-4 w-4 text-primary" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline" className="text-xs">{activity.subreddit}</Badge>
-                              <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
-                            </div>
-                          </div>
-                        </a>
-                      ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Posts Column */}
+                    <div>
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        Posts
+                      </h4>
+                      <ScrollArea className="h-80">
+                        <div className="space-y-2 pr-4">
+                          {activities
+                            .filter((activity) => activity.type === 'post')
+                            .map((activity) => (
+                              <a
+                                key={activity.id}
+                                href={activity.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                              >
+                                <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
+                                <div className="flex flex-col gap-1 mt-1">
+                                  <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
+                                  <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
+                                </div>
+                              </a>
+                            ))}
+                        </div>
+                      </ScrollArea>
                     </div>
-                  </ScrollArea>
+
+                    {/* Comments Column */}
+                    <div>
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-primary" />
+                        Comments
+                      </h4>
+                      <ScrollArea className="h-80">
+                        <div className="space-y-2 pr-4">
+                          {activities
+                            .filter((activity) => activity.type === 'comment')
+                            .map((activity) => (
+                              <a
+                                key={activity.id}
+                                href={activity.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                              >
+                                <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
+                                <div className="flex flex-col gap-1 mt-1">
+                                  <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
+                                  <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
+                                </div>
+                              </a>
+                            ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -381,27 +421,10 @@ const Monitoring = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Activity Timeline</CardTitle>
-                  <CardDescription>10 most recent events with exact timestamps</CardDescription>
+                  <CardDescription>Activity over the last 6 hours</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-64">
-                    <div className="space-y-2 pr-4">
-                      {activities.slice(0, 10).map((activity) => (
-                        <div key={activity.id} className="flex items-start gap-2 p-2 rounded border">
-                          <div className="mt-1">
-                            {activity.type === 'post' ? '📝' : '💬'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm line-clamp-1">{activity.title}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-muted-foreground">{activity.subreddit}</span>
-                              <span className="text-xs font-mono text-muted-foreground">{activity.timestamp}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                  <AnalyticsChart data={activityTimelineData} title="" type="line" height={250} />
                 </CardContent>
               </Card>
             </div>
@@ -413,7 +436,7 @@ const Monitoring = () => {
                 <CardHeader>
                   <CardTitle>Trending Keywords (Recent Activity)</CardTitle>
                   <CardDescription>
-                    Color coded: red = high, green = medium, light blue = low
+                    Color coded: Red = high, Green = medium, Light blue = low
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

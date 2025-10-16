@@ -25,8 +25,8 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
     switch (category) {
       case 'high': return 'text-red-500 hover:text-red-400';
       case 'medium': return 'text-green-500 hover:text-green-400';
-      case 'low': return 'text-white hover:text-white/80';
-      default: return 'text-white';
+      case 'low': return 'text-sky-400 hover:text-sky-300';
+      default: return 'text-sky-400';
     }
   };
 
@@ -64,7 +64,7 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
             <span>Medium</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-white rounded"></div>
+            <div className="w-3 h-3 bg-sky-400 rounded"></div>
             <span>Low</span>
           </div>
         </div>
