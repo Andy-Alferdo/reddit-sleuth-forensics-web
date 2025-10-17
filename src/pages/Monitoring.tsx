@@ -34,7 +34,7 @@ interface ProfileData {
 const Monitoring = () => {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchType, setSearchType] = useState<'user' | 'community'>('user');
+  const [searchType, setSearchType] = useState<'user' | 'community' | ''>('');
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
@@ -128,14 +128,14 @@ const Monitoring = () => {
 
   const handleStartMonitoring = () => {
     setIsMonitoring(true);
-    if (profileData) {
+    if (profileData && searchType) {
       const name = profileData.username || profileData.communityName || '';
-      setActivities(generateActivities(searchType, name));
+      setActivities(generateActivities(searchType as 'user' | 'community', name));
     }
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim() || !searchType) return;
 
     setIsLoading(true);
     setIsMonitoring(false);
@@ -199,7 +199,7 @@ const Monitoring = () => {
             <div className="flex gap-2">
               <Select value={searchType} onValueChange={(value: 'user' | 'community') => setSearchType(value)}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue />
+                  <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">
@@ -211,7 +211,7 @@ const Monitoring = () => {
                   <SelectItem value="community">
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
-                      r/Subreddit (Community)
+                      r/Subreddit
                     </div>
                   </SelectItem>
                 </SelectContent>
