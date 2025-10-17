@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel, SelectGroup } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, Share2, TrendingUp } from 'lucide-react';
@@ -202,19 +202,21 @@ const Monitoring = () => {
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectLabel>Select Target</SelectLabel>
-                  <SelectItem value="user">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      u/Username
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="community">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      r/Subreddit (Community)
-                    </div>
-                  </SelectItem>
+                  <SelectGroup>
+                    <SelectLabel>Select Target</SelectLabel>
+                    <SelectItem value="user">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        u/Username
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="community">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        r/Subreddit (Community)
+                      </div>
+                    </SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
               
