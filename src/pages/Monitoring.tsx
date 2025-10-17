@@ -198,7 +198,8 @@ const Monitoring = () => {
           <CardContent className="pt-6">
             <div className="flex gap-2">
               <Select
-                value={searchType || undefined}
+                key={searchType || 'reset'}
+                value={searchType || 'reset'}
                 onValueChange={(value) => {
                   if (value === 'reset') {
                     setSearchType('');
@@ -211,12 +212,7 @@ const Monitoring = () => {
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="reset">
-                    <div className="flex items-center gap-2">
-                      <X className="h-4 w-4" />
-                      Select
-                    </div>
-                  </SelectItem>
+                  <SelectItem value="reset">Select</SelectItem>
                   <SelectSeparator />
                   <SelectGroup>
                     <SelectLabel>Select Target</SelectLabel>
