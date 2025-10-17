@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, Share2, TrendingUp } from 'lucide-react';
@@ -202,6 +202,7 @@ const Monitoring = () => {
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectLabel>Select Target</SelectLabel>
                   <SelectItem value="user">
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4" />
@@ -211,7 +212,7 @@ const Monitoring = () => {
                   <SelectItem value="community">
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
-                      r/Subreddit
+                      r/Subreddit (Community)
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -219,7 +220,13 @@ const Monitoring = () => {
               
               <div className="relative flex-1">
                 <Input
-                  placeholder={searchType === 'user' ? 'Enter Username' : 'Enter Community Name'}
+                  placeholder={
+                    !searchType
+                      ? 'Enter Reddit username or community name to monitor...'
+                      : searchType === 'user'
+                        ? 'Enter Username'
+                        : 'Enter Community Name'
+                  }
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -240,7 +247,7 @@ const Monitoring = () => {
                   size="icon"
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
                   onClick={handleSearch}
-                  disabled={isLoading}
+                  disabled={!searchType || isLoading}
                 >
                   <Search className="h-4 w-4" />
                 </Button>
