@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel, SelectGroup } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel, SelectGroup, SelectSeparator } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, Share2, TrendingUp } from 'lucide-react';
@@ -197,11 +197,27 @@ const Monitoring = () => {
         <Card className="border-2">
           <CardContent className="pt-6">
             <div className="flex gap-2">
-              <Select value={searchType} onValueChange={(value: 'user' | 'community') => setSearchType(value)}>
+              <Select
+                value={searchType || undefined}
+                onValueChange={(value) => {
+                  if (value === 'reset') {
+                    setSearchType('');
+                  } else {
+                    setSearchType(value as 'user' | 'community');
+                  }
+                }}
+              >
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="reset">
+                    <div className="flex items-center gap-2">
+                      <X className="h-4 w-4" />
+                      Select
+                    </div>
+                  </SelectItem>
+                  <SelectSeparator />
                   <SelectGroup>
                     <SelectLabel>Select Target</SelectLabel>
                     <SelectItem value="user">
