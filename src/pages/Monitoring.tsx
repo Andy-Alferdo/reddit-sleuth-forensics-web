@@ -514,24 +514,24 @@ const Monitoring = () => {
 
               {/* Activity Timeline or Weekly Stats */}
               {profileData.communityName ? (
-                // Community monitoring - Weekly visitors and contributors
+                // Community monitoring - Compact summary cards
                 <div className="grid grid-cols-2 gap-6">
                   <Card>
-                    <CardHeader>
-                      <CardTitle>Weekly Visitors</CardTitle>
-                      <CardDescription>3.2K visitors this week</CardDescription>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Weekly Visitors</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <AnalyticsChart data={weeklyVisitorsData} title="" type="bar" height={250} />
+                      <p className="text-2xl font-bold">3.2K</p>
+                      <p className="text-sm text-muted-foreground">visitors this week</p>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardHeader>
-                      <CardTitle>Weekly Contributors</CardTitle>
-                      <CardDescription>879 contributors this week</CardDescription>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Weekly Contributors</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <AnalyticsChart data={weeklyContributorsData} title="" type="bar" height={250} />
+                      <p className="text-2xl font-bold">879</p>
+                      <p className="text-sm text-muted-foreground">contributors this week</p>
                     </CardContent>
                   </Card>
                 </div>
