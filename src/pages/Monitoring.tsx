@@ -9,6 +9,7 @@ import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, Sh
 import { useToast } from '@/hooks/use-toast';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
+import { MiniSparkline } from '@/components/MiniSparkline';
 
 interface RedditActivity {
   id: string;
@@ -514,26 +515,30 @@ const Monitoring = () => {
 
               {/* Activity Timeline or Weekly Stats */}
               {profileData.communityName ? (
-                // Community monitoring - Compact summary cards with charts
+                // Community monitoring - Compact summary cards with minimal sparklines
                 <div className="grid grid-cols-2 gap-6">
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">Weekly Visitors</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                      <p className="text-2xl font-bold">3.2K</p>
-                      <p className="text-sm text-muted-foreground mb-4">visitors this week</p>
-                      <AnalyticsChart data={weeklyVisitorsData} title="" type="bar" height={180} />
+                    <CardContent className="space-y-3">
+                      <div>
+                        <p className="text-3xl font-bold">3.2K</p>
+                        <p className="text-sm text-muted-foreground">visitors this week</p>
+                      </div>
+                      <MiniSparkline data={weeklyVisitorsData} />
                     </CardContent>
                   </Card>
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">Weekly Contributors</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                      <p className="text-2xl font-bold">879</p>
-                      <p className="text-sm text-muted-foreground mb-4">contributors this week</p>
-                      <AnalyticsChart data={weeklyContributorsData} title="" type="bar" height={180} />
+                    <CardContent className="space-y-3">
+                      <div>
+                        <p className="text-3xl font-bold">879</p>
+                        <p className="text-sm text-muted-foreground">contributors this week</p>
+                      </div>
+                      <MiniSparkline data={weeklyContributorsData} />
                     </CardContent>
                   </Card>
                 </div>
