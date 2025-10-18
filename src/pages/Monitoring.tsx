@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel, SelectGroup, SelectSeparator } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, Share2, TrendingUp } from 'lucide-react';
+import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, Share2, TrendingUp, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
@@ -27,8 +27,7 @@ interface ProfileData {
   communityName?: string;
   memberCount?: string;
   description?: string;
-  dailyPosts?: number;
-  activityLevel?: string;
+  createdDate?: string;
 }
 
 const Monitoring = () => {
@@ -75,12 +74,18 @@ const Monitoring = () => {
     return activities.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   };
 
-  const activityBreakdownData = [
-    { name: 'Posts', value: 42 },
-    { name: 'Comments', value: 87 },
-    { name: 'Shares', value: 23 },
-    { name: 'Mentions', value: 15 },
-  ];
+  const activityBreakdownData = profileData?.communityName 
+    ? [
+        { name: 'Posts', value: 42 },
+        { name: 'Shares', value: 23 },
+        { name: 'Mentions', value: 15 },
+      ]
+    : [
+        { name: 'Posts', value: 42 },
+        { name: 'Comments', value: 87 },
+        { name: 'Shares', value: 23 },
+        { name: 'Mentions', value: 15 },
+      ];
 
   const realTimeWordCloud = [
     { word: "technology", frequency: 89, category: "high" as const },
@@ -100,6 +105,26 @@ const Monitoring = () => {
     { name: '3h ago', value: 7 },
     { name: '2h ago', value: 9 },
     { name: '1h ago', value: 8 },
+  ];
+
+  const weeklyVisitorsData = [
+    { name: 'Mon', value: 3200 },
+    { name: 'Tue', value: 2800 },
+    { name: 'Wed', value: 3500 },
+    { name: 'Thu', value: 4100 },
+    { name: 'Fri', value: 3900 },
+    { name: 'Sat', value: 2600 },
+    { name: 'Sun', value: 2400 },
+  ];
+
+  const weeklyContributorsData = [
+    { name: 'Mon', value: 879 },
+    { name: 'Tue', value: 756 },
+    { name: 'Wed', value: 923 },
+    { name: 'Thu', value: 1045 },
+    { name: 'Fri', value: 998 },
+    { name: 'Sat', value: 634 },
+    { name: 'Sun', value: 512 },
   ];
 
   const handleClearSearch = () => {
@@ -168,9 +193,8 @@ const Monitoring = () => {
       setProfileData({
         communityName: `r/${subreddit}`,
         memberCount: '2.5M',
-        description: 'A vibrant community for discussing technology, innovation, and digital trends.',
-        dailyPosts: 156,
-        activityLevel: 'High',
+        description: 'Welcome to the subreddit! Whether you\'re a current member or simply interested, this community is your hub for all things related.',
+        createdDate: 'Sep 1, 2020',
       });
     }
 
@@ -323,28 +347,22 @@ const Monitoring = () => {
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
-                      <FileText className="h-4 w-4 text-primary mt-1" />
+                      <Calendar className="h-4 w-4 text-primary mt-1" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Daily Posts</p>
-                        <p className="font-semibold text-sm">{profileData.dailyPosts}</p>
+                        <p className="text-xs text-muted-foreground">Created Date</p>
+                        <p className="font-semibold text-sm">{profileData.createdDate}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <Activity className="h-4 w-4 text-primary mt-1" />
+                    <div className="flex items-start gap-2 col-span-2">
+                      <FileText className="h-4 w-4 text-primary mt-1" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Activity Level</p>
-                        <Badge variant="default">{profileData.activityLevel}</Badge>
+                        <p className="text-xs text-muted-foreground">Description</p>
+                        <p className="font-semibold text-sm">{profileData.description}</p>
                       </div>
                     </div>
                   </>
                 )}
               </div>
-              
-              {profileData.description && (
-                <div className="pt-2 border-t">
-                  <p className="text-sm text-muted-foreground">{profileData.description}</p>
-                </div>
-              )}
               
               {!isMonitoring && (
                 <div className="flex flex-col items-center gap-2 pt-4 border-t">
@@ -376,78 +394,159 @@ const Monitoring = () => {
                   <CardDescription>Latest Reddit activities</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Posts Column */}
-                    <div>
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        Posts
-                      </h4>
-                      <ScrollArea className="h-80">
-                        <div className="space-y-2 pr-4">
-                          {activities
-                            .filter((activity) => activity.type === 'post')
-                            .map((activity) => (
-                              <a
-                                key={activity.id}
-                                href={activity.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-                              >
-                                <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
-                                <div className="flex flex-col gap-1 mt-1">
-                                  <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
-                                  <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
-                                </div>
-                              </a>
-                            ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
+                  {profileData.communityName ? (
+                    // Community monitoring - only posts and link
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Posts Column */}
+                      <div>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-primary" />
+                          Posts
+                        </h4>
+                        <ScrollArea className="h-80">
+                          <div className="space-y-2 pr-4">
+                            {activities
+                              .filter((activity) => activity.type === 'post')
+                              .map((activity) => (
+                                <a
+                                  key={activity.id}
+                                  href={activity.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                                >
+                                  <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
+                                    <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
+                                  </div>
+                                </a>
+                              ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
 
-                    {/* Comments Column */}
-                    <div>
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-primary" />
-                        Comments
-                      </h4>
-                      <ScrollArea className="h-80">
-                        <div className="space-y-2 pr-4">
-                          {activities
-                            .filter((activity) => activity.type === 'comment')
-                            .map((activity) => (
-                              <a
-                                key={activity.id}
-                                href={activity.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-                              >
-                                <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
-                                <div className="flex flex-col gap-1 mt-1">
-                                  <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
-                                  <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
-                                </div>
-                              </a>
-                            ))}
-                        </div>
-                      </ScrollArea>
+                      {/* Community Link */}
+                      <div>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-primary" />
+                          Community Link
+                        </h4>
+                        <a
+                          href={`https://reddit.com/${profileData.communityName}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-4 rounded-lg border hover:bg-accent transition-colors"
+                        >
+                          <Users className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="font-semibold">{profileData.communityName}</p>
+                            <p className="text-xs text-muted-foreground">Visit on Reddit</p>
+                          </div>
+                          <ExternalLink className="h-4 w-4 ml-auto" />
+                        </a>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    // User monitoring - posts and comments
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Posts Column */}
+                      <div>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-primary" />
+                          Posts
+                        </h4>
+                        <ScrollArea className="h-80">
+                          <div className="space-y-2 pr-4">
+                            {activities
+                              .filter((activity) => activity.type === 'post')
+                              .map((activity) => (
+                                <a
+                                  key={activity.id}
+                                  href={activity.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                                >
+                                  <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
+                                    <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
+                                  </div>
+                                </a>
+                              ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+
+                      {/* Comments Column */}
+                      <div>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <MessageSquare className="h-4 w-4 text-primary" />
+                          Comments
+                        </h4>
+                        <ScrollArea className="h-80">
+                          <div className="space-y-2 pr-4">
+                            {activities
+                              .filter((activity) => activity.type === 'comment')
+                              .map((activity) => (
+                                <a
+                                  key={activity.id}
+                                  href={activity.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                                >
+                                  <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
+                                    <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
+                                  </div>
+                                </a>
+                              ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Activity Timeline */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Activity Timeline</CardTitle>
-                  <CardDescription>Activity over the last 6 hours</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <AnalyticsChart data={activityTimelineData} title="" type="line" height={250} />
-                </CardContent>
-              </Card>
+              {/* Activity Timeline or Weekly Stats */}
+              {profileData.communityName ? (
+                // Community monitoring - Weekly visitors and contributors
+                <div className="grid grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Weekly Visitors</CardTitle>
+                      <CardDescription>3.2K visitors this week</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <AnalyticsChart data={weeklyVisitorsData} title="" type="bar" height={250} />
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Weekly Contributors</CardTitle>
+                      <CardDescription>879 contributors this week</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <AnalyticsChart data={weeklyContributorsData} title="" type="bar" height={250} />
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                // User monitoring - Activity Timeline
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Activity Timeline</CardTitle>
+                    <CardDescription>Activity over the last 6 hours</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AnalyticsChart data={activityTimelineData} title="" type="line" height={250} />
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Right Column */}
