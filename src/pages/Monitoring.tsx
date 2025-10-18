@@ -521,24 +521,32 @@ const Monitoring = () => {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">Weekly Visitors</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
+                    <CardContent className="space-y-2">
+                      <div className="flex items-baseline gap-2">
                         <p className="text-3xl font-bold">3.2K</p>
-                        <p className="text-sm text-muted-foreground">visitors this week</p>
+                        <span className="text-sm font-medium text-green-600">▲ 12%</span>
+                        <span className="sr-only">Up 12% from last week</span>
                       </div>
-                      <MiniSparkline data={weeklyVisitorsData} />
+                      <p className="text-sm text-muted-foreground">visitors this week</p>
+                      <div className="pt-2" role="img" aria-label="Weekly visitors trend sparkline">
+                        <MiniSparkline data={weeklyVisitorsData} height={32} />
+                      </div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base">Weekly Contributors</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
+                    <CardContent className="space-y-2">
+                      <div className="flex items-baseline gap-2">
                         <p className="text-3xl font-bold">879</p>
-                        <p className="text-sm text-muted-foreground">contributors this week</p>
+                        <span className="text-sm font-medium text-green-600">▲ 8%</span>
+                        <span className="sr-only">Up 8% from last week</span>
                       </div>
-                      <MiniSparkline data={weeklyContributorsData} />
+                      <p className="text-sm text-muted-foreground">contributors this week</p>
+                      <div className="pt-2" role="img" aria-label="Weekly contributors trend sparkline">
+                        <MiniSparkline data={weeklyContributorsData} height={32} />
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
