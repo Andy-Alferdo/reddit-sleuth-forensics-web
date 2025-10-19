@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { MiniSparkline } from '@/components/MiniSparkline';
+import { CompactBarChart } from '@/components/CompactBarChart';
 
 interface RedditActivity {
   id: string;
@@ -515,41 +516,20 @@ const Monitoring = () => {
 
               {/* Activity Timeline or Weekly Stats */}
               {profileData.communityName ? (
-                // Community monitoring - Compact summary cards with minimal sparklines
-                <div className="grid grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Weekly Visitors</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-3xl font-bold">3.2K</p>
-                        <span className="text-sm font-medium text-green-600">▲ 12%</span>
-                        <span className="sr-only">Up 12% from last week</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">visitors this week</p>
-                      <div className="pt-2" role="img" aria-label="Weekly visitors trend sparkline">
-                        <MiniSparkline data={weeklyVisitorsData} height={32} />
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Weekly Contributors</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-3xl font-bold">879</p>
-                        <span className="text-sm font-medium text-green-600">▲ 8%</span>
-                        <span className="sr-only">Up 8% from last week</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">contributors this week</p>
-                      <div className="pt-2" role="img" aria-label="Weekly contributors trend sparkline">
-                        <MiniSparkline data={weeklyContributorsData} height={32} />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                // Community monitoring - Compact dual horizontal bar chart
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Community Activity</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CompactBarChart 
+                      visitorValue="3.2K"
+                      contributorValue="1.8K"
+                      visitorCount={3200}
+                      contributorCount={1800}
+                    />
+                  </CardContent>
+                </Card>
               ) : (
                 // User monitoring - Activity Timeline
                 <Card>
