@@ -63,11 +63,12 @@ export const CompactBarChart = ({
             data={data}
             layout="vertical"
             margin={{ top: 10, right: 20, left: 30, bottom: 30 }}
+            barGap={10}
           >
             <Bar
               dataKey="value"
               radius={[0, 6, 6, 0]}
-              maxBarSize={40}
+              barSize={35}
               isAnimationActive={false}
               onClick={(entry, index, event) => handleBarClick(entry, event)}
               style={{ cursor: 'pointer' }}
