@@ -1,1 +1,7 @@
 project_id = "djcdnudwnyhajnzwykoq"
+
+[functions.reddit-scraper]
+verify_jwt = false
+
+[functions.analyze-content]
+verify_jwt = false

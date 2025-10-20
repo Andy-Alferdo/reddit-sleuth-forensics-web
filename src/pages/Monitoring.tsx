@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel, SelectGroup, SelectSeparator } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, Share2, TrendingUp, ExternalLink } from 'lucide-react';
+import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, Share2, TrendingUp, ExternalLink, StopCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { MiniSparkline } from '@/components/MiniSparkline';
 import { CompactBarChart } from '@/components/CompactBarChart';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RedditActivity {
   id: string;
@@ -41,6 +42,8 @@ const Monitoring = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [investigatorEmail, setInvestigatorEmail] = useState('');
   const [activities, setActivities] = useState<RedditActivity[]>([]);
+  const [wordCloudData, setWordCloudData] = useState<any[]>([]);
+  const monitoringIntervalRef = useRef<number | null>(null);
 
   // Generate sample activities
   const generateActivities = (type: 'user' | 'community', name: string): RedditActivity[] => {
@@ -134,7 +137,32 @@ const Monitoring = () => {
     setProfileData(null);
     setIsMonitoring(false);
     setActivities([]);
+    if (monitoringIntervalRef.current) {
+      clearInterval(monitoringIntervalRef.current);
+      monitoringIntervalRef.current = null;
+    }
   };
+
+  const handleStopMonitoring = () => {
+    setIsMonitoring(false);
+    if (monitoringIntervalRef.current) {
+      clearInterval(monitoringIntervalRef.current);
+      monitoringIntervalRef.current = null;
+    }
+    toast({
+      title: "Monitoring Stopped",
+      description: "Real-time monitoring has been paused",
+    });
+  };
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (monitoringIntervalRef.current) {
+        clearInterval(monitoringIntervalRef.current);
+      }
+    };
+  }, []);
 
   const handleShareCase = () => {
     if (!investigatorEmail.trim()) {
@@ -153,11 +181,107 @@ const Monitoring = () => {
     setInvestigatorEmail('');
   };
 
-  const handleStartMonitoring = () => {
+  const handleStartMonitoring = async () => {
     setIsMonitoring(true);
-    if (profileData && searchType) {
-      const name = profileData.username || profileData.communityName || '';
-      setActivities(generateActivities(searchType as 'user' | 'community', name));
+    
+    toast({
+      title: "Monitoring Started",
+      description: "Real-time tracking active. Data refreshes every 5 seconds.",
+    });
+
+    // Fetch initial data
+    await fetchRedditData();
+
+    // Set up interval for continuous monitoring (every 5 seconds)
+    monitoringIntervalRef.current = window.setInterval(async () => {
+      console.log('Fetching new Reddit data...');
+      await fetchRedditData();
+    }, 5000);
+  };
+
+  const fetchRedditData = async () => {
+    if (!profileData || !searchType || !searchQuery) return;
+
+    try {
+      console.log('Fetching Reddit activity data...');
+      const cleanQuery = searchType === 'user' 
+        ? searchQuery.replace(/^u\//, '')
+        : searchQuery.replace(/^r\//, '');
+
+      const { data: redditData, error: redditError } = await supabase.functions.invoke('reddit-scraper', {
+        body: { 
+          username: searchType === 'user' ? cleanQuery : undefined,
+          subreddit: searchType === 'community' ? cleanQuery : undefined,
+          type: searchType
+        }
+      });
+
+      if (redditError) {
+        console.error('Error fetching Reddit data:', redditError);
+        return;
+      }
+
+      // Process posts and comments into activities
+      const newActivities: RedditActivity[] = [];
+      
+      if (redditData.posts) {
+        redditData.posts.forEach((post: any) => {
+          newActivities.push({
+            id: post.id || Math.random().toString(),
+            type: 'post',
+            title: post.title,
+            subreddit: `r/${post.subreddit}`,
+            timestamp: new Date(post.created_utc * 1000).toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+            url: `https://reddit.com${post.permalink}`
+          });
+        });
+      }
+
+      if (redditData.comments) {
+        redditData.comments.forEach((comment: any) => {
+          newActivities.push({
+            id: comment.id || Math.random().toString(),
+            type: 'comment',
+            title: comment.body.substring(0, 100) + (comment.body.length > 100 ? '...' : ''),
+            subreddit: `r/${comment.subreddit}`,
+            timestamp: new Date(comment.created_utc * 1000).toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+            url: `https://reddit.com${comment.permalink}`
+          });
+        });
+      }
+
+      // Sort by timestamp descending
+      newActivities.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      
+      setActivities(newActivities);
+
+      // Extract words for word cloud
+      const textContent = [
+        ...(redditData.posts || []).map((p: any) => `${p.title} ${p.selftext || ''}`),
+        ...(redditData.comments || []).map((c: any) => c.body)
+      ].join(' ');
+
+      const words = textContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+      const wordFreq: { [key: string]: number } = {};
+      words.forEach(word => {
+        if (!['that', 'this', 'with', 'from', 'have', 'been', 'will', 'your', 'their', 'what', 'when', 'where'].includes(word)) {
+          wordFreq[word] = (wordFreq[word] || 0) + 1;
+        }
+      });
+
+      const newWordCloud = Object.entries(wordFreq)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .map(([word, freq]) => ({
+          word,
+          frequency: freq,
+          category: freq > 20 ? 'high' as const : freq > 10 ? 'medium' as const : 'low' as const
+        }));
+
+      setWordCloudData(newWordCloud);
+
+    } catch (error) {
+      console.error('Error in fetchRedditData:', error);
     }
   };
 
@@ -168,15 +292,33 @@ const Monitoring = () => {
     setIsMonitoring(false);
     setActivities([]);
     
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Clear any existing interval
+    if (monitoringIntervalRef.current) {
+      clearInterval(monitoringIntervalRef.current);
+      monitoringIntervalRef.current = null;
+    }
 
-    if (searchType === 'user') {
-      const username = searchQuery.replace('u/', '');
+    try {
+      console.log('Searching for:', searchQuery, 'Type:', searchType);
       
-      if (username === 'nonexistentuser') {
+      const cleanQuery = searchType === 'user' 
+        ? searchQuery.replace(/^u\//, '')
+        : searchQuery.replace(/^r\//, '');
+
+      const { data: redditData, error: redditError } = await supabase.functions.invoke('reddit-scraper', {
+        body: { 
+          username: searchType === 'user' ? cleanQuery : undefined,
+          subreddit: searchType === 'community' ? cleanQuery : undefined,
+          type: searchType
+        }
+      });
+
+      if (redditError) throw redditError;
+
+      if (redditData?.error === 'not_found') {
         toast({
-          title: "User Not Found",
-          description: "User not found",
+          title: `${searchType === 'user' ? 'User' : 'Community'} Not Found`,
+          description: redditData.message,
           variant: "destructive",
         });
         setProfileData(null);
@@ -184,23 +326,62 @@ const Monitoring = () => {
         return;
       }
 
-      setProfileData({
-        username: `u/${username}`,
-        accountAge: '3 years, 7 months',
-        totalKarma: 15847,
-        activeSubreddits: 12,
-      });
-    } else {
-      const subreddit = searchQuery.replace('r/', '');
-      setProfileData({
-        communityName: `r/${subreddit}`,
-        memberCount: '2.5M',
-        description: 'Welcome to the subreddit! Whether you\'re a current member or simply interested, this community is your hub for all things related.',
-        createdDate: 'Sep 1, 2020',
-      });
-    }
+      console.log('Reddit data retrieved successfully');
 
-    setIsLoading(false);
+      if (searchType === 'user') {
+        const user = redditData.user;
+        const accountCreated = new Date(user.created_utc * 1000);
+        const now = new Date();
+        const ageInYears = (now.getTime() - accountCreated.getTime()) / (1000 * 60 * 60 * 24 * 365);
+        const years = Math.floor(ageInYears);
+        const months = Math.floor((ageInYears - years) * 12);
+
+        // Count unique subreddits
+        const subreddits = new Set([
+          ...(redditData.posts || []).map((p: any) => p.subreddit),
+          ...(redditData.comments || []).map((c: any) => c.subreddit)
+        ]);
+
+        setProfileData({
+          username: `u/${cleanQuery}`,
+          accountAge: `${years} years, ${months} months`,
+          totalKarma: user.link_karma + user.comment_karma,
+          activeSubreddits: subreddits.size,
+        });
+      } else {
+        const subreddit = redditData.subreddit;
+        const createdDate = new Date(subreddit.created_utc * 1000).toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
+        });
+
+        setProfileData({
+          communityName: `r/${cleanQuery}`,
+          memberCount: (subreddit.subscribers / 1000000 >= 1) 
+            ? `${(subreddit.subscribers / 1000000).toFixed(1)}M`
+            : `${(subreddit.subscribers / 1000).toFixed(1)}K`,
+          description: subreddit.public_description || subreddit.description || 'No description available',
+          createdDate,
+        });
+      }
+
+      toast({
+        title: "Search Complete",
+        description: `${searchType === 'user' ? 'User' : 'Community'} found. Click "Start Monitoring" to begin tracking.`,
+      });
+
+    } catch (error: any) {
+      console.error('Error searching Reddit:', error);
+      toast({
+        title: "Search Failed",
+        description: error.message || 'Failed to search. Please try again.',
+        variant: "destructive",
+      });
+      setProfileData(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Reset when search type changes
@@ -373,6 +554,23 @@ const Monitoring = () => {
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
                     Click 'Start Monitoring' to begin real-time tracking of activity and trends.
+                  </p>
+                </div>
+              )}
+
+              {isMonitoring && (
+                <div className="flex flex-col items-center gap-2 pt-4 border-t">
+                  <Button 
+                    onClick={handleStopMonitoring} 
+                    size="lg" 
+                    variant="destructive"
+                    className="w-full max-w-md"
+                  >
+                    <StopCircle className="h-5 w-5 mr-2" />
+                    Stop Monitoring
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Real-time tracking active. Data refreshes every 5 seconds.
                   </p>
                 </div>
               )}
@@ -555,7 +753,7 @@ const Monitoring = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <WordCloud words={realTimeWordCloud} title="" />
+                  <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
                 </CardContent>
               </Card>
 

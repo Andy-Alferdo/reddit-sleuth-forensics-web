@@ -3,14 +3,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity } from 'lucide-react';
+import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const UserProfiling = () => {
   const [username, setUsername] = useState('');
   const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Sample data for visualizations
   const userWordCloud = [
@@ -51,46 +56,137 @@ const UserProfiling = () => {
     if (!username.trim()) return;
     
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setProfileData({
-      username: username.replace('u/', ''),
-      accountAge: '3 years, 7 months',
-      totalKarma: 15247,
-      postKarma: 8932,
-      commentKarma: 6315,
-      activeSubreddits: [
-        { name: 'r/technology', activity: 156 },
-        { name: 'r/programming', activity: 89 },
-        { name: 'r/science', activity: 67 },
-        { name: 'r/worldnews', activity: 45 },
-      ],
-      activityPattern: {
-        mostActiveHour: '14:00-15:00 UTC',
-        mostActiveDay: 'Tuesday',
-        timezone: 'EST (estimated)',
-      },
-      sentimentAnalysis: {
-        positive: 45,
-        neutral: 35,
-        negative: 20,
-      },
-      locationIndicators: [
-        'References to EST timezone',
-        'Mentions of US politics',
-        'Baseball team references (Yankees)',
-        'Weather patterns consistent with Northeast US'
-      ],
-      behaviorPatterns: [
-        'Active during business hours',
-        'Responds quickly to technical discussions',
-        'Long-form posts on weekends',
-        'Uses formal language structure'
-      ]
-    });
-    
-    setIsLoading(false);
+    setError(null);
+    setProfileData(null);
+
+    try {
+      console.log('Fetching Reddit data for user:', username);
+      
+      // Clean username (remove u/ prefix if present)
+      const cleanUsername = username.replace(/^u\//, '');
+
+      // Fetch user data from Reddit
+      const { data: redditData, error: redditError } = await supabase.functions.invoke('reddit-scraper', {
+        body: { 
+          username: cleanUsername,
+          type: 'user'
+        }
+      });
+
+      if (redditError) throw redditError;
+
+      if (redditData?.error === 'not_found') {
+        setError(redditData.message);
+        toast({
+          title: "User Not Found",
+          description: redditData.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Reddit data fetched successfully');
+
+      // Analyze content for sentiment and locations
+      const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
+        body: {
+          posts: redditData.posts || [],
+          comments: redditData.comments || []
+        }
+      });
+
+      if (analysisError) {
+        console.error('Analysis error:', analysisError);
+        // Continue even if analysis fails
+      }
+
+      console.log('Analysis completed');
+
+      // Calculate account age
+      const accountCreated = new Date(redditData.user.created_utc * 1000);
+      const now = new Date();
+      const ageInYears = (now.getTime() - accountCreated.getTime()) / (1000 * 60 * 60 * 24 * 365);
+      const years = Math.floor(ageInYears);
+      const months = Math.floor((ageInYears - years) * 12);
+      const accountAge = `${years} years, ${months} months`;
+
+      // Calculate activity patterns
+      const allContent = [...(redditData.posts || []), ...(redditData.comments || [])];
+      const hourCounts: { [key: number]: number } = {};
+      const dayCounts: { [key: string]: number } = {};
+      
+      allContent.forEach((item: any) => {
+        const date = new Date(item.created_utc * 1000);
+        const hour = date.getUTCHours();
+        const day = date.toLocaleDateString('en-US', { weekday: 'long' });
+        
+        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+        dayCounts[day] = (dayCounts[day] || 0) + 1;
+      });
+
+      const mostActiveHour = Object.entries(hourCounts).sort(([,a], [,b]) => b - a)[0];
+      const mostActiveDay = Object.entries(dayCounts).sort(([,a], [,b]) => b - a)[0];
+
+      // Generate word cloud from content
+      const textContent = [
+        ...(redditData.posts || []).map((p: any) => `${p.title} ${p.selftext}`),
+        ...(redditData.comments || []).map((c: any) => c.body)
+      ].join(' ');
+
+      const words = textContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+      const wordFreq: { [key: string]: number } = {};
+      words.forEach(word => {
+        if (!['that', 'this', 'with', 'from', 'have', 'been', 'will', 'your', 'their', 'what', 'when', 'where'].includes(word)) {
+          wordFreq[word] = (wordFreq[word] || 0) + 1;
+        }
+      });
+
+      const wordCloudData = Object.entries(wordFreq)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 15)
+        .map(([word, freq]) => ({
+          word,
+          frequency: freq,
+          category: freq > 30 ? 'high' as const : freq > 15 ? 'medium' as const : 'low' as const
+        }));
+
+      setProfileData({
+        username: cleanUsername,
+        accountAge,
+        totalKarma: redditData.user.link_karma + redditData.user.comment_karma,
+        postKarma: redditData.user.link_karma,
+        commentKarma: redditData.user.comment_karma,
+        activeSubreddits: analysisData?.topSubreddits || [],
+        activityPattern: {
+          mostActiveHour: mostActiveHour ? `${mostActiveHour[0]}:00-${parseInt(mostActiveHour[0])+1}:00 UTC` : 'N/A',
+          mostActiveDay: mostActiveDay?.[0] || 'N/A',
+          timezone: 'UTC (based on activity)',
+        },
+        sentimentAnalysis: analysisData?.sentiment?.breakdown || { positive: 33, neutral: 34, negative: 33 },
+        locationIndicators: analysisData?.locations || ['No specific locations detected'],
+        behaviorPatterns: analysisData?.patterns?.topicInterests || ['Analyzing...'],
+        wordCloud: wordCloudData,
+        stats: analysisData?.stats || {},
+        emotions: analysisData?.emotions || {}
+      });
+
+      toast({
+        title: "Analysis Complete",
+        description: `Successfully analyzed profile for u/${cleanUsername}`,
+      });
+
+    } catch (err: any) {
+      console.error('Error analyzing user:', err);
+      setError(err.message || 'Failed to analyze user profile');
+      toast({
+        title: "Analysis Failed",
+        description: err.message || 'Failed to analyze user profile. Please try again.',
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -195,6 +291,16 @@ const UserProfiling = () => {
                 <CardTitle className="flex items-center space-x-2">
                   <MapPin className="h-5 w-5 text-primary" />
                   <span>Location Indicators</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">Location indicators are extracted through AI analysis of user comments and posts, identifying mentions of places, regions, and location-specific references.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -250,37 +356,52 @@ const UserProfiling = () => {
 
           {/* Analytics Visualizations */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <WordCloud words={userWordCloud} title="Most Used Words" />
-            <AnalyticsChart 
-              data={activityTimelineData} 
-              title="Weekly Activity Pattern" 
-              type="line" 
-              height={250}
-            />
+            {profileData.wordCloud && profileData.wordCloud.length > 0 && (
+              <WordCloud words={profileData.wordCloud} title="Most Used Words" />
+            )}
+            {profileData.activeSubreddits && profileData.activeSubreddits.length > 0 && (
+              <AnalyticsChart 
+                data={profileData.activeSubreddits.map((s: any) => ({ name: s.name, value: s.count }))} 
+                title="Subreddit Activity Distribution" 
+                type="bar" 
+                height={250}
+              />
+            )}
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <AnalyticsChart 
-              data={sentimentChartData} 
-              title="Sentiment Analysis" 
-              type="pie" 
-              height={250}
-            />
-            <AnalyticsChart 
-              data={subredditActivityData} 
-              title="Subreddit Activity Distribution" 
-              type="bar" 
-              height={250}
-            />
+            {profileData.sentimentAnalysis && (
+              <AnalyticsChart 
+                data={[
+                  { name: 'Positive', value: Math.round(profileData.sentimentAnalysis.positive * 100) },
+                  { name: 'Neutral', value: Math.round(profileData.sentimentAnalysis.neutral * 100) },
+                  { name: 'Negative', value: Math.round(profileData.sentimentAnalysis.negative * 100) },
+                ]}
+                title="Sentiment Analysis (AI-Powered)" 
+                type="pie" 
+                height={250}
+              />
+            )}
           </div>
         </div>
       )}
 
-      {!profileData && !isLoading && (
+      {error && !profileData && (
+        <Card className="border-destructive/50 bg-destructive/10">
+          <CardContent className="py-12 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <p className="text-destructive font-medium mb-2">Analysis Failed</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!profileData && !isLoading && !error && (
         <Card className="border-dashed border-muted-foreground/30">
           <CardContent className="py-12 text-center">
             <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">Enter a username to perform detailed profile analysis</p>
+            <p className="text-xs text-muted-foreground mt-2">Real-time data fetched from Reddit API</p>
           </CardContent>
         </Card>
       )}
