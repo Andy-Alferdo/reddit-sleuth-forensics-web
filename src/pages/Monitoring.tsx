@@ -287,7 +287,14 @@ const Monitoring = () => {
         }
       }
       
-      setActivities(newActivities);
+      // Sort activities by timestamp (most recent first)
+      const sortedActivities = newActivities.sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return timeB - timeA;
+      });
+      
+      setActivities(sortedActivities);
       setLastFetchTime(formatCurrentTimePakistan());
 
       // Extract words for word cloud

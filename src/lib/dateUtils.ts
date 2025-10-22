@@ -13,10 +13,10 @@ export const formatToPakistanTime = (date: Date | string | number, formatStr: st
 };
 
 /**
- * Format timestamp for activity display (e.g., "2:30:45 PM")
+ * Format timestamp for activity display (e.g., "Jan 15, 2024, 2:30:45 PM PKT")
  */
 export const formatActivityTime = (timestamp: number): string => {
-  return formatToPakistanTime(timestamp * 1000, 'p');
+  return formatToPakistanTime(timestamp * 1000, 'PPpp') + ' PKT';
 };
 
 /**
