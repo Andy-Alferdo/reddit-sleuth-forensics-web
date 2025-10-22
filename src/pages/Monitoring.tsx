@@ -43,6 +43,9 @@ const Monitoring = () => {
   const [investigatorEmail, setInvestigatorEmail] = useState('');
   const [activities, setActivities] = useState<RedditActivity[]>([]);
   const [wordCloudData, setWordCloudData] = useState<any[]>([]);
+  const [isFetching, setIsFetching] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState<string>('');
+  const [newActivityCount, setNewActivityCount] = useState(0);
   const monitoringIntervalRef = useRef<number | null>(null);
 
   // Generate sample activities
@@ -145,13 +148,14 @@ const Monitoring = () => {
 
   const handleStopMonitoring = () => {
     setIsMonitoring(false);
+    setIsFetching(false);
     if (monitoringIntervalRef.current) {
       clearInterval(monitoringIntervalRef.current);
       monitoringIntervalRef.current = null;
     }
     toast({
       title: "Monitoring Stopped",
-      description: "Real-time monitoring has been paused",
+      description: `Real-time monitoring paused. Detected ${newActivityCount} new items during this session.`,
     });
   };
 
@@ -183,24 +187,33 @@ const Monitoring = () => {
 
   const handleStartMonitoring = async () => {
     setIsMonitoring(true);
+    setNewActivityCount(0);
     
     toast({
       title: "Monitoring Started",
-      description: "Real-time tracking active. Data refreshes every 5 seconds.",
+      description: "Real-time tracking active. Checking for new activity every 15 seconds.",
     });
 
     // Fetch initial data
-    await fetchRedditData();
+    await fetchRedditData(true);
 
-    // Set up interval for continuous monitoring (every 5 seconds)
+    // Set up interval for continuous monitoring (every 15 seconds for better API rate limit handling)
     monitoringIntervalRef.current = window.setInterval(async () => {
-      console.log('Fetching new Reddit data...');
-      await fetchRedditData();
-    }, 5000);
+      console.log('Checking for new Reddit activity...');
+      await fetchRedditData(false);
+    }, 15000);
   };
 
-  const fetchRedditData = async () => {
+  const fetchRedditData = async (isInitial: boolean = false) => {
     if (!profileData || !searchType || !searchQuery) return;
+
+    // Prevent concurrent fetches
+    if (isFetching && !isInitial) {
+      console.log('Fetch already in progress, skipping...');
+      return;
+    }
+
+    setIsFetching(true);
 
     try {
       console.log('Fetching Reddit activity data...');
@@ -218,6 +231,11 @@ const Monitoring = () => {
 
       if (redditError) {
         console.error('Error fetching Reddit data:', redditError);
+        toast({
+          title: "Fetch Error",
+          description: "Failed to fetch new activity. Retrying...",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -253,7 +271,23 @@ const Monitoring = () => {
       // Sort by timestamp descending
       newActivities.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
       
+      // Detect new activities
+      if (!isInitial && activities.length > 0) {
+        const existingIds = new Set(activities.map(a => a.id));
+        const newItems = newActivities.filter(a => !existingIds.has(a.id));
+        
+        if (newItems.length > 0) {
+          setNewActivityCount(prev => prev + newItems.length);
+          toast({
+            title: "New Activity Detected",
+            description: `${newItems.length} new ${newItems.length === 1 ? 'item' : 'items'} found!`,
+          });
+          console.log(`Found ${newItems.length} new items`);
+        }
+      }
+      
       setActivities(newActivities);
+      setLastFetchTime(new Date().toLocaleTimeString());
 
       // Extract words for word cloud
       const textContent = [
@@ -282,6 +316,15 @@ const Monitoring = () => {
 
     } catch (error) {
       console.error('Error in fetchRedditData:', error);
+      if (isMonitoring) {
+        toast({
+          title: "Connection Issue",
+          description: "Temporary error fetching data. Will retry...",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsFetching(false);
     }
   };
 
@@ -550,6 +593,7 @@ const Monitoring = () => {
               {!isMonitoring && (
                 <div className="flex flex-col items-center gap-2 pt-4 border-t">
                   <Button onClick={handleStartMonitoring} size="lg" className="w-full max-w-md">
+                    <Activity className="mr-2 h-4 w-4" />
                     Start Monitoring
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
@@ -559,7 +603,7 @@ const Monitoring = () => {
               )}
 
               {isMonitoring && (
-                <div className="flex flex-col items-center gap-2 pt-4 border-t">
+                <div className="flex flex-col items-center gap-3 pt-4 border-t">
                   <Button 
                     onClick={handleStopMonitoring} 
                     size="lg" 
@@ -569,9 +613,29 @@ const Monitoring = () => {
                     <StopCircle className="h-5 w-5 mr-2" />
                     Stop Monitoring
                   </Button>
-                  <p className="text-xs text-muted-foreground text-center">
-                    Real-time tracking active. Data refreshes every 5 seconds.
-                  </p>
+                  <div className="w-full max-w-md space-y-2">
+                    <div className="flex items-center justify-between text-sm px-2">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        {isFetching && (
+                          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                        )}
+                        {isFetching ? 'Checking for new activity...' : 'Monitoring Active'}
+                      </span>
+                      {lastFetchTime && (
+                        <span className="text-xs text-muted-foreground">
+                          Last: {lastFetchTime}
+                        </span>
+                      )}
+                    </div>
+                    {newActivityCount > 0 && (
+                      <div className="px-3 py-2 rounded-md bg-primary/10 text-primary text-sm text-center font-medium">
+                        ✨ {newActivityCount} new {newActivityCount === 1 ? 'item' : 'items'} detected
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground text-center">
+                      Checking every 15 seconds for new posts and comments
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>
