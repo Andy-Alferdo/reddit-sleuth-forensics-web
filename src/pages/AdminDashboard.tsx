@@ -17,6 +17,7 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 );
 import { Shield, Users, Database, LogOut, Trash2, UserPlus, Edit } from 'lucide-react';
+import { formatDateShort } from '@/lib/dateUtils';
 
 interface User {
   id: string;
@@ -341,7 +342,7 @@ const AdminDashboard = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {new Date(user.created_at).toLocaleDateString()}
+                            {formatDateShort(user.created_at)}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">

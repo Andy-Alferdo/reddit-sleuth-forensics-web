@@ -12,6 +12,7 @@ import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { MiniSparkline } from '@/components/MiniSparkline';
 import { CompactBarChart } from '@/components/CompactBarChart';
 import { supabase } from '@/integrations/supabase/client';
+import { formatCurrentTimePakistan, formatActivityTime } from '@/lib/dateUtils';
 
 interface RedditActivity {
   id: string;
@@ -249,7 +250,7 @@ const Monitoring = () => {
             type: 'post',
             title: post.title,
             subreddit: `r/${post.subreddit}`,
-            timestamp: new Date(post.created_utc * 1000).toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+            timestamp: formatActivityTime(post.created_utc),
             url: `https://reddit.com${post.permalink}`
           });
         });
@@ -262,7 +263,7 @@ const Monitoring = () => {
             type: 'comment',
             title: comment.body.substring(0, 100) + (comment.body.length > 100 ? '...' : ''),
             subreddit: `r/${comment.subreddit}`,
-            timestamp: new Date(comment.created_utc * 1000).toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+            timestamp: formatActivityTime(comment.created_utc),
             url: `https://reddit.com${comment.permalink}`
           });
         });
@@ -287,7 +288,7 @@ const Monitoring = () => {
       }
       
       setActivities(newActivities);
-      setLastFetchTime(new Date().toLocaleTimeString());
+      setLastFetchTime(formatCurrentTimePakistan());
 
       // Extract words for word cloud
       const textContent = [
