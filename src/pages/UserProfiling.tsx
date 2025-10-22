@@ -9,6 +9,7 @@ import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { toZonedTime } from 'date-fns-tz';
 
 const UserProfiling = () => {
   const [username, setUsername] = useState('');
@@ -118,8 +119,9 @@ const UserProfiling = () => {
       
       allContent.forEach((item: any) => {
         const date = new Date(item.created_utc * 1000);
-        const hour = date.getUTCHours();
-        const day = date.toLocaleDateString('en-US', { weekday: 'long' });
+        const pakistanDate = toZonedTime(date, 'Asia/Karachi');
+        const hour = pakistanDate.getHours();
+        const day = pakistanDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Karachi' });
         
         hourCounts[hour] = (hourCounts[hour] || 0) + 1;
         dayCounts[day] = (dayCounts[day] || 0) + 1;
@@ -159,9 +161,9 @@ const UserProfiling = () => {
         commentKarma: redditData.user.comment_karma,
         activeSubreddits: analysisData?.topSubreddits || [],
         activityPattern: {
-          mostActiveHour: mostActiveHour ? `${mostActiveHour[0]}:00-${parseInt(mostActiveHour[0])+1}:00 UTC` : 'N/A',
+          mostActiveHour: mostActiveHour ? `${mostActiveHour[0]}:00-${parseInt(mostActiveHour[0])+1}:00 PKT` : 'N/A',
           mostActiveDay: mostActiveDay?.[0] || 'N/A',
-          timezone: 'UTC (based on activity)',
+          timezone: 'PKT (Pakistan Standard Time)',
         },
         sentimentAnalysis: analysisData?.sentiment?.breakdown || { positive: 33, neutral: 34, negative: 33 },
         locationIndicators: analysisData?.locations || ['No specific locations detected'],
