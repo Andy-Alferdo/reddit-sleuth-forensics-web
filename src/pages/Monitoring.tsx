@@ -83,17 +83,17 @@ const Monitoring = () => {
     return activities.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   };
 
+  // Calculate real activity breakdown from scraped data
+  const postsCount = activities.filter(a => a.type === 'post').length;
+  const commentsCount = activities.filter(a => a.type === 'comment').length;
+  
   const activityBreakdownData = profileData?.communityName 
     ? [
-        { name: 'Posts', value: 42 },
-        { name: 'Shares', value: 23 },
-        { name: 'Mentions', value: 15 },
+        { name: 'Posts', value: postsCount },
       ]
     : [
-        { name: 'Posts', value: 42 },
-        { name: 'Comments', value: 87 },
-        { name: 'Shares', value: 23 },
-        { name: 'Mentions', value: 15 },
+        { name: 'Posts', value: postsCount },
+        { name: 'Comments', value: commentsCount },
       ];
 
   const realTimeWordCloud = [
