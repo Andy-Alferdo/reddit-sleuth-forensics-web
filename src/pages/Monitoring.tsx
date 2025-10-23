@@ -84,8 +84,19 @@ const Monitoring = () => {
   };
 
   // Calculate real activity breakdown from scraped data
-  const postsCount = activities.filter(a => a.type === 'post').length;
-  const commentsCount = activities.filter(a => a.type === 'comment').length;
+  // For communities, filter posts from past week
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  
+  const filteredActivities = profileData?.communityName
+    ? activities.filter(a => {
+        const activityDate = new Date(a.timestamp);
+        return a.type === 'post' && activityDate >= oneWeekAgo;
+      })
+    : activities;
+  
+  const postsCount = filteredActivities.filter(a => a.type === 'post').length;
+  const commentsCount = filteredActivities.filter(a => a.type === 'comment').length;
   
   const activityBreakdownData = profileData?.communityName 
     ? [
@@ -832,7 +843,7 @@ const Monitoring = () => {
               {/* Activity Breakdown */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Activity Breakdown (Last 24 Hours)</CardTitle>
+                  <CardTitle>Activity Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
