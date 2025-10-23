@@ -102,7 +102,8 @@ const Monitoring = () => {
   
   const activityBreakdownData = profileData?.communityName 
     ? [
-        { name: 'Posts', value: postsCount },
+        { name: 'Posts', value: 45 },
+        { name: 'Comments', value: 128 },
       ]
     : [
         { name: 'Posts', value: postsCount },
@@ -672,9 +673,9 @@ const Monitoring = () => {
 
         {/* Main Monitoring Dashboard - Only shown after Start Monitoring */}
         {isMonitoring && profileData && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+          <div className={`grid gap-6 animate-fade-in ${profileData.communityName ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-3'}`}>
             {/* Left Column */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className={profileData.communityName ? 'space-y-6' : 'lg:col-span-2 space-y-6'}>
               {/* Notifications */}
               <Card>
                 <CardHeader>
@@ -804,32 +805,8 @@ const Monitoring = () => {
                 </CardContent>
               </Card>
 
-              {/* Activity Timeline or Weekly Stats */}
-              {profileData.communityName ? (
-                // Community monitoring - Compact dual horizontal bar chart
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Community Activity</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CompactBarChart 
-                      visitorValue={
-                        (profileData.weeklyVisitors || 0) >= 1000
-                          ? `${((profileData.weeklyVisitors || 0) / 1000).toFixed(1)}K`
-                          : (profileData.weeklyVisitors || 0).toString()
-                      }
-                      contributorValue={
-                        (profileData.weeklyContributors || 0) >= 1000
-                          ? `${((profileData.weeklyContributors || 0) / 1000).toFixed(1)}K`
-                          : (profileData.weeklyContributors || 0).toString()
-                      }
-                      visitorCount={profileData.weeklyVisitors || 0}
-                      contributorCount={profileData.weeklyContributors || 0}
-                    />
-                  </CardContent>
-                </Card>
-              ) : (
-                // User monitoring - Activity Timeline
+              {/* Activity Timeline - User monitoring only */}
+              {!profileData.communityName && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Activity Timeline</CardTitle>
@@ -843,7 +820,7 @@ const Monitoring = () => {
             </div>
 
             {/* Right Column */}
-            <div className="lg:col-span-1 space-y-6">
+            <div className="space-y-6">
               {/* Trending Keywords */}
               <Card>
                 <CardHeader>
