@@ -19,6 +19,7 @@ interface RedditPost {
   num_comments: number;
   url: string;
   permalink: string;
+  author: string;
 }
 
 interface RedditComment {
@@ -164,6 +165,8 @@ serve(async (req) => {
       responseData = {
         subreddit: subredditData.data,
         posts,
+        weeklyVisitors: subredditData.data.accounts_active || 0,
+        activeUsers: subredditData.data.active_user_count || 0,
       };
     }
 

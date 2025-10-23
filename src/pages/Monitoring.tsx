@@ -32,6 +32,8 @@ interface ProfileData {
   memberCount?: string;
   description?: string;
   createdDate?: string;
+  weeklyVisitors?: number;
+  weeklyContributors?: number;
 }
 
 const Monitoring = () => {
@@ -418,6 +420,11 @@ const Monitoring = () => {
           year: 'numeric' 
         });
 
+        // Calculate weekly contributors from posts in the last 7 days
+        const oneWeekAgo = Date.now() / 1000 - (7 * 24 * 60 * 60);
+        const weeklyPosts = (redditData.posts || []).filter((p: any) => p.created_utc >= oneWeekAgo);
+        const uniqueAuthors = new Set(weeklyPosts.map((p: any) => p.author));
+
         setProfileData({
           communityName: `r/${cleanQuery}`,
           memberCount: (subreddit.subscribers / 1000000 >= 1) 
@@ -425,6 +432,8 @@ const Monitoring = () => {
             : `${(subreddit.subscribers / 1000).toFixed(1)}K`,
           description: subreddit.public_description || subreddit.description || 'No description available',
           createdDate,
+          weeklyVisitors: redditData.weeklyVisitors || 0,
+          weeklyContributors: uniqueAuthors.size,
         });
       }
 
@@ -804,10 +813,18 @@ const Monitoring = () => {
                   </CardHeader>
                   <CardContent>
                     <CompactBarChart 
-                      visitorValue="3.2K"
-                      contributorValue="1.8K"
-                      visitorCount={3200}
-                      contributorCount={1800}
+                      visitorValue={
+                        (profileData.weeklyVisitors || 0) >= 1000
+                          ? `${((profileData.weeklyVisitors || 0) / 1000).toFixed(1)}K`
+                          : (profileData.weeklyVisitors || 0).toString()
+                      }
+                      contributorValue={
+                        (profileData.weeklyContributors || 0) >= 1000
+                          ? `${((profileData.weeklyContributors || 0) / 1000).toFixed(1)}K`
+                          : (profileData.weeklyContributors || 0).toString()
+                      }
+                      visitorCount={profileData.weeklyVisitors || 0}
+                      contributorCount={profileData.weeklyContributors || 0}
                     />
                   </CardContent>
                 </Card>
