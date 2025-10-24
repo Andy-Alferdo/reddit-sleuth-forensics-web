@@ -103,7 +103,6 @@ const Monitoring = () => {
   const activityBreakdownData = profileData?.communityName 
     ? [
         { name: 'Posts', value: 45 },
-        { name: 'Comments', value: 128 },
       ]
     : [
         { name: 'Posts', value: postsCount },
@@ -170,7 +169,9 @@ const Monitoring = () => {
     }
     toast({
       title: "Monitoring Stopped",
-      description: `Real-time monitoring paused. Detected ${newActivityCount} new items during this session.`,
+      description: newActivityCount > 0 
+        ? `Real-time monitoring paused. Detected ${newActivityCount} new items during this session.`
+        : "Real-time monitoring paused.",
     });
   };
 
@@ -673,7 +674,7 @@ const Monitoring = () => {
 
         {/* Main Monitoring Dashboard - Only shown after Start Monitoring */}
         {isMonitoring && profileData && (
-          <div className={`grid gap-6 animate-fade-in ${profileData.communityName ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-3'}`}>
+          <div className={`grid gap-6 animate-fade-in ${profileData.communityName ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
             {/* Left Column */}
             <div className={profileData.communityName ? 'space-y-6' : 'lg:col-span-2 space-y-6'}>
               {/* Notifications */}
