@@ -376,7 +376,7 @@ const UserProfiling = () => {
           </div>
           
           {/* Sentiment Analysis - Posts */}
-          {profileData.postSentiments && profileData.postSentiments.length > 0 && (
+          {profileData.postSentiments && profileData.postSentiments.length > 0 ? (
             <Card className="border-primary/20">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -427,10 +427,17 @@ const UserProfiling = () => {
                 )}
               </CardContent>
             </Card>
+          ) : profileData && (
+            <Card className="border-primary/20">
+              <CardContent className="py-12 text-center">
+                <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No posts available for sentiment analysis</p>
+              </CardContent>
+            </Card>
           )}
 
           {/* Sentiment Analysis - Comments */}
-          {profileData.commentSentiments && profileData.commentSentiments.length > 0 && (
+          {profileData.commentSentiments && profileData.commentSentiments.length > 0 ? (
             <Card className="border-primary/20">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -479,6 +486,13 @@ const UserProfiling = () => {
                     height={250}
                   />
                 )}
+              </CardContent>
+            </Card>
+          ) : profileData && (
+            <Card className="border-primary/20">
+              <CardContent className="py-12 text-center">
+                <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No comments available for sentiment analysis</p>
               </CardContent>
             </Card>
           )}

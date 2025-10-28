@@ -24,18 +24,17 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Combine all text content for analysis
-    const allText = [
-      ...posts.map(p => `${p.title} ${p.selftext}`),
-      ...comments.map(c => c.body)
-    ].join('\n\n');
+    // Format posts and comments for analysis
+    const formattedPosts = posts.slice(0, 10).map((p, idx) => 
+      `POST${idx + 1}: ${p.title} ${p.selftext}`.slice(0, 500)
+    );
+    const formattedComments = comments.slice(0, 15).map((c, idx) => 
+      `COMMENT${idx + 1}: ${c.body}`.slice(0, 300)
+    );
 
-    // Prepare content for analysis (limit to avoid token limits)
-    const contentSample = allText.slice(0, 15000);
+    console.log('Calling Lovable AI for sentiment analysis...');
 
-    console.log('Calling Lovable AI for sentiment and location analysis...');
-
-    // Analyze sentiment and extract locations using Lovable AI
+    // Analyze sentiment using Lovable AI
     const analysisResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -47,67 +46,25 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an expert at analyzing Reddit user behavior. Analyze the provided posts and comments to determine:
-1. Per-item sentiment analysis with explanations for each post and comment
-2. Overall sentiment breakdown
-3. Primary emotions detected (joy, anger, sadness, fear, surprise)
-4. Location indicators (cities, countries, regions mentioned in content)
-5. Behavioral patterns (posting frequency, interaction style, topics of interest)
+            content: `Analyze sentiment for each post and comment. Return ONLY valid JSON with NO markdown formatting.
 
-Respond ONLY with a valid JSON object in this exact format:
+CRITICAL: You must analyze EVERY post and comment individually and include them ALL in the arrays.
+
+Required format:
 {
-  "postSentiments": [
-    {
-      "text": "truncated post text (first 100 chars)",
-      "sentiment": "positive|negative|neutral",
-      "explanation": "brief reason why it has this sentiment"
-    }
-  ],
-  "commentSentiments": [
-    {
-      "text": "truncated comment text (first 100 chars)",
-      "sentiment": "positive|negative|neutral",
-      "explanation": "brief reason why it has this sentiment"
-    }
-  ],
+  "postSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "XAI reason"}],
+  "commentSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "XAI reason"}],
   "sentiment": {
-    "overall": "positive|negative|neutral",
-    "score": 0.0-1.0,
-    "breakdown": {
-      "positive": 0.0-1.0,
-      "negative": 0.0-1.0,
-      "neutral": 0.0-1.0
-    },
-    "postBreakdown": {
-      "positive": 0.0-1.0,
-      "negative": 0.0-1.0,
-      "neutral": 0.0-1.0
-    },
-    "commentBreakdown": {
-      "positive": 0.0-1.0,
-      "negative": 0.0-1.0,
-      "neutral": 0.0-1.0
-    }
+    "postBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0},
+    "commentBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0}
   },
-  "emotions": {
-    "primary": "joy|anger|sadness|fear|surprise|neutral",
-    "scores": {
-      "joy": 0.0-1.0,
-      "anger": 0.0-1.0,
-      "sadness": 0.0-1.0
-    }
-  },
-  "locations": ["city/country1", "city/country2"],
-  "patterns": {
-    "topicInterests": ["topic1", "topic2", "topic3"],
-    "communicationStyle": "brief description",
-    "activityLevel": "high|medium|low"
-  }
+  "locations": ["location1", "location2"],
+  "patterns": {"topicInterests": ["topic1", "topic2"]}
 }`
           },
           {
             role: 'user',
-            content: `Analyze this Reddit user's content (${posts.length} posts, ${comments.length} comments):\n\n${contentSample}`
+            content: `POSTS:\n${formattedPosts.join('\n\n')}\n\nCOMMENTS:\n${formattedComments.join('\n\n')}`
           }
         ],
         temperature: 0.3,
@@ -146,36 +103,48 @@ Respond ONLY with a valid JSON object in this exact format:
 
     // Parse the AI response
     const aiContent = aiResponse.choices[0].message.content;
+    console.log('AI response preview:', aiContent.slice(0, 500));
     
     // Extract JSON from markdown code blocks if present
     let analysisResult;
     try {
       const jsonMatch = aiContent.match(/```json\n([\s\S]*?)\n```/) || aiContent.match(/```\n([\s\S]*?)\n```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : aiContent;
+      const jsonStr = jsonMatch ? jsonMatch[1] : aiContent.trim();
       analysisResult = JSON.parse(jsonStr);
+      
+      // Ensure all required fields exist
+      if (!analysisResult.postSentiments) analysisResult.postSentiments = [];
+      if (!analysisResult.commentSentiments) analysisResult.commentSentiments = [];
+      if (!analysisResult.sentiment) {
+        analysisResult.sentiment = {
+          postBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 },
+          commentBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 }
+        };
+      }
+      if (!analysisResult.sentiment.postBreakdown) {
+        analysisResult.sentiment.postBreakdown = { positive: 0.33, negative: 0.33, neutral: 0.34 };
+      }
+      if (!analysisResult.sentiment.commentBreakdown) {
+        analysisResult.sentiment.commentBreakdown = { positive: 0.33, negative: 0.33, neutral: 0.34 };
+      }
+      if (!analysisResult.locations) analysisResult.locations = [];
+      if (!analysisResult.patterns) {
+        analysisResult.patterns = { topicInterests: ['Unable to analyze'] };
+      }
+      
+      console.log(`Parsed ${analysisResult.postSentiments.length} post sentiments and ${analysisResult.commentSentiments.length} comment sentiments`);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
-      // Fallback to basic analysis
+      console.error('Raw AI content:', aiContent);
       analysisResult = {
         postSentiments: [],
         commentSentiments: [],
         sentiment: {
-          overall: 'neutral',
-          score: 0.5,
-          breakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 },
           postBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 },
           commentBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 }
         },
-        emotions: {
-          primary: 'neutral',
-          scores: { joy: 0.33, anger: 0.33, sadness: 0.34 }
-        },
-        locations: [],
-        patterns: {
-          topicInterests: [],
-          communicationStyle: 'Analysis unavailable',
-          activityLevel: 'medium'
-        }
+        locations: ['Unable to extract locations'],
+        patterns: { topicInterests: ['Unable to analyze patterns'] }
       };
     }
 
