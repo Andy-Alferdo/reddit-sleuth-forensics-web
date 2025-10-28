@@ -48,17 +48,42 @@ serve(async (req) => {
           {
             role: 'system',
             content: `You are an expert at analyzing Reddit user behavior. Analyze the provided posts and comments to determine:
-1. Overall sentiment (positive, negative, neutral) with confidence score
-2. Primary emotions detected (joy, anger, sadness, fear, surprise)
-3. Location indicators (cities, countries, regions mentioned in content)
-4. Behavioral patterns (posting frequency, interaction style, topics of interest)
+1. Per-item sentiment analysis with explanations for each post and comment
+2. Overall sentiment breakdown
+3. Primary emotions detected (joy, anger, sadness, fear, surprise)
+4. Location indicators (cities, countries, regions mentioned in content)
+5. Behavioral patterns (posting frequency, interaction style, topics of interest)
 
 Respond ONLY with a valid JSON object in this exact format:
 {
+  "postSentiments": [
+    {
+      "text": "truncated post text (first 100 chars)",
+      "sentiment": "positive|negative|neutral",
+      "explanation": "brief reason why it has this sentiment"
+    }
+  ],
+  "commentSentiments": [
+    {
+      "text": "truncated comment text (first 100 chars)",
+      "sentiment": "positive|negative|neutral",
+      "explanation": "brief reason why it has this sentiment"
+    }
+  ],
   "sentiment": {
     "overall": "positive|negative|neutral",
     "score": 0.0-1.0,
     "breakdown": {
+      "positive": 0.0-1.0,
+      "negative": 0.0-1.0,
+      "neutral": 0.0-1.0
+    },
+    "postBreakdown": {
+      "positive": 0.0-1.0,
+      "negative": 0.0-1.0,
+      "neutral": 0.0-1.0
+    },
+    "commentBreakdown": {
       "positive": 0.0-1.0,
       "negative": 0.0-1.0,
       "neutral": 0.0-1.0
@@ -82,7 +107,7 @@ Respond ONLY with a valid JSON object in this exact format:
           },
           {
             role: 'user',
-            content: `Analyze this Reddit user's content:\n\n${contentSample}`
+            content: `Analyze this Reddit user's content (${posts.length} posts, ${comments.length} comments):\n\n${contentSample}`
           }
         ],
         temperature: 0.3,
@@ -132,10 +157,14 @@ Respond ONLY with a valid JSON object in this exact format:
       console.error('Failed to parse AI response:', parseError);
       // Fallback to basic analysis
       analysisResult = {
+        postSentiments: [],
+        commentSentiments: [],
         sentiment: {
           overall: 'neutral',
           score: 0.5,
-          breakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 }
+          breakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 },
+          postBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 },
+          commentBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 }
         },
         emotions: {
           primary: 'neutral',
@@ -165,6 +194,8 @@ Respond ONLY with a valid JSON object in this exact format:
       .map(([name, count]) => ({ name, count }));
 
     return new Response(JSON.stringify({
+      postSentiments: analysisResult.postSentiments || [],
+      commentSentiments: analysisResult.commentSentiments || [],
       sentiment: analysisResult.sentiment,
       emotions: analysisResult.emotions,
       locations: analysisResult.locations,

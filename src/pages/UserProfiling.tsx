@@ -166,6 +166,10 @@ const UserProfiling = () => {
           timezone: 'PKT (Pakistan Standard Time)',
         },
         sentimentAnalysis: analysisData?.sentiment?.breakdown || { positive: 33, neutral: 34, negative: 33 },
+        postSentiments: analysisData?.postSentiments || [],
+        commentSentiments: analysisData?.commentSentiments || [],
+        postSentimentBreakdown: analysisData?.sentiment?.postBreakdown || null,
+        commentSentimentBreakdown: analysisData?.sentiment?.commentBreakdown || null,
         locationIndicators: analysisData?.locations || ['No specific locations detected'],
         behaviorPatterns: analysisData?.patterns?.topicInterests || ['Analyzing...'],
         wordCloud: wordCloudData,
@@ -371,20 +375,113 @@ const UserProfiling = () => {
             )}
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {profileData.sentimentAnalysis && (
-              <AnalyticsChart 
-                data={[
-                  { name: 'Positive', value: Math.round(profileData.sentimentAnalysis.positive * 100) },
-                  { name: 'Neutral', value: Math.round(profileData.sentimentAnalysis.neutral * 100) },
-                  { name: 'Negative', value: Math.round(profileData.sentimentAnalysis.negative * 100) },
-                ]}
-                title="Sentiment Analysis (AI-Powered)" 
-                type="pie" 
-                height={250}
-              />
-            )}
-          </div>
+          {/* Sentiment Analysis - Posts */}
+          {profileData.postSentiments && profileData.postSentiments.length > 0 && (
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <MessageCircle className="h-5 w-5 text-primary" />
+                  <span>Post Sentiment Analysis (AI-Powered)</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-semibold">Post</th>
+                        <th className="text-left p-3 font-semibold w-32">Sentiment</th>
+                        <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profileData.postSentiments.map((item: any, index: number) => (
+                        <tr key={index} className="border-b hover:bg-muted/50">
+                          <td className="p-3 text-sm">{item.text}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              item.sentiment === 'positive' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
+                              item.sentiment === 'negative' ? 'bg-red-500/20 text-red-700 dark:text-red-400' :
+                              'bg-gray-500/20 text-gray-700 dark:text-gray-400'
+                            }`}>
+                              {item.sentiment}
+                            </span>
+                          </td>
+                          <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {profileData.postSentimentBreakdown && (
+                  <AnalyticsChart 
+                    data={[
+                      { name: 'Positive', value: Math.round(profileData.postSentimentBreakdown.positive * 100) },
+                      { name: 'Neutral', value: Math.round(profileData.postSentimentBreakdown.neutral * 100) },
+                      { name: 'Negative', value: Math.round(profileData.postSentimentBreakdown.negative * 100) },
+                    ]}
+                    title="Post Sentiment Distribution" 
+                    type="pie" 
+                    height={250}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Sentiment Analysis - Comments */}
+          {profileData.commentSentiments && profileData.commentSentiments.length > 0 && (
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <MessageCircle className="h-5 w-5 text-primary" />
+                  <span>Comment Sentiment Analysis (AI-Powered)</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-semibold">Comment</th>
+                        <th className="text-left p-3 font-semibold w-32">Sentiment</th>
+                        <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profileData.commentSentiments.map((item: any, index: number) => (
+                        <tr key={index} className="border-b hover:bg-muted/50">
+                          <td className="p-3 text-sm">{item.text}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              item.sentiment === 'positive' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
+                              item.sentiment === 'negative' ? 'bg-red-500/20 text-red-700 dark:text-red-400' :
+                              'bg-gray-500/20 text-gray-700 dark:text-gray-400'
+                            }`}>
+                              {item.sentiment}
+                            </span>
+                          </td>
+                          <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {profileData.commentSentimentBreakdown && (
+                  <AnalyticsChart 
+                    data={[
+                      { name: 'Positive', value: Math.round(profileData.commentSentimentBreakdown.positive * 100) },
+                      { name: 'Neutral', value: Math.round(profileData.commentSentimentBreakdown.neutral * 100) },
+                      { name: 'Negative', value: Math.round(profileData.commentSentimentBreakdown.negative * 100) },
+                    ]}
+                    title="Comment Sentiment Distribution" 
+                    type="pie" 
+                    height={250}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
