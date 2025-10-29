@@ -8,46 +8,31 @@ This diagram shows the complete flow when a user analyzes a Reddit profile.
 sequenceDiagram
     actor User
     participant Frontend
-    participant RedditScraper as reddit-scraper<br/>Edge Function
-    participant AnalyzeContent as analyze-content<br/>Edge Function
-    participant RedditAPI as Reddit API
-    participant LovableAI as Lovable AI<br/>(Gemini 2.5 Flash)
-    participant Database as Supabase DB
+    participant Scraper as Reddit Scraper Function
+    participant Analyzer as Content Analyzer Function
+    participant Reddit as Reddit API
+    participant AI as Gemini AI
+    participant DB as Database
     
-    User->>Frontend: Enter username & click scrape
-    Frontend->>RedditScraper: POST /reddit-scraper<br/>{username, type: "user"}
+    User->>Frontend: Enter username
+    Frontend->>Scraper: Request user data
+    Scraper->>Reddit: Authenticate OAuth2
+    Reddit-->>Scraper: Access token
+    Scraper->>Reddit: Fetch profile, posts, comments
+    Reddit-->>Scraper: User data
+    Scraper-->>Frontend: Return scraped data
     
-    RedditScraper->>RedditAPI: Authenticate (OAuth2)
-    RedditAPI-->>RedditScraper: Access Token
+    Frontend->>Analyzer: Send posts and comments
+    Analyzer->>AI: Analyze sentiment with XAI
+    AI-->>Analyzer: Sentiment results
+    Analyzer->>AI: Extract locations
+    AI-->>Analyzer: Location data
+    Analyzer->>AI: Identify patterns
+    AI-->>Analyzer: Behavior patterns
+    Analyzer-->>Frontend: Complete analysis
     
-    RedditScraper->>RedditAPI: GET /user/{username}/about
-    RedditAPI-->>RedditScraper: User Profile Data
-    
-    RedditScraper->>RedditAPI: GET /user/{username}/submitted
-    RedditAPI-->>RedditScraper: Posts Data
-    
-    RedditScraper->>RedditAPI: GET /user/{username}/comments
-    RedditAPI-->>RedditScraper: Comments Data
-    
-    RedditScraper-->>Frontend: User Data + Posts + Comments
-    
-    Frontend->>AnalyzeContent: POST /analyze-content<br/>{posts, comments, type: "user"}
-    
-    AnalyzeContent->>LovableAI: Analyze Sentiment<br/>(per-item + overall)
-    LovableAI-->>AnalyzeContent: Sentiment Results + XAI
-    
-    AnalyzeContent->>LovableAI: Extract Locations
-    LovableAI-->>AnalyzeContent: Location Data
-    
-    AnalyzeContent->>LovableAI: Identify Behavior Patterns
-    LovableAI-->>AnalyzeContent: Pattern Analysis
-    
-    AnalyzeContent-->>Frontend: Analysis Results<br/>(postSentiments, commentSentiments,<br/>locations, patterns)
-    
-    Frontend->>Database: Store Analysis Results
-    Database-->>Frontend: Confirmation
-    
-    Frontend->>User: Display User Profile<br/>with Sentiment Charts & XAI
+    Frontend->>DB: Store results
+    Frontend->>User: Display charts and tables
 ```
 
 ## Content Monitoring Sequence
@@ -58,38 +43,28 @@ This diagram shows the real-time monitoring workflow.
 sequenceDiagram
     actor User
     participant Frontend
-    participant RedditScraper as reddit-scraper<br/>Edge Function
-    participant AnalyzeContent as analyze-content<br/>Edge Function
-    participant RedditAPI as Reddit API
-    participant LovableAI as Lovable AI
-    participant Database as Supabase DB
+    participant Scraper as Reddit Scraper
+    participant Analyzer as Content Analyzer
+    participant Reddit as Reddit API
+    participant AI as Gemini AI
+    participant DB as Database
     
-    User->>Frontend: Configure keywords & search
-    Frontend->>Database: Save keywords
-    Database-->>Frontend: Confirmation
+    User->>Frontend: Configure keywords
+    Frontend->>DB: Save keywords
     
-    loop Every Monitoring Interval
-        Frontend->>RedditScraper: POST /reddit-scraper<br/>{query: keywords, type: "search"}
+    loop Monitoring Interval
+        Frontend->>Scraper: Search keywords
+        Scraper->>Reddit: Search API
+        Reddit-->>Scraper: Results
+        Scraper-->>Frontend: Posts and comments
         
-        RedditScraper->>RedditAPI: Authenticate
-        RedditAPI-->>RedditScraper: Access Token
+        Frontend->>Analyzer: Analyze content
+        Analyzer->>AI: Sentiment analysis
+        AI-->>Analyzer: Results
+        Analyzer-->>Frontend: Analysis complete
         
-        RedditScraper->>RedditAPI: GET /search<br/>?q=keywords&sort=new
-        RedditAPI-->>RedditScraper: Search Results<br/>(Posts + Comments)
-        
-        RedditScraper-->>Frontend: Scraped Content
-        
-        Frontend->>AnalyzeContent: POST /analyze-content<br/>{posts, comments}
-        
-        AnalyzeContent->>LovableAI: Analyze Content
-        LovableAI-->>AnalyzeContent: Analysis Results
-        
-        AnalyzeContent-->>Frontend: Processed Results
-        
-        Frontend->>Database: Store monitoring results
-        Database-->>Frontend: Confirmation
-        
-        Frontend->>User: Display updates<br/>(real-time)
+        Frontend->>DB: Store results
+        Frontend->>User: Display updates
     end
 ```
 
@@ -99,19 +74,19 @@ sequenceDiagram
 sequenceDiagram
     actor User
     participant Frontend
-    participant SupabaseAuth as Supabase Auth
-    participant Database as Supabase DB
+    participant Auth as Authentication Service
+    participant DB as Database
     
-    User->>Frontend: Enter credentials
-    Frontend->>SupabaseAuth: signInWithPassword()
+    User->>Frontend: Enter email and password
+    Frontend->>Auth: Sign in request
     
-    alt Successful Login
-        SupabaseAuth-->>Frontend: Session + JWT Token
-        Frontend->>Database: Fetch user role
-        Database-->>Frontend: User role data
-        Frontend->>User: Redirect to Dashboard
-    else Failed Login
-        SupabaseAuth-->>Frontend: Error
-        Frontend->>User: Display error message
+    alt Success
+        Auth-->>Frontend: Session token
+        Frontend->>DB: Fetch user role
+        DB-->>Frontend: User data
+        Frontend->>User: Redirect to dashboard
+    else Failure
+        Auth-->>Frontend: Error message
+        Frontend->>User: Show error
     end
 ```

@@ -1,293 +1,106 @@
 # Class Diagram - Reddit Sleuth
 
-This diagram shows the main classes/components and their relationships in the Reddit Sleuth application.
+This diagram shows the main classes and their relationships in simplified form.
 
 ```mermaid
 classDiagram
-    %% Frontend Components
     class App {
-        +Router routes
-        +render()
-    }
-    
-    class Dashboard {
-        +stats: DashboardStats
-        +cases: Case[]
+        +routes
         +render()
     }
     
     class UserProfiling {
-        +username: string
-        +profileData: UserProfile
-        +postSentiments: SentimentItem[]
-        +commentSentiments: SentimentItem[]
+        +username
+        +profileData
+        +postSentiments[]
+        +commentSentiments[]
         +handleScrape()
-        +handleAnalysis()
-        +render()
     }
     
     class CommunityAnalysis {
-        +subreddit: string
-        +communityData: CommunityData
+        +subreddit
+        +communityData
         +handleScrape()
-        +render()
-    }
-    
-    class LinkAnalysis {
-        +links: string[]
-        +linkData: LinkData
-        +networkGraph: NetworkNode[]
-        +handleSearch()
-        +render()
     }
     
     class Monitoring {
-        +keywords: string[]
-        +monitoringData: MonitoringResult[]
-        +alerts: Alert[]
+        +keywords[]
+        +monitoringData[]
+        +alerts[]
         +startMonitoring()
-        +stopMonitoring()
-        +render()
     }
     
-    class NewCase {
-        +caseDetails: CaseDetails
-        +createCase()
-        +render()
-    }
-    
-    class Report {
-        +reportData: ReportData
-        +generateReport()
-        +exportReport()
-        +render()
-    }
-    
-    %% Data Models
     class UserProfile {
-        +username: string
-        +karma: number
-        +accountAge: number
-        +posts: Post[]
-        +comments: Comment[]
-        +sentimentBreakdown: SentimentBreakdown
+        +username
+        +karma
+        +posts[]
+        +comments[]
+        +sentimentBreakdown
     }
     
     class SentimentItem {
-        +text: string
-        +sentiment: string
-        +explanation: string
-        +confidence: number
-    }
-    
-    class SentimentBreakdown {
-        +positive: number
-        +negative: number
-        +neutral: number
+        +text
+        +sentiment
+        +explanation
     }
     
     class Post {
-        +id: string
-        +title: string
-        +content: string
-        +subreddit: string
-        +score: number
-        +created_at: date
-        +url: string
+        +id
+        +title
+        +content
+        +score
     }
     
     class Comment {
-        +id: string
-        +body: string
-        +post_id: string
-        +subreddit: string
-        +score: number
-        +created_at: date
+        +id
+        +body
+        +score
     }
     
-    class CommunityData {
-        +name: string
-        +subscribers: number
-        +description: string
-        +posts: Post[]
-        +topContributors: User[]
-        +sentimentTrends: SentimentBreakdown
-    }
-    
-    class LinkData {
-        +url: string
-        +shareCount: number
-        +posts: Post[]
-        +comments: Comment[]
-        +sharingUsers: User[]
-        +subreddits: string[]
-    }
-    
-    class MonitoringResult {
-        +id: string
-        +keyword: string
-        +content: Post | Comment
-        +sentiment: string
-        +timestamp: date
-        +alertTriggered: boolean
-    }
-    
-    class Alert {
-        +id: string
-        +type: string
-        +message: string
-        +severity: string
-        +timestamp: date
-        +acknowledged: boolean
-    }
-    
-    class Case {
-        +id: string
-        +title: string
-        +description: string
-        +type: string
-        +status: string
-        +created_at: date
-        +targets: string[]
-        +keywords: string[]
-    }
-    
-    %% Backend Services
-    class RedditScraperService {
-        +clientId: string
-        +clientSecret: string
+    class RedditScraper {
         +authenticate()
-        +fetchUserData(username: string): UserProfile
-        +fetchSubredditData(subreddit: string): CommunityData
-        +searchContent(query: string): SearchResult[]
+        +fetchUserData()
+        +searchContent()
     }
     
-    class AnalyzeContentService {
-        +apiKey: string
-        +analyzeSentiment(content: string[]): SentimentResult
-        +extractLocations(content: string[]): Location[]
-        +identifyPatterns(content: string[]): Pattern[]
+    class ContentAnalyzer {
+        +analyzeSentiment()
+        +extractLocations()
+        +identifyPatterns()
     }
     
-    class LovableAIClient {
-        +model: string
-        +apiEndpoint: string
-        +sendRequest(prompt: string): AIResponse
+    class AIClient {
+        +model
+        +sendRequest()
     }
     
-    class SupabaseClient {
-        +url: string
-        +anonKey: string
-        +auth: AuthService
-        +from(table: string): QueryBuilder
-        +storage: StorageService
+    class Database {
+        +saveProfile()
+        +saveCase()
+        +fetchData()
     }
     
-    class DatabaseService {
-        +supabase: SupabaseClient
-        +saveUserProfile(profile: UserProfile)
-        +saveCommunityData(data: CommunityData)
-        +saveCase(case: Case)
-        +saveMonitoringResult(result: MonitoringResult)
-        +fetchCases(): Case[]
-    }
-    
-    %% Authentication
-    class AuthService {
-        +supabase: SupabaseClient
-        +signIn(email: string, password: string)
-        +signUp(email: string, password: string)
-        +signOut()
-        +getCurrentUser(): User
-    }
-    
-    class User {
-        +id: string
-        +email: string
-        +role: string
-        +created_at: date
-    }
-    
-    %% UI Components
-    class AnalyticsChart {
-        +data: ChartData[]
-        +type: string
-        +render()
-    }
-    
-    class NetworkVisualization {
-        +nodes: NetworkNode[]
-        +edges: NetworkEdge[]
-        +render()
-    }
-    
-    class WordCloud {
-        +words: WordData[]
-        +render()
-    }
-    
-    %% Relationships
-    App --> Dashboard
     App --> UserProfiling
     App --> CommunityAnalysis
-    App --> LinkAnalysis
     App --> Monitoring
-    App --> NewCase
-    App --> Report
     
     UserProfiling --> UserProfile
     UserProfiling --> SentimentItem
-    UserProfiling --> RedditScraperService
-    UserProfiling --> AnalyzeContentService
-    UserProfiling --> AnalyticsChart
-    
-    CommunityAnalysis --> CommunityData
-    CommunityAnalysis --> RedditScraperService
-    CommunityAnalysis --> WordCloud
-    
-    LinkAnalysis --> LinkData
-    LinkAnalysis --> NetworkVisualization
-    LinkAnalysis --> RedditScraperService
-    
-    Monitoring --> MonitoringResult
-    Monitoring --> Alert
-    Monitoring --> RedditScraperService
-    Monitoring --> AnalyzeContentService
-    
-    Dashboard --> Case
-    NewCase --> Case
-    Report --> Case
+    UserProfiling --> RedditScraper
+    UserProfiling --> ContentAnalyzer
     
     UserProfile --> Post
     UserProfile --> Comment
-    UserProfile --> SentimentBreakdown
     
-    SentimentItem --> SentimentBreakdown
+    ContentAnalyzer --> AIClient
     
-    CommunityData --> Post
-    CommunityData --> User
+    Monitoring --> RedditScraper
+    Monitoring --> ContentAnalyzer
     
-    LinkData --> Post
-    LinkData --> Comment
-    LinkData --> User
+    CommunityAnalysis --> RedditScraper
     
-    RedditScraperService --> UserProfile
-    RedditScraperService --> CommunityData
-    
-    AnalyzeContentService --> LovableAIClient
-    AnalyzeContentService --> SentimentItem
-    
-    DatabaseService --> SupabaseClient
-    DatabaseService --> UserProfile
-    DatabaseService --> CommunityData
-    DatabaseService --> Case
-    DatabaseService --> MonitoringResult
-    
-    AuthService --> SupabaseClient
-    AuthService --> User
-    
-    App --> AuthService
-    App --> DatabaseService
+    RedditScraper --> Database
+    ContentAnalyzer --> Database
 ```
 
 ## Component Descriptions

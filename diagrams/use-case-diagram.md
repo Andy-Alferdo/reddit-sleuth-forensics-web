@@ -3,50 +3,43 @@
 This diagram shows the main actors and their interactions with the Reddit Sleuth system.
 
 ```mermaid
-graph TB
-    Admin([Admin])
-    User([Analyst/User])
+flowchart TB
+    Admin([Admin User])
+    Analyst([Analyst User])
     
-    subgraph "Reddit Sleuth System"
-        UC1[Login/Authentication]
-        UC2[User Profiling]
-        UC3[Community Analysis]
-        UC4[Link Analysis]
-        UC5[Content Monitoring]
-        UC6[Sentiment Analysis]
-        UC7[View Reports]
-        UC8[Manage Cases]
-        UC9[Export Data]
-        UC10[Configure Alerts]
+    subgraph System["Reddit Sleuth System"]
+        Login[Login/Authentication]
+        Profile[User Profiling]
+        Community[Community Analysis]
+        Links[Link Analysis]
+        Monitor[Content Monitoring]
+        Reports[View Reports]
+        Cases[Manage Cases]
     end
     
-    subgraph "External Systems"
+    subgraph External["External Services"]
         Reddit[Reddit API]
-        AI[AI Analysis Service]
+        AI[AI Service - Gemini]
     end
     
-    Admin --> UC1
-    Admin --> UC8
-    Admin --> UC10
+    Admin --> Login
+    Admin --> Cases
+    Admin --> Monitor
     
-    User --> UC1
-    User --> UC2
-    User --> UC3
-    User --> UC4
-    User --> UC5
-    User --> UC6
-    User --> UC7
-    User --> UC9
+    Analyst --> Login
+    Analyst --> Profile
+    Analyst --> Community
+    Analyst --> Links
+    Analyst --> Monitor
+    Analyst --> Reports
     
-    UC2 --> Reddit
-    UC3 --> Reddit
-    UC4 --> Reddit
-    UC5 --> Reddit
-    
-    UC2 --> AI
-    UC3 --> AI
-    UC5 --> AI
-    UC6 --> AI
+    Profile -.-> Reddit
+    Profile -.-> AI
+    Community -.-> Reddit
+    Community -.-> AI
+    Links -.-> Reddit
+    Monitor -.-> Reddit
+    Monitor -.-> AI
 ```
 
 ## Actors
