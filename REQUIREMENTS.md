@@ -24,11 +24,12 @@
 - Generate community word clouds
 - Visualize member growth and activity trends
 
-### 4. Link Analysis
-- Find cross-platform connections (Twitter, GitHub, LinkedIn)
-- Calculate confidence scores for linked accounts
-- Interactive network visualization
-- Risk assessment for OSINT vulnerabilities
+### 4. Cross-Community Analysis
+- Find connections between subreddits
+- Identify shared users across communities
+- Calculate community relationship strength
+- Interactive network visualization of subreddit connections
+- Discover community clusters and overlap patterns
 
 ### 5. Real-Time Monitoring
 - Monitor Reddit users or communities live
