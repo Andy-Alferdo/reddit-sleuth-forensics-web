@@ -24,8 +24,8 @@
 - Generate community word clouds
 - Visualize member growth and activity trends
 
-### 4. Cross-Community Analysis
-- Find connections between subreddits
+### 4. Link Analysis
+- Find connections between subreddits (cross-community analysis)
 - Identify shared users across communities
 - Calculate community relationship strength
 - Interactive network visualization of subreddit connections
