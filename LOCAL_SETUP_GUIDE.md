@@ -11,8 +11,10 @@ This guide explains how to run the Reddit Sleuth project entirely on your local 
 4. [Environment Configuration](#environment-configuration)
 5. [API Keys Setup](#api-keys-setup)
 6. [Modifying Edge Functions for Direct API Access](#modifying-edge-functions-for-direct-api-access)
-7. [Running the Application Locally](#running-the-application-locally)
-8. [Troubleshooting](#troubleshooting)
+7. [Using Custom Trained Models (Alternative to Gemini AI)](#using-custom-trained-models-alternative-to-gemini-ai)
+8. [Adding Explainable AI (XAI)](#adding-explainable-ai-xai)
+9. [Running the Application Locally](#running-the-application-locally)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -470,6 +472,588 @@ serve(async (req) => {
     });
   }
 });
+```
+
+---
+
+## Using Custom Trained Models (Alternative to Gemini AI)
+
+If you have trained your own machine learning model for Reddit content analysis, you can replace the Gemini AI integration with your custom model.
+
+### Supported Model Formats
+
+- **`.pkl`** (Python Pickle): Scikit-learn, traditional ML models
+- **`.safetensors`**: PyTorch, Transformers models (secure format)
+- **`.pt` / `.pth`**: PyTorch models
+- **`.h5`** / **`.keras`**: TensorFlow/Keras models
+- **`.onnx`**: Cross-platform ONNX models
+
+### Option A: Run Model Locally
+
+#### Step 1: Install Python Dependencies
+
+Create `requirements.txt`:
+```txt
+flask==3.0.0
+flask-cors==4.0.0
+torch==2.1.0
+transformers==4.35.0
+safetensors==0.4.0
+scikit-learn==1.3.2
+numpy==1.24.3
+```
+
+Install:
+```bash
+pip install -r requirements.txt
+```
+
+#### Step 2: Create Model Inference Server
+
+Create `server/model_server.py`:
+
+```python
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from safetensors.torch import load_file
+import pickle
+import numpy as np
+
+app = Flask(__name__)
+CORS(app)
+
+# Load your model
+MODEL_PATH = "./models/reddit_classifier.safetensors"  # or .pkl, .pt
+MODEL_TYPE = "transformer"  # or "sklearn", "pytorch"
+
+# Initialize model based on type
+if MODEL_TYPE == "transformer":
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    model = AutoModelForSequenceClassification.from_pretrained(
+        "bert-base-uncased",
+        num_labels=3  # Adjust based on your model
+    )
+    # Load trained weights
+    state_dict = load_file(MODEL_PATH)
+    model.load_state_dict(state_dict)
+    model.eval()
+    
+elif MODEL_TYPE == "sklearn":
+    with open(MODEL_PATH, 'rb') as f:
+        model = pickle.load(f)
+        
+elif MODEL_TYPE == "pytorch":
+    model = torch.load(MODEL_PATH)
+    model.eval()
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        texts = data.get('texts', [])
+        
+        if MODEL_TYPE == "transformer":
+            # Tokenize inputs
+            inputs = tokenizer(
+                texts,
+                padding=True,
+                truncation=True,
+                max_length=512,
+                return_tensors="pt"
+            )
+            
+            # Get predictions
+            with torch.no_grad():
+                outputs = model(**inputs)
+                predictions = torch.nn.functional.softmax(outputs.logits, dim=-1)
+            
+            # Format results
+            results = []
+            for i, text in enumerate(texts):
+                probs = predictions[i].tolist()
+                predicted_class = torch.argmax(predictions[i]).item()
+                
+                results.append({
+                    "text": text,
+                    "prediction": predicted_class,
+                    "confidence": probs[predicted_class],
+                    "probabilities": {
+                        "normal": probs[0],
+                        "suspicious": probs[1],
+                        "harmful": probs[2]
+                    }
+                })
+        
+        elif MODEL_TYPE == "sklearn":
+            predictions = model.predict(texts)
+            probabilities = model.predict_proba(texts)
+            
+            results = []
+            for i, text in enumerate(texts):
+                results.append({
+                    "text": text,
+                    "prediction": int(predictions[i]),
+                    "confidence": float(np.max(probabilities[i])),
+                    "probabilities": {
+                        "normal": float(probabilities[i][0]),
+                        "suspicious": float(probabilities[i][1]),
+                        "harmful": float(probabilities[i][2])
+                    }
+                })
+        
+        return jsonify({
+            "success": True,
+            "results": results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "healthy", "model_type": MODEL_TYPE})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
+```
+
+#### Step 3: Start Model Server
+
+```bash
+python server/model_server.py
+# Server runs on http://localhost:5000
+```
+
+#### Step 4: Update Edge Function to Use Custom Model
+
+Modify `supabase/functions/analyze-content/index.ts`:
+
+```typescript
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { posts, comments } = await req.json();
+    
+    // Format texts for analysis
+    const texts = [
+      ...posts.map((p: any) => `${p.title} ${p.selftext || ''}`),
+      ...comments.map((c: any) => c.body)
+    ];
+
+    // Call your local model server
+    const MODEL_SERVER_URL = Deno.env.get('MODEL_SERVER_URL') || 'http://localhost:5000';
+    
+    const response = await fetch(`${MODEL_SERVER_URL}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texts })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Model server error: ${response.status}`);
+    }
+
+    const predictions = await response.json();
+    
+    // Format response to match expected structure
+    const analysis = {
+      sentiment: calculateOverallSentiment(predictions.results),
+      patterns: identifyPatterns(predictions.results),
+      suspicious_content: predictions.results.filter(r => r.prediction === 1)
+    };
+
+    return new Response(JSON.stringify(analysis), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+});
+
+function calculateOverallSentiment(results: any[]) {
+  const avgConfidence = results.reduce((sum, r) => sum + r.confidence, 0) / results.length;
+  const suspiciousCount = results.filter(r => r.prediction === 1).length;
+  
+  return {
+    overall: suspiciousCount > results.length * 0.3 ? "suspicious" : "normal",
+    confidence: avgConfidence,
+    suspicious_ratio: suspiciousCount / results.length
+  };
+}
+
+function identifyPatterns(results: any[]) {
+  // Implement pattern identification logic based on predictions
+  return results
+    .filter(r => r.prediction !== 0)
+    .map(r => ({
+      text: r.text.substring(0, 100),
+      category: r.prediction === 1 ? "suspicious" : "harmful",
+      confidence: r.confidence
+    }));
+}
+```
+
+### Option B: Host Model Online
+
+#### 1. Using Hugging Face Model Hub
+
+**Upload your model:**
+
+```bash
+# Install Hugging Face CLI
+pip install huggingface_hub
+
+# Login
+huggingface-cli login
+
+# Upload model
+python upload_model.py
+```
+
+**`upload_model.py`:**
+```python
+from huggingface_hub import HfApi, create_repo
+import torch
+
+# Create repository
+repo_id = "your-username/reddit-sleuth-model"
+create_repo(repo_id, private=False)
+
+# Upload model files
+api = HfApi()
+api.upload_file(
+    path_or_fileobj="./models/reddit_classifier.safetensors",
+    path_in_repo="model.safetensors",
+    repo_id=repo_id,
+)
+api.upload_file(
+    path_or_fileobj="./models/config.json",
+    path_in_repo="config.json",
+    repo_id=repo_id,
+)
+```
+
+**Load model in your application:**
+
+```python
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+# Load from Hugging Face Hub
+model = AutoModelForSequenceClassification.from_pretrained("your-username/reddit-sleuth-model")
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+```
+
+#### 2. Using Cloud Storage (S3, Google Cloud Storage)
+
+**Upload to AWS S3:**
+
+```bash
+# Install AWS CLI
+pip install awscli
+
+# Configure credentials
+aws configure
+
+# Upload model
+aws s3 cp ./models/reddit_classifier.safetensors s3://your-bucket/models/
+```
+
+**Download in application:**
+
+```python
+import boto3
+from safetensors.torch import load_file
+
+# Download from S3
+s3 = boto3.client('s3')
+s3.download_file('your-bucket', 'models/reddit_classifier.safetensors', '/tmp/model.safetensors')
+
+# Load model
+state_dict = load_file('/tmp/model.safetensors')
+model.load_state_dict(state_dict)
+```
+
+#### 3. Deploy Model as API (Hugging Face Inference API)
+
+```python
+import requests
+
+API_URL = "https://api-inference.huggingface.co/models/your-username/reddit-sleuth-model"
+headers = {"Authorization": f"Bearer {HUGGING_FACE_API_TOKEN}"}
+
+def query(texts):
+    response = requests.post(API_URL, headers=headers, json={"inputs": texts})
+    return response.json()
+
+# Use in your application
+results = query(["Text to analyze", "Another text"])
+```
+
+---
+
+## Adding Explainable AI (XAI)
+
+Implement XAI to show why your model made specific predictions.
+
+### Method 1: LIME (Local Interpretable Model-agnostic Explanations)
+
+#### Install LIME
+
+```bash
+pip install lime
+```
+
+#### Add to Model Server
+
+```python
+from lime.lime_text import LimeTextExplainer
+
+# Initialize explainer
+explainer = LimeTextExplainer(class_names=['normal', 'suspicious', 'harmful'])
+
+@app.route('/explain', methods=['POST'])
+def explain():
+    try:
+        data = request.json
+        text = data.get('text')
+        
+        # Define prediction function for LIME
+        def predict_proba(texts):
+            inputs = tokenizer(
+                texts,
+                padding=True,
+                truncation=True,
+                max_length=512,
+                return_tensors="pt"
+            )
+            with torch.no_grad():
+                outputs = model(**inputs)
+                probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+            return probs.numpy()
+        
+        # Generate explanation
+        exp = explainer.explain_instance(
+            text,
+            predict_proba,
+            num_features=10,
+            num_samples=1000
+        )
+        
+        # Get feature importance
+        explanation = exp.as_list()
+        prediction = exp.predict_proba.argmax()
+        
+        return jsonify({
+            "text": text,
+            "prediction": int(prediction),
+            "explanation": [
+                {
+                    "feature": feature,
+                    "importance": float(weight)
+                }
+                for feature, weight in explanation
+            ],
+            "html": exp.as_html()  # Visual representation
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+```
+
+### Method 2: SHAP (SHapley Additive exPlanations)
+
+#### Install SHAP
+
+```bash
+pip install shap
+```
+
+#### Add to Model Server
+
+```python
+import shap
+
+# Initialize SHAP explainer
+# For transformer models
+explainer = shap.Explainer(model, tokenizer)
+
+@app.route('/explain-shap', methods=['POST'])
+def explain_shap():
+    try:
+        data = request.json
+        text = data.get('text')
+        
+        # Get SHAP values
+        shap_values = explainer([text])
+        
+        # Extract token importance
+        tokens = tokenizer.tokenize(text)
+        values = shap_values.values[0]
+        
+        explanation = []
+        for token, value in zip(tokens, values):
+            explanation.append({
+                "token": token,
+                "importance": float(value[1])  # Importance for suspicious class
+            })
+        
+        # Sort by absolute importance
+        explanation.sort(key=lambda x: abs(x['importance']), reverse=True)
+        
+        return jsonify({
+            "text": text,
+            "explanation": explanation[:20],  # Top 20 tokens
+            "visualization_data": {
+                "tokens": tokens,
+                "values": values.tolist()
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+```
+
+### Method 3: Attention Visualization (For Transformer Models)
+
+```python
+@app.route('/explain-attention', methods=['POST'])
+def explain_attention():
+    try:
+        data = request.json
+        text = data.get('text')
+        
+        # Get model attention weights
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+        
+        with torch.no_grad():
+            outputs = model(**inputs, output_attentions=True)
+            attentions = outputs.attentions  # Tuple of attention weights
+        
+        # Get last layer attention (most relevant for prediction)
+        last_layer_attention = attentions[-1][0]  # [num_heads, seq_len, seq_len]
+        
+        # Average across attention heads
+        avg_attention = last_layer_attention.mean(dim=0)  # [seq_len, seq_len]
+        
+        # Get attention to [CLS] token (used for classification)
+        cls_attention = avg_attention[0, :].tolist()
+        
+        tokens = tokenizer.convert_ids_to_tokens(inputs['input_ids'][0])
+        
+        explanation = [
+            {
+                "token": token,
+                "attention_weight": float(weight)
+            }
+            for token, weight in zip(tokens, cls_attention)
+        ]
+        
+        # Sort by attention weight
+        explanation.sort(key=lambda x: x['attention_weight'], reverse=True)
+        
+        return jsonify({
+            "text": text,
+            "explanation": explanation,
+            "method": "attention_weights"
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+```
+
+### Frontend Integration - Display XAI Results
+
+Create `src/components/ExplanationView.tsx`:
+
+```typescript
+import React from 'react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+
+interface ExplanationProps {
+  text: string;
+  explanation: Array<{
+    feature: string;
+    importance: number;
+  }>;
+}
+
+export const ExplanationView: React.FC<ExplanationProps> = ({ text, explanation }) => {
+  return (
+    <Card className="p-6">
+      <h3 className="text-lg font-semibold mb-4">Why This Prediction?</h3>
+      
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground mb-2">Analyzed Text:</p>
+        <p className="p-3 bg-muted rounded-md">{text}</p>
+      </div>
+      
+      <div>
+        <p className="text-sm text-muted-foreground mb-2">Key Contributing Factors:</p>
+        <div className="space-y-2">
+          {explanation.slice(0, 10).map((item, index) => (
+            <div key={index} className="flex items-center justify-between">
+              <span className="text-sm">{item.feature}</span>
+              <div className="flex items-center gap-2">
+                <div 
+                  className="h-2 rounded"
+                  style={{
+                    width: `${Math.abs(item.importance) * 100}px`,
+                    backgroundColor: item.importance > 0 ? '#ef4444' : '#10b981'
+                  }}
+                />
+                <Badge variant={item.importance > 0 ? 'destructive' : 'default'}>
+                  {item.importance > 0 ? 'Increases Risk' : 'Decreases Risk'}
+                </Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+};
+```
+
+### Update Analysis Page to Include XAI
+
+```typescript
+const explainPrediction = async (text: string) => {
+  const response = await fetch('http://localhost:5000/explain', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  
+  const explanation = await response.json();
+  setExplanationData(explanation);
+};
+
+// In your component JSX
+{explanationData && (
+  <ExplanationView 
+    text={explanationData.text}
+    explanation={explanationData.explanation}
+  />
+)}
 ```
 
 ---
