@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import MovingBackground from '@/components/MovingBackground';
 import logo from '@/assets/intel-reddit-logo.png';
-import { Shield } from 'lucide-react';
+import { Shield, Mail } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -78,6 +79,36 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               >
                 Access Forensic Suite
               </Button>
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="link" className="w-full text-sm text-muted-foreground">
+                    Forgot your password?
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-card z-50">
+                  <DialogHeader>
+                    <DialogTitle>Password Reset Request</DialogTitle>
+                    <DialogDescription>
+                      To reset your password, please contact the system administrator.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="flex items-start gap-3 p-4 border rounded-lg bg-muted/50">
+                      <Mail className="w-5 h-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="font-semibold mb-1">Contact Admin Support</p>
+                        <p className="text-sm text-muted-foreground">
+                          Send an email to: <span className="font-mono text-foreground">admin@redditsleuth.com</span>
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Include your username and registered email address. The admin will reset your password manually.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
