@@ -16,7 +16,7 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 );
-import { Shield, Users, Database, LogOut, Trash2, UserPlus, Edit } from 'lucide-react';
+import { Shield, Users, Database, LogOut, Trash2, UserPlus, Edit, KeyRound } from 'lucide-react';
 import { formatDateShort } from '@/lib/dateUtils';
 
 interface User {
@@ -198,6 +198,27 @@ const AdminDashboard = () => {
     setEditRoleOpen(true);
   };
 
+  const handleResetPassword = async (user: User) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/admin/login`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset Email Sent",
+        description: `A password reset link has been sent to ${user.email}.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send password reset email.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     toast({
       title: "Info",
@@ -350,13 +371,23 @@ const AdminDashboard = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openEditRole(user)}
+                                title="Edit Role"
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                onClick={() => handleResetPassword(user)}
+                                title="Reset Password"
+                              >
+                                <KeyRound className="w-4 h-4 text-warning" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleDeleteUser(user.id)}
+                                title="Delete User"
                               >
                                 <Trash2 className="w-4 h-4 text-destructive" />
                               </Button>

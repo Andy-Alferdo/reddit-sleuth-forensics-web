@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@supabase/supabase-js';
 import MovingBackground from '@/components/MovingBackground';
-import { Shield, ArrowLeft } from 'lucide-react';
+import { Shield, ArrowLeft, Mail } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -136,6 +137,36 @@ const AdminLogin = () => {
               >
                 {loading ? 'Authenticating...' : 'Access Admin Panel'}
               </Button>
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="link" className="w-full text-sm text-muted-foreground">
+                    Forgot your password?
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Password Reset Request</DialogTitle>
+                    <DialogDescription>
+                      To reset your admin password, please contact the system administrator.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="flex items-start gap-3 p-4 border rounded-lg bg-muted/50">
+                      <Mail className="w-5 h-5 text-primary mt-0.5" />
+                      <div>
+                        <p className="font-semibold mb-1">Contact Admin Support</p>
+                        <p className="text-sm text-muted-foreground">
+                          Send an email to: <span className="font-mono text-foreground">admin@redditsleuth.com</span>
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Include your email address and the admin will reset your password manually.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </form>
           </CardContent>
         </Card>
