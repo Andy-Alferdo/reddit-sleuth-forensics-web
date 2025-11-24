@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import MovingBackground from '@/components/MovingBackground';
 import logo from '@/assets/intel-reddit-logo.png';
-import { Shield, Mail } from 'lucide-react';
+import { Shield, Mail, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -15,14 +17,58 @@ interface LoginPageProps {
 
 const LoginPage = ({ onLogin }: LoginPageProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isResetLoading, setIsResetLoading] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (username && password) {
       onLogin();
       navigate('/dashboard');
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!resetEmail || !resetEmail.includes('@')) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsResetLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Reset Link Sent",
+        description: "Check your email for the password reset link. The link will expire in 15 minutes.",
+      });
+
+      setResetEmail('');
+      setIsResetDialogOpen(false);
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: "Reset Failed",
+        description: error.message || "Failed to send reset email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetLoading(false);
     }
   };
 
@@ -80,7 +126,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 Access Forensic Suite
               </Button>
               
-              <Dialog>
+              <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="link" className="w-full text-sm text-muted-foreground">
                     Forgot your password?
@@ -88,25 +134,62 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 </DialogTrigger>
                 <DialogContent className="bg-card z-50">
                   <DialogHeader>
-                    <DialogTitle>Password Reset Request</DialogTitle>
+                    <DialogTitle>Reset Your Password</DialogTitle>
                     <DialogDescription>
-                      To reset your password, please contact the system administrator.
+                      Enter your email address and we'll send you a secure reset link.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="flex items-start gap-3 p-4 border rounded-lg bg-muted/50">
-                      <Mail className="w-5 h-5 text-primary mt-0.5" />
-                      <div>
-                        <p className="font-semibold mb-1">Contact Admin Support</p>
-                        <p className="text-sm text-muted-foreground">
-                          Send an email to: <span className="font-mono text-foreground">admin@redditsleuth.com</span>
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Include your username and registered email address. The admin will reset your password manually.
-                        </p>
+                  <form onSubmit={handleForgotPassword} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email">Email Address</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="reset-email"
+                          type="email"
+                          placeholder="your.email@example.com"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          className="pl-10"
+                          required
+                        />
                       </div>
                     </div>
-                  </div>
+
+                    <div className="p-4 border rounded-lg bg-muted/30">
+                      <p className="text-sm text-muted-foreground">
+                        <strong className="text-foreground">Security Notice:</strong> The reset link will expire in 15 minutes. 
+                        If you don't receive the email, check your spam folder or contact admin support.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setIsResetDialogOpen(false)}
+                        disabled={isResetLoading}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        variant="forensic" 
+                        className="flex-1"
+                        disabled={isResetLoading}
+                      >
+                        {isResetLoading ? (
+                          'Sending...'
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4 mr-2" />
+                            Send Reset Link
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
                 </DialogContent>
               </Dialog>
 
