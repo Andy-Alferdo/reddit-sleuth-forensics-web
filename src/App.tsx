@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./components/LoginPage";
 import AdminLogin from "./components/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import NewCase from "./pages/NewCase";
 import Monitoring from "./pages/Monitoring";
@@ -34,6 +35,7 @@ const App = () => {
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage onLogin={() => setIsLoggedIn(true)} />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             
