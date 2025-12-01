@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, LayoutDashboard, FolderOpen, Plus, UserCircle } from "lucide-react";
+import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, LayoutDashboard, FolderOpen, Plus } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import logo from '@/assets/intel-reddit-logo.png';
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 import {
   Sidebar,
@@ -59,23 +60,11 @@ export function AppSidebar() {
       collapsible="icon"
     >
       <SidebarContent className="border-r border-border">
-        {/* User Profile Section - Top */}
-        <SidebarGroup className="py-2">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton className="hover:bg-muted/50 h-10">
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                      <UserCircle className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                  {!isCollapsed && <span className="font-medium">Profile</span>}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Top Icons Section - Logo and Menu Toggle */}
+        <div className="flex items-center gap-2 p-3 border-b border-border">
+          <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+          <img src={logo} alt="Intel Reddit" className="w-8 h-8" />
+        </div>
 
         {/* Cases Section - Always Visible */}
         <SidebarGroup>
