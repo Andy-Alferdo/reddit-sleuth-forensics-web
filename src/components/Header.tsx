@@ -15,12 +15,7 @@ const Header = () => {
         <p className="text-xs text-muted-foreground">Digital Forensics Suite</p>
       </div>
       
-      <Avatar className="w-8 h-8">
-        <AvatarImage src="" />
-        <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-          FS
-        </AvatarFallback>
-      </Avatar>
+      <div className="w-8 h-8" />
     </header>
   );
 };
