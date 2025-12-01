@@ -69,10 +69,10 @@ const Dashboard = () => {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Evidence Items</p>
-                    <p className="text-xl font-bold text-forensic-warning">24</p>
+                    <p className="text-sm text-muted-foreground">Case Number</p>
+                    <p className="text-xl font-bold text-forensic-warning">{caseData.name}</p>
                   </div>
-                  <TrendingUp className="h-8 w-8 text-forensic-warning" />
+                  <FolderOpen className="h-8 w-8 text-forensic-warning" />
                 </div>
               </CardContent>
             </Card>
