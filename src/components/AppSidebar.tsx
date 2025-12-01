@@ -60,9 +60,8 @@ export function AppSidebar() {
       collapsible="icon"
     >
       <SidebarContent className="border-r border-border">
-        {/* Top Icons Section - Logo and Menu Toggle */}
-        <div className="flex items-center gap-2 p-3 border-b border-border">
-          <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+        {/* Top Icon Section - Logo Only */}
+        <div className="flex items-center justify-center p-3 border-b border-border">
           <img src={logo} alt="Intel Reddit" className="w-8 h-8" />
         </div>
 
