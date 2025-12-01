@@ -123,7 +123,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 variant="forensic" 
                 className="w-full mt-6"
               >
-                Access Forensic Suite
+                Login
               </Button>
               
               <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
