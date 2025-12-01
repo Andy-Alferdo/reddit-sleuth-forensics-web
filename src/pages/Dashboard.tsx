@@ -94,54 +94,6 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Trends and Analytics Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-forensic-accent" />
-              <span>Trending Topics</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AnalyticsChart 
-              data={[
-                { name: '#cybersecurity', value: 145 },
-                { name: '#digitalforensics', value: 89 },
-                { name: '#privacy', value: 67 },
-                { name: '#OSINT', value: 54 },
-                { name: '#infosec', value: 42 },
-              ]} 
-              title="" 
-              type="bar" 
-              height={250}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Users className="h-5 w-5 text-forensic-accent" />
-              <span>Top Communities</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AnalyticsChart 
-              data={[
-                { name: 'r/cybersecurity', value: 2100000 },
-                { name: 'r/privacy', value: 1800000 },
-                { name: 'r/netsec', value: 850000 },
-                { name: 'r/hacking', value: 720000 },
-                { name: 'r/OSINT', value: 450000 },
-              ]} 
-              title="" 
-              type="bar" 
-              height={250}
-            />
-          </CardContent>
-        </Card>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="text-center">
