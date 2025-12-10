@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { Component } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,175 +6,93 @@ import { Label } from '@/components/ui/label';
 import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { toZonedTime } from 'date-fns-tz';
+import { redditService, analysisService } from '@/services';
 
-const UserProfiling = () => {
-  const [username, setUsername] = useState('');
-  const [profileData, setProfileData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
+/**
+ * UserProfiling State Interface
+ */
+interface UserProfilingState {
+  username: string;
+  profileData: any | null;
+  isLoading: boolean;
+  error: string | null;
+}
 
-  // Sample data for visualizations
-  const userWordCloud = [
-    { word: "technology", frequency: 89, category: "high" as const },
-    { word: "programming", frequency: 76, category: "high" as const },
-    { word: "javascript", frequency: 65, category: "medium" as const },
-    { word: "react", frequency: 58, category: "medium" as const },
-    { word: "coding", frequency: 45, category: "medium" as const },
-    { word: "developer", frequency: 42, category: "low" as const },
-    { word: "python", frequency: 38, category: "low" as const },
-    { word: "software", frequency: 71, category: "high" as const },
-  ];
+/**
+ * UserProfiling Component - Class-based OOP implementation
+ * Handles Reddit user profile analysis
+ */
+class UserProfiling extends Component<{}, UserProfilingState> {
+  constructor(props: {}) {
+    super(props);
+    this.state = {
+      username: '',
+      profileData: null,
+      isLoading: false,
+      error: null
+    };
 
-  const activityTimelineData = [
-    { name: 'Mon', value: 23 },
-    { name: 'Tue', value: 45 },
-    { name: 'Wed', value: 38 },
-    { name: 'Thu', value: 52 },
-    { name: 'Fri', value: 67 },
-    { name: 'Sat', value: 34 },
-    { name: 'Sun', value: 28 },
-  ];
+    this.handleAnalyzeUser = this.handleAnalyzeUser.bind(this);
+    this.handleUsernameChange = this.handleUsernameChange.bind(this);
+  }
 
-  const sentimentChartData = [
-    { name: 'Positive', value: 45 },
-    { name: 'Neutral', value: 35 },
-    { name: 'Negative', value: 20 },
-  ];
+  /**
+   * Handle username input change
+   */
+  private handleUsernameChange(e: React.ChangeEvent<HTMLInputElement>): void {
+    this.setState({ username: e.target.value });
+  }
 
-  const subredditActivityData = [
-    { name: 'r/technology', value: 156 },
-    { name: 'r/programming', value: 89 },
-    { name: 'r/science', value: 67 },
-    { name: 'r/worldnews', value: 45 },
-  ];
-
-  const handleAnalyzeUser = async () => {
+  /**
+   * Analyze Reddit user profile
+   */
+  private async handleAnalyzeUser(): Promise<void> {
+    const { username } = this.state;
     if (!username.trim()) return;
-    
-    setIsLoading(true);
-    setError(null);
-    setProfileData(null);
+
+    this.setState({ isLoading: true, error: null, profileData: null });
 
     try {
-      console.log('Fetching Reddit data for user:', username);
-      
-      // Clean username (remove u/ prefix if present)
       const cleanUsername = username.replace(/^u\//, '');
-
-      // Fetch user data from Reddit
-      const { data: redditData, error: redditError } = await supabase.functions.invoke('reddit-scraper', {
-        body: { 
-          username: cleanUsername,
-          type: 'user'
-        }
-      });
-
-      if (redditError) throw redditError;
-
-      if (redditData?.error === 'not_found') {
-        setError(redditData.message);
-        toast({
-          title: "User Not Found",
-          description: redditData.message,
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('Reddit data fetched successfully');
-
-      // Analyze content for sentiment and locations
-      const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
-        body: {
-          posts: redditData.posts || [],
-          comments: redditData.comments || []
-        }
-      });
-
-      if (analysisError) {
-        console.error('Analysis error:', analysisError);
-        // Continue even if analysis fails
-      }
-
-      console.log('Analysis completed');
-
-      // Calculate account age
-      const accountCreated = new Date(redditData.user.created_utc * 1000);
-      const now = new Date();
-      const ageInYears = (now.getTime() - accountCreated.getTime()) / (1000 * 60 * 60 * 24 * 365);
-      const years = Math.floor(ageInYears);
-      const months = Math.floor((ageInYears - years) * 12);
-      const accountAge = `${years} years, ${months} months`;
-
-      // Calculate activity patterns
-      const allContent = [...(redditData.posts || []), ...(redditData.comments || [])];
-      const hourCounts: { [key: number]: number } = {};
-      const dayCounts: { [key: string]: number } = {};
       
-      allContent.forEach((item: any) => {
-        const date = new Date(item.created_utc * 1000);
-        const pakistanDate = toZonedTime(date, 'Asia/Karachi');
-        const hour = pakistanDate.getHours();
-        const day = pakistanDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Karachi' });
-        
-        hourCounts[hour] = (hourCounts[hour] || 0) + 1;
-        dayCounts[day] = (dayCounts[day] || 0) + 1;
-      });
+      // Fetch user data using RedditService
+      const redditData = await redditService.fetchUserProfile(cleanUsername);
+      
+      // Analyze content using AnalysisService
+      const analysisData = await analysisService.analyzeContent(
+        redditData.posts || [],
+        redditData.comments || []
+      );
 
-      const mostActiveHour = Object.entries(hourCounts).sort(([,a], [,b]) => b - a)[0];
-      const mostActiveDay = Object.entries(dayCounts).sort(([,a], [,b]) => b - a)[0];
+      // Calculate metrics
+      const accountAge = redditService.calculateAccountAge(redditData.user.created_utc);
+      const activityPattern = analysisService.calculateActivityPatterns(
+        redditData.posts || [],
+        redditData.comments || []
+      );
+      const wordCloud = redditService.generateWordCloud(
+        redditData.posts || [],
+        redditData.comments || []
+      );
 
-      // Generate word cloud from content
-      const textContent = [
-        ...(redditData.posts || []).map((p: any) => `${p.title} ${p.selftext}`),
-        ...(redditData.comments || []).map((c: any) => c.body)
-      ].join(' ');
-
-      const words = textContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
-      const wordFreq: { [key: string]: number } = {};
-      words.forEach(word => {
-        if (!['that', 'this', 'with', 'from', 'have', 'been', 'will', 'your', 'their', 'what', 'when', 'where'].includes(word)) {
-          wordFreq[word] = (wordFreq[word] || 0) + 1;
+      this.setState({
+        profileData: {
+          username: cleanUsername,
+          accountAge,
+          totalKarma: redditData.user.link_karma + redditData.user.comment_karma,
+          postKarma: redditData.user.link_karma,
+          commentKarma: redditData.user.comment_karma,
+          activeSubreddits: analysisData?.topSubreddits || [],
+          activityPattern,
+          sentimentAnalysis: analysisData?.sentiment?.breakdown || { positive: 33, neutral: 34, negative: 33 },
+          postSentiments: analysisData?.postSentiments || [],
+          commentSentiments: analysisData?.commentSentiments || [],
+          locationIndicators: analysisData?.locations || ['No specific locations detected'],
+          behaviorPatterns: analysisData?.patterns?.topicInterests || ['Analyzing...'],
+          wordCloud,
         }
-      });
-
-      const wordCloudData = Object.entries(wordFreq)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 15)
-        .map(([word, freq]) => ({
-          word,
-          frequency: freq,
-          category: freq > 30 ? 'high' as const : freq > 15 ? 'medium' as const : 'low' as const
-        }));
-
-      setProfileData({
-        username: cleanUsername,
-        accountAge,
-        totalKarma: redditData.user.link_karma + redditData.user.comment_karma,
-        postKarma: redditData.user.link_karma,
-        commentKarma: redditData.user.comment_karma,
-        activeSubreddits: analysisData?.topSubreddits || [],
-        activityPattern: {
-          mostActiveHour: mostActiveHour ? `${mostActiveHour[0]}:00-${parseInt(mostActiveHour[0])+1}:00 PKT` : 'N/A',
-          mostActiveDay: mostActiveDay?.[0] || 'N/A',
-          timezone: 'PKT (Pakistan Standard Time)',
-        },
-        sentimentAnalysis: analysisData?.sentiment?.breakdown || { positive: 33, neutral: 34, negative: 33 },
-        postSentiments: analysisData?.postSentiments || [],
-        commentSentiments: analysisData?.commentSentiments || [],
-        postSentimentBreakdown: analysisData?.sentiment?.postBreakdown || null,
-        commentSentimentBreakdown: analysisData?.sentiment?.commentBreakdown || null,
-        locationIndicators: analysisData?.locations || ['No specific locations detected'],
-        behaviorPatterns: analysisData?.patterns?.topicInterests || ['Analyzing...'],
-        wordCloud: wordCloudData,
-        stats: analysisData?.stats || {},
-        emotions: analysisData?.emotions || {}
       });
 
       toast({
@@ -184,24 +102,24 @@ const UserProfiling = () => {
 
     } catch (err: any) {
       console.error('Error analyzing user:', err);
-      setError(err.message || 'Failed to analyze user profile');
+      this.setState({ error: err.message || 'Failed to analyze user profile' });
       toast({
         title: "Analysis Failed",
         description: err.message || 'Failed to analyze user profile. Please try again.',
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      this.setState({ isLoading: false });
     }
-  };
+  }
 
-  return (
-    <div className="p-6 space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-primary mb-2">User Profiling</h2>
-        <p className="text-muted-foreground">Deep analysis of Reddit user profiles and behavior patterns</p>
-      </div>
+  /**
+   * Render search section
+   */
+  private renderSearchSection(): JSX.Element {
+    const { username, isLoading } = this.state;
 
+    return (
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -217,11 +135,11 @@ const UserProfiling = () => {
                 id="username"
                 placeholder="Enter username (e.g., u/username or username)"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={this.handleUsernameChange}
                 className="flex-1"
               />
               <Button 
-                onClick={handleAnalyzeUser}
+                onClick={this.handleAnalyzeUser}
                 disabled={isLoading || !username.trim()}
                 variant="forensic"
                 className="px-6"
@@ -232,294 +150,233 @@ const UserProfiling = () => {
           </div>
         </CardContent>
       </Card>
+    );
+  }
 
-      {profileData && (
-        <div className="space-y-6">
-          {/* Basic Profile Info */}
-          <Card className="border-primary/20">
-            <CardHeader>
-              <CardTitle>Profile Overview - u/{profileData.username}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 rounded-lg bg-primary/10">
-                  <Calendar className="h-6 w-6 text-primary mx-auto mb-2" />
-                  <div className="font-bold text-primary">{profileData.accountAge}</div>
-                  <p className="text-sm text-muted-foreground">Account Age</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-forensic-accent/10">
-                  <ThumbsUp className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
-                  <div className="font-bold text-forensic-accent">{profileData.totalKarma.toLocaleString()}</div>
-                  <p className="text-sm text-muted-foreground">Total Karma</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-card border">
-                  <div className="font-bold text-foreground">{profileData.postKarma.toLocaleString()}</div>
-                  <p className="text-sm text-muted-foreground">Post Karma</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-card border">
-                  <div className="font-bold text-foreground">{profileData.commentKarma.toLocaleString()}</div>
-                  <p className="text-sm text-muted-foreground">Comment Karma</p>
-                </div>
+  /**
+   * Render profile overview
+   */
+  private renderProfileOverview(): JSX.Element | null {
+    const { profileData } = this.state;
+    if (!profileData) return null;
+
+    return (
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle>Profile Overview - u/{profileData.username}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 rounded-lg bg-primary/10">
+              <Calendar className="h-6 w-6 text-primary mx-auto mb-2" />
+              <div className="font-bold text-primary">{profileData.accountAge}</div>
+              <p className="text-sm text-muted-foreground">Account Age</p>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-forensic-accent/10">
+              <ThumbsUp className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
+              <div className="font-bold text-forensic-accent">{profileData.totalKarma.toLocaleString()}</div>
+              <p className="text-sm text-muted-foreground">Total Karma</p>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-card border">
+              <div className="font-bold text-foreground">{profileData.postKarma.toLocaleString()}</div>
+              <p className="text-sm text-muted-foreground">Post Karma</p>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-card border">
+              <div className="font-bold text-foreground">{profileData.commentKarma.toLocaleString()}</div>
+              <p className="text-sm text-muted-foreground">Comment Karma</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  /**
+   * Render activity patterns
+   */
+  private renderActivityPatterns(): JSX.Element | null {
+    const { profileData } = this.state;
+    if (!profileData) return null;
+
+    return (
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <span>Activity Patterns</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 rounded-lg bg-card border">
+              <span className="text-muted-foreground">Most Active Hour</span>
+              <span className="font-medium">{profileData.activityPattern.mostActiveHour}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-card border">
+              <span className="text-muted-foreground">Most Active Day</span>
+              <span className="font-medium">{profileData.activityPattern.mostActiveDay}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg bg-card border">
+              <span className="text-muted-foreground">Estimated Timezone</span>
+              <span className="font-medium">{profileData.activityPattern.timezone}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  /**
+   * Render location indicators
+   */
+  private renderLocationIndicators(): JSX.Element | null {
+    const { profileData } = this.state;
+    if (!profileData) return null;
+
+    return (
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <MapPin className="h-5 w-5 text-primary" />
+            <span>Location Indicators</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">Location indicators are extracted through AI analysis.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {profileData.locationIndicators.map((indicator: string, index: number) => (
+              <div key={index} className="p-3 rounded-lg bg-card border">
+                <p className="text-sm">{indicator}</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Activity Pattern */}
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  <span>Activity Patterns</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-card border">
-                    <span className="text-muted-foreground">Most Active Hour</span>
-                    <span className="font-medium">{profileData.activityPattern.mostActiveHour}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-card border">
-                    <span className="text-muted-foreground">Most Active Day</span>
-                    <span className="font-medium">{profileData.activityPattern.mostActiveDay}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-card border">
-                    <span className="text-muted-foreground">Estimated Timezone</span>
-                    <span className="font-medium">{profileData.activityPattern.timezone}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Location Indicators */}
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <span>Location Indicators</span>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="max-w-xs">Location indicators are extracted through AI analysis of user comments and posts, identifying mentions of places, regions, and location-specific references.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {profileData.locationIndicators.map((indicator: string, index: number) => (
-                    <div key={index} className="p-3 rounded-lg bg-card border">
-                      <p className="text-sm">{indicator}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Active Subreddits */}
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MessageCircle className="h-5 w-5 text-primary" />
-                  <span>Active Subreddits</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {profileData.activeSubreddits.map((subreddit: any, index: number) => (
-                    <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border">
-                      <span className="font-medium">{subreddit.name}</span>
-                      <span className="text-primary font-semibold">{subreddit.activity} posts</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Behavior Patterns */}
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <span>Behavior Patterns</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {profileData.behaviorPatterns.map((pattern: string, index: number) => (
-                    <div key={index} className="p-3 rounded-lg bg-card border">
-                      <p className="text-sm">{pattern}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            ))}
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-          {/* Analytics Visualizations */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {profileData.wordCloud && profileData.wordCloud.length > 0 && (
-              <WordCloud words={profileData.wordCloud} title="Most Used Words" />
-            )}
-            {profileData.activeSubreddits && profileData.activeSubreddits.length > 0 && (
-              <AnalyticsChart 
-                data={profileData.activeSubreddits.map((s: any) => ({ name: s.name, value: s.count }))} 
-                title="Subreddit Activity Distribution" 
-                type="bar" 
-                height={250}
-              />
-            )}
+  /**
+   * Render active subreddits
+   */
+  private renderActiveSubreddits(): JSX.Element | null {
+    const { profileData } = this.state;
+    if (!profileData || !profileData.activeSubreddits?.length) return null;
+
+    return (
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            <span>Active Subreddits</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {profileData.activeSubreddits.map((subreddit: any, index: number) => (
+              <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border">
+                <span className="font-medium">{subreddit.name}</span>
+                <span className="text-primary font-semibold">{subreddit.activity} posts</span>
+              </div>
+            ))}
           </div>
-          
-          {/* Sentiment Analysis - Posts */}
-          {profileData.postSentiments && profileData.postSentiments.length > 0 ? (
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MessageCircle className="h-5 w-5 text-primary" />
-                  <span>Post Sentiment Analysis (AI-Powered)</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3 font-semibold">Post</th>
-                        <th className="text-left p-3 font-semibold w-32">Sentiment</th>
-                        <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {profileData.postSentiments.map((item: any, index: number) => (
-                        <tr key={index} className="border-b hover:bg-muted/50">
-                          <td className="p-3 text-sm">{item.text}</td>
-                          <td className="p-3">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              item.sentiment === 'positive' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
-                              item.sentiment === 'negative' ? 'bg-red-500/20 text-red-700 dark:text-red-400' :
-                              'bg-gray-500/20 text-gray-700 dark:text-gray-400'
-                            }`}>
-                              {item.sentiment}
-                            </span>
-                          </td>
-                          <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {profileData.postSentimentBreakdown && (
-                  <AnalyticsChart 
-                    data={[
-                      { name: 'Positive', value: Math.round(profileData.postSentimentBreakdown.positive * 100) },
-                      { name: 'Neutral', value: Math.round(profileData.postSentimentBreakdown.neutral * 100) },
-                      { name: 'Negative', value: Math.round(profileData.postSentimentBreakdown.negative * 100) },
-                    ]}
-                    title="Post Sentiment Distribution" 
-                    type="pie" 
-                    height={250}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          ) : profileData && (
-            <Card className="border-primary/20">
-              <CardContent className="py-12 text-center">
-                <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No posts available for sentiment analysis</p>
-              </CardContent>
-            </Card>
-          )}
+        </CardContent>
+      </Card>
+    );
+  }
 
-          {/* Sentiment Analysis - Comments */}
-          {profileData.commentSentiments && profileData.commentSentiments.length > 0 ? (
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MessageCircle className="h-5 w-5 text-primary" />
-                  <span>Comment Sentiment Analysis (AI-Powered)</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3 font-semibold">Comment</th>
-                        <th className="text-left p-3 font-semibold w-32">Sentiment</th>
-                        <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {profileData.commentSentiments.map((item: any, index: number) => (
-                        <tr key={index} className="border-b hover:bg-muted/50">
-                          <td className="p-3 text-sm">{item.text}</td>
-                          <td className="p-3">
-                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              item.sentiment === 'positive' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
-                              item.sentiment === 'negative' ? 'bg-red-500/20 text-red-700 dark:text-red-400' :
-                              'bg-gray-500/20 text-gray-700 dark:text-gray-400'
-                            }`}>
-                              {item.sentiment}
-                            </span>
-                          </td>
-                          <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {profileData.commentSentimentBreakdown && (
-                  <AnalyticsChart 
-                    data={[
-                      { name: 'Positive', value: Math.round(profileData.commentSentimentBreakdown.positive * 100) },
-                      { name: 'Neutral', value: Math.round(profileData.commentSentimentBreakdown.neutral * 100) },
-                      { name: 'Negative', value: Math.round(profileData.commentSentimentBreakdown.negative * 100) },
-                    ]}
-                    title="Comment Sentiment Distribution" 
-                    type="pie" 
-                    height={250}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          ) : profileData && (
-            <Card className="border-primary/20">
-              <CardContent className="py-12 text-center">
-                <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No comments available for sentiment analysis</p>
-              </CardContent>
-            </Card>
-          )}
+  /**
+   * Render behavior patterns
+   */
+  private renderBehaviorPatterns(): JSX.Element | null {
+    const { profileData } = this.state;
+    if (!profileData) return null;
+
+    return (
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Clock className="h-5 w-5 text-primary" />
+            <span>Behavior Patterns</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {profileData.behaviorPatterns.map((pattern: string, index: number) => (
+              <div key={index} className="p-3 rounded-lg bg-card border">
+                <p className="text-sm">{pattern}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  /**
+   * Render visualizations
+   */
+  private renderVisualizations(): JSX.Element | null {
+    const { profileData } = this.state;
+    if (!profileData) return null;
+
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {profileData.wordCloud && profileData.wordCloud.length > 0 && (
+          <WordCloud words={profileData.wordCloud} title="Most Used Words" />
+        )}
+        {profileData.activeSubreddits && profileData.activeSubreddits.length > 0 && (
+          <AnalyticsChart 
+            data={profileData.activeSubreddits.map((s: any) => ({ name: s.name, value: s.count }))} 
+            title="Subreddit Activity Distribution" 
+            type="bar" 
+            height={250}
+          />
+        )}
+      </div>
+    );
+  }
+
+  /**
+   * Main render method
+   */
+  public render(): JSX.Element {
+    const { profileData } = this.state;
+
+    return (
+      <div className="p-6 space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-primary mb-2">User Profiling</h2>
+          <p className="text-muted-foreground">Deep analysis of Reddit user profiles and behavior patterns</p>
         </div>
-      )}
 
-      {error && !profileData && (
-        <Card className="border-destructive/50 bg-destructive/10">
-          <CardContent className="py-12 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <p className="text-destructive font-medium mb-2">Analysis Failed</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
-          </CardContent>
-        </Card>
-      )}
+        {this.renderSearchSection()}
 
-      {!profileData && !isLoading && !error && (
-        <Card className="border-dashed border-muted-foreground/30">
-          <CardContent className="py-12 text-center">
-            <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Enter a username to perform detailed profile analysis</p>
-            <p className="text-xs text-muted-foreground mt-2">Real-time data fetched from Reddit API</p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-};
+        {profileData && (
+          <div className="space-y-6">
+            {this.renderProfileOverview()}
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {this.renderActivityPatterns()}
+              {this.renderLocationIndicators()}
+              {this.renderActiveSubreddits()}
+              {this.renderBehaviorPatterns()}
+            </div>
+
+            {this.renderVisualizations()}
+          </div>
+        )}
+      </div>
+    );
+  }
+}
 
 export default UserProfiling;
