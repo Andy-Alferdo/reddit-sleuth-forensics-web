@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { NavigateFunction } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import { authService } from '@/services';
  */
 interface LoginPageProps {
   onLogin: () => void;
+  navigate: NavigateFunction;
 }
 
 /**
@@ -32,7 +34,7 @@ interface LoginPageState {
  * LoginPage Component - Class-based implementation
  * Handles user authentication using OOP principles
  */
-class LoginPage extends Component<LoginPageProps, LoginPageState> {
+class LoginPageClass extends Component<LoginPageProps, LoginPageState> {
   constructor(props: LoginPageProps) {
     super(props);
     this.state = {
@@ -79,7 +81,7 @@ class LoginPage extends Component<LoginPageProps, LoginPageState> {
     
     if (username && password) {
       this.props.onLogin();
-      window.location.href = '/dashboard';
+      this.props.navigate('/dashboard');
     }
   }
 
@@ -184,7 +186,7 @@ class LoginPage extends Component<LoginPageProps, LoginPageState> {
           type="button" 
           variant="outline" 
           className="w-full"
-          onClick={() => window.location.replace('/admin/login')}
+          onClick={() => this.props.navigate('/admin/login')}
         >
           <Shield className="w-4 h-4 mr-2" />
           Admin Access
@@ -302,5 +304,15 @@ class LoginPage extends Component<LoginPageProps, LoginPageState> {
     );
   }
 }
+
+/**
+ * Functional wrapper to provide hooks to class component
+ */
+import { useNavigate } from 'react-router-dom';
+
+const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
+  const navigate = useNavigate();
+  return <LoginPageClass onLogin={onLogin} navigate={navigate} />;
+};
 
 export default LoginPage;
