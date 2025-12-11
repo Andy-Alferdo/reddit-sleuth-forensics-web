@@ -37,8 +37,10 @@ interface AppState {
 class App extends Component<{}, AppState> {
   constructor(props: {}) {
     super(props);
+    // Initialize state from localStorage for persistence
+    const savedLoginState = localStorage.getItem('isLoggedIn');
     this.state = {
-      isLoggedIn: false
+      isLoggedIn: savedLoginState === 'true'
     };
     
     // Bind methods to instance
@@ -50,6 +52,7 @@ class App extends Component<{}, AppState> {
    * Handle user login
    */
   public handleLogin(): void {
+    localStorage.setItem('isLoggedIn', 'true');
     this.setState({ isLoggedIn: true });
   }
 
@@ -57,6 +60,7 @@ class App extends Component<{}, AppState> {
    * Handle user logout
    */
   public handleLogout(): void {
+    localStorage.removeItem('isLoggedIn');
     this.setState({ isLoggedIn: false });
   }
 
