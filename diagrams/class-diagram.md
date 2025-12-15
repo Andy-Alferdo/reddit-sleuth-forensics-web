@@ -1,9 +1,11 @@
 # Class Diagram - Reddit Sleuth
 
-This diagram shows the main classes and their relationships in simplified form.
+This diagram shows the main classes and their relationships.
 
 ```mermaid
 classDiagram
+    direction TB
+    
     class App {
         +routes
         +render()
@@ -11,126 +13,107 @@ classDiagram
     
     class UserProfiling {
         +username
-        +profileData
-        +postSentiments[]
-        +commentSentiments[]
         +handleScrape()
     }
     
     class CommunityAnalysis {
         +subreddit
-        +communityData
         +handleScrape()
     }
     
     class Monitoring {
         +keywords[]
-        +monitoringData[]
-        +alerts[]
         +startMonitoring()
     }
     
     class UserProfile {
         +username
         +karma
-        +posts[]
-        +comments[]
-        +sentimentBreakdown
     }
     
     class SentimentItem {
         +text
         +sentiment
-        +explanation
     }
     
     class Post {
         +id
         +title
-        +content
-        +score
     }
     
     class Comment {
         +id
         +body
-        +score
     }
     
     class RedditScraper {
-        +authenticate()
         +fetchUserData()
-        +searchContent()
     }
     
     class ContentAnalyzer {
         +analyzeSentiment()
-        +extractLocations()
-        +identifyPatterns()
     }
     
     class AIClient {
-        +model
         +sendRequest()
     }
     
     class Database {
-        +saveProfile()
-        +saveCase()
-        +fetchData()
+        +saveData()
     }
+
+    App "1" --> "1" UserProfiling : routes
+    App "1" --> "1" CommunityAnalysis : routes
+    App "1" --> "1" Monitoring : routes
     
-    App --> UserProfiling
-    App --> CommunityAnalysis
-    App --> Monitoring
+    UserProfiling "1" --> "1" UserProfile : creates
+    UserProfiling "1" --> "*" SentimentItem : generates
     
-    UserProfiling --> UserProfile
-    UserProfiling --> SentimentItem
-    UserProfiling --> RedditScraper
-    UserProfiling --> ContentAnalyzer
+    UserProfile "1" --> "*" Post : contains
+    UserProfile "1" --> "*" Comment : contains
     
-    UserProfile --> Post
-    UserProfile --> Comment
+    UserProfiling "1" ..> "1" RedditScraper : uses
+    CommunityAnalysis "1" ..> "1" RedditScraper : uses
+    Monitoring "1" ..> "1" RedditScraper : uses
     
-    ContentAnalyzer --> AIClient
+    UserProfiling "1" ..> "1" ContentAnalyzer : uses
+    Monitoring "1" ..> "1" ContentAnalyzer : uses
     
-    Monitoring --> RedditScraper
-    Monitoring --> ContentAnalyzer
+    ContentAnalyzer "1" --> "1" AIClient : calls
     
-    CommunityAnalysis --> RedditScraper
-    
-    RedditScraper --> Database
-    ContentAnalyzer --> Database
+    RedditScraper "1" ..> "1" Database : stores
+    ContentAnalyzer "1" ..> "1" Database : stores
 ```
 
-## Component Descriptions
+## Legend
 
-### Frontend Components
-- **App**: Main application component with routing
-- **Dashboard**: Overview of cases and statistics
-- **UserProfiling**: Analyzes Reddit user behavior with sentiment analysis
-- **CommunityAnalysis**: Analyzes subreddit communities
-- **LinkAnalysis**: Tracks and analyzes link relationships
-- **Monitoring**: Real-time content monitoring with alerts
-- **NewCase**: Creates new investigation cases
-- **Report**: Generates and displays reports
+| Arrow Type | Meaning |
+|------------|---------|
+| `-->` | Association |
+| `..>` | Dependency (uses) |
+
+## Multiplicity
+
+| Symbol | Meaning |
+|--------|---------|
+| `1` | Exactly one |
+| `*` | Zero or more |
+
+## Components
+
+### Frontend Pages
+- **App**: Main router
+- **UserProfiling**: Reddit user analysis
+- **CommunityAnalysis**: Subreddit analysis
+- **Monitoring**: Real-time alerts
 
 ### Data Models
-- **UserProfile**: Reddit user data with posts and comments
-- **SentimentItem**: Individual sentiment analysis result with XAI explanation
-- **Post/Comment**: Reddit content items
-- **Case**: Investigation case data
-- **MonitoringResult**: Real-time monitoring data
-- **Alert**: System alerts for monitoring
+- **UserProfile**: User data
+- **Post/Comment**: Reddit content
+- **SentimentItem**: AI analysis result
 
-### Backend Services
-- **RedditScraperService**: Handles Reddit API interactions (OAuth2, data fetching)
-- **AnalyzeContentService**: Manages AI content analysis
-- **LovableAIClient**: Interface to Lovable AI (Gemini 2.5 Flash)
-- **DatabaseService**: Handles database operations
-- **AuthService**: Manages user authentication
-
-### UI Components
-- **AnalyticsChart**: Recharts-based visualization
-- **NetworkVisualization**: Force-directed graph visualization
-- **WordCloud**: Word frequency visualization
+### Services
+- **RedditScraper**: Reddit API
+- **ContentAnalyzer**: AI processing
+- **AIClient**: Lovable AI
+- **Database**: Data storage
