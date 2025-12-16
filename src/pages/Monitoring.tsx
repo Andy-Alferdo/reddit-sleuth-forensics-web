@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel, SelectGroup, SelectSeparator } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, Share2, TrendingUp, ExternalLink, StopCircle } from 'lucide-react';
+import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, TrendingUp, ExternalLink, StopCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
@@ -43,7 +43,7 @@ const Monitoring = () => {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
-  const [investigatorEmail, setInvestigatorEmail] = useState('');
+  
   const [activities, setActivities] = useState<RedditActivity[]>([]);
   const [wordCloudData, setWordCloudData] = useState<any[]>([]);
   const [isFetching, setIsFetching] = useState(false);
@@ -184,22 +184,6 @@ const Monitoring = () => {
     };
   }, []);
 
-  const handleShareCase = () => {
-    if (!investigatorEmail.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter an investigator email or username.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    toast({
-      title: "Case Shared",
-      description: `Case access sent to ${investigatorEmail}`,
-    });
-    setInvestigatorEmail('');
-  };
 
   const handleStartMonitoring = async () => {
     setIsMonitoring(true);
@@ -845,25 +829,6 @@ const Monitoring = () => {
                 </CardContent>
               </Card>
 
-              {/* Case Sharing Panel */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Share2 className="h-5 w-5" />
-                    Share Case with Investigator
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Input
-                    placeholder="Enter Investigator Email or Username"
-                    value={investigatorEmail}
-                    onChange={(e) => setInvestigatorEmail(e.target.value)}
-                  />
-                  <Button onClick={handleShareCase} className="w-full">
-                    Send Case Access
-                  </Button>
-                </CardContent>
-              </Card>
             </div>
           </div>
         )}
