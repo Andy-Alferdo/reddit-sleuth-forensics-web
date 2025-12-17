@@ -1,53 +1,32 @@
-# Sequence Diagrams - Reddit Sleuth
+# Sequence Diagram - Reddit Sleuth
 
-## User Profiling Flow
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant App
-    participant Scraper as Reddit Scraper
-    participant Analyzer as AI Analyzer
-    
-    User->>App: Enter username
-    App->>Scraper: Fetch user data
-    Scraper-->>App: Return data
-    App->>Analyzer: Analyze content
-    Analyzer-->>App: Results
-    App->>User: Display analysis
-```
-
-## Authentication Flow
+## Complete User Profiling Flow
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant App
-    participant Auth as Auth Service
-    
-    User->>App: Enter credentials
-    App->>Auth: Authenticate
-    alt Success
-        Auth-->>App: Session
-        App->>User: Redirect to Dashboard
-    else Failure
-        Auth-->>App: Error
-        App->>User: Show error
-    end
-```
+    participant Frontend
+    participant RedditScraper as Reddit Scraper Function
+    participant ContentAnalyzer as Content Analyzer Function
+    participant RedditAPI as Reddit API
+    participant AI
+    participant Database
 
-## Monitoring Flow
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant App
-    participant Scraper as Reddit Scraper
-    
-    User->>App: Set keywords
-    loop Every 15 seconds
-        App->>Scraper: Search Reddit
-        Scraper-->>App: Results
-        App->>User: Update display
-    end
+    User->>Frontend: Enter username
+    Frontend->>RedditScraper: Request user data
+    RedditScraper->>RedditAPI: Authenticate OAuth2
+    RedditAPI-->>RedditScraper: Access token
+    RedditScraper->>RedditAPI: Fetch profile, posts, comments
+    RedditAPI-->>RedditScraper: User data
+    RedditScraper-->>Frontend: Return scraped data
+    Frontend->>ContentAnalyzer: Send posts and comments
+    ContentAnalyzer->>AI: Analyze sentiment with XAI
+    AI-->>ContentAnalyzer: Sentiment results
+    ContentAnalyzer->>AI: Extract locations
+    AI-->>ContentAnalyzer: Location data
+    ContentAnalyzer->>AI: Identify patterns
+    AI-->>ContentAnalyzer: Behavior patterns
+    ContentAnalyzer-->>Frontend: Complete analysis
+    Frontend->>Database: Store results
+    Frontend->>User: Display charts and tables
 ```
