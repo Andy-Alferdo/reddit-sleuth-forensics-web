@@ -19,6 +19,7 @@ import Report from "./pages/Report";
 import NotFound from "./pages/NotFound";
 import Header from "./components/Header";
 import { AppSidebar } from "./components/AppSidebar";
+import { InvestigationProvider } from "./contexts/InvestigationContext";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
@@ -28,49 +29,51 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<LoginPage onLogin={() => setIsLoggedIn(true)} />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            
-            {/* Protected main app routes - with sidebar */}
-            {isLoggedIn ? (
-              <Route path="/*" element={
-                <SidebarProvider>
-                  <div className="min-h-screen flex w-full bg-background">
-                    <AppSidebar />
-                    <div className="flex-1 flex flex-col">
-                      <Header />
-                      <main className="flex-1 overflow-auto">
-                        <Routes>
-                          <Route path="/" element={<Dashboard />} />
-                          <Route path="/dashboard" element={<Dashboard />} />
-                          <Route path="/new-case" element={<NewCase />} />
-                          <Route path="/monitoring" element={<Monitoring />} />
-                          <Route path="/analysis" element={<Analysis />} />
-                          <Route path="/user-profiling" element={<UserProfiling />} />
-                          <Route path="/link-analysis" element={<LinkAnalysis />} />
-                          <Route path="/community-analysis" element={<CommunityAnalysis />} />
-                          <Route path="/report" element={<Report />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </main>
+      <InvestigationProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<LoginPage onLogin={() => setIsLoggedIn(true)} />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              
+              {/* Protected main app routes - with sidebar */}
+              {isLoggedIn ? (
+                <Route path="/*" element={
+                  <SidebarProvider>
+                    <div className="min-h-screen flex w-full bg-background">
+                      <AppSidebar />
+                      <div className="flex-1 flex flex-col">
+                        <Header />
+                        <main className="flex-1 overflow-auto">
+                          <Routes>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/dashboard" element={<Dashboard />} />
+                            <Route path="/new-case" element={<NewCase />} />
+                            <Route path="/monitoring" element={<Monitoring />} />
+                            <Route path="/analysis" element={<Analysis />} />
+                            <Route path="/user-profiling" element={<UserProfiling />} />
+                            <Route path="/link-analysis" element={<LinkAnalysis />} />
+                            <Route path="/community-analysis" element={<CommunityAnalysis />} />
+                            <Route path="/report" element={<Report />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </main>
+                      </div>
                     </div>
-                  </div>
-                </SidebarProvider>
-              } />
-            ) : (
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            )}
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+                  </SidebarProvider>
+                } />
+              ) : (
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              )}
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </InvestigationProvider>
     </QueryClientProvider>
   );
 };
