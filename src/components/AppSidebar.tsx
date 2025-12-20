@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, LayoutDashboard, FolderOpen, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, LayoutDashboard, FolderOpen, Plus, Loader2 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import logo from '@/assets/intel-reddit-logo.png';
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -26,11 +26,14 @@ const menuItems = [
   { title: "Report", url: "/report", icon: FileText },
 ];
 
-const savedCases = [
-  { id: 1, name: "Case #2023-001", description: "Reddit harassment investigation", date: "2023-10-15", status: "Active" },
-  { id: 2, name: "Case #2023-002", description: "Fraud detection analysis", date: "2023-10-12", status: "Closed" },
-  { id: 3, name: "Case #2023-003", description: "Missing person social media trace", date: "2023-10-08", status: "Pending" },
-];
+interface CaseItem {
+  id: string;
+  case_number: string;
+  case_name: string;
+  description: string | null;
+  status: string | null;
+  created_at: string | null;
+}
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -40,6 +43,9 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
   
+  const [cases, setCases] = useState<CaseItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
   // Check if a case is selected
   const selectedCase = localStorage.getItem('selectedCase');
   const hasSelectedCase = selectedCase !== null;
@@ -48,9 +54,59 @@ export function AppSidebar() {
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive ? "bg-primary/20 text-primary font-medium border-r-2 border-primary" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
 
-  const handleSelectCase = (caseData: typeof savedCases[0]) => {
+  // Fetch cases from database
+  useEffect(() => {
+    const fetchCases = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('investigation_cases')
+          .select('id, case_number, case_name, description, status, created_at')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setCases(data || []);
+      } catch (error) {
+        console.error('Error fetching cases:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCases();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('cases-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'investigation_cases'
+        },
+        () => {
+          fetchCases();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleSelectCase = (caseItem: CaseItem) => {
+    const caseData = {
+      id: caseItem.id,
+      name: caseItem.case_number,
+      description: caseItem.case_name,
+      date: caseItem.created_at ? new Date(caseItem.created_at).toLocaleDateString() : 'N/A',
+      status: caseItem.status || 'Active'
+    };
     localStorage.setItem('selectedCase', JSON.stringify(caseData));
     navigate('/');
+    // Force a re-render by reloading the page state
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleLogout = async () => {
@@ -99,8 +155,27 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
+              {/* Loading State */}
+              {isLoading && (
+                <SidebarMenuItem>
+                  <div className="flex items-center gap-2 px-2 py-1 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {!isCollapsed && <span className="text-sm">Loading...</span>}
+                  </div>
+                </SidebarMenuItem>
+              )}
+
+              {/* Empty State */}
+              {!isLoading && cases.length === 0 && (
+                <SidebarMenuItem>
+                  <div className="px-2 py-1 text-muted-foreground text-sm">
+                    {!isCollapsed && <span>No cases yet</span>}
+                  </div>
+                </SidebarMenuItem>
+              )}
+
               {/* List of Cases */}
-              {savedCases.map((caseItem) => (
+              {cases.map((caseItem) => (
                 <SidebarMenuItem key={caseItem.id}>
                   <SidebarMenuButton 
                     onClick={() => handleSelectCase(caseItem)}
@@ -113,8 +188,8 @@ export function AppSidebar() {
                     <FolderOpen className="h-4 w-4" />
                     {!isCollapsed && (
                       <div className="flex flex-col items-start overflow-hidden">
-                        <span className="text-sm font-medium truncate w-full">{caseItem.name}</span>
-                        <span className="text-xs text-muted-foreground truncate w-full">{caseItem.status}</span>
+                        <span className="text-sm font-medium truncate w-full">{caseItem.case_number}</span>
+                        <span className="text-xs text-muted-foreground truncate w-full">{caseItem.status || 'Active'}</span>
                       </div>
                     )}
                   </SidebarMenuButton>
