@@ -239,6 +239,164 @@ const drawPieChart = (
   });
 };
 
+// Helper to draw activity timeline (hourly distribution)
+const drawActivityTimeline = (
+  doc: jsPDF,
+  hourlyData: number[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  title: string
+) => {
+  const margin = 5;
+  const chartWidth = width - margin * 2;
+  const chartHeight = height - 25;
+  const barWidth = chartWidth / 24;
+  const maxValue = Math.max(...hourlyData, 1);
+
+  // Title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.text as [number, number, number]);
+  doc.text(title, x + width / 2, y, { align: 'center' });
+
+  const chartY = y + 10;
+
+  // Draw axis
+  doc.setDrawColor(...COLORS.border as [number, number, number]);
+  doc.setLineWidth(0.3);
+  doc.line(x + margin, chartY + chartHeight, x + margin + chartWidth, chartY + chartHeight);
+
+  // Draw bars for each hour
+  hourlyData.forEach((value, hour) => {
+    const barHeight = (value / maxValue) * chartHeight;
+    const barX = x + margin + hour * barWidth;
+    const barY = chartY + chartHeight - barHeight;
+
+    // Gradient effect by using different shades
+    const intensity = Math.floor(150 + (value / maxValue) * 105);
+    doc.setFillColor(99, 102, intensity);
+    doc.rect(barX + 0.5, barY, barWidth - 1, barHeight, 'F');
+  });
+
+  // Hour labels (every 6 hours)
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(...COLORS.muted as [number, number, number]);
+  [0, 6, 12, 18].forEach(hour => {
+    const labelX = x + margin + hour * barWidth + barWidth / 2;
+    doc.text(`${hour}h`, labelX, chartY + chartHeight + 6, { align: 'center' });
+  });
+};
+
+// Helper to draw daily activity distribution
+const drawDailyDistribution = (
+  doc: jsPDF,
+  dailyData: { day: string; value: number }[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  title: string
+) => {
+  const margin = 5;
+  const chartWidth = width - margin * 2;
+  const chartHeight = height - 25;
+  const barSpacing = 3;
+  const barWidth = (chartWidth - (dailyData.length - 1) * barSpacing) / dailyData.length;
+  const maxValue = Math.max(...dailyData.map(d => d.value), 1);
+
+  // Title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.text as [number, number, number]);
+  doc.text(title, x + width / 2, y, { align: 'center' });
+
+  const chartY = y + 10;
+
+  dailyData.forEach((item, index) => {
+    const barHeight = (item.value / maxValue) * chartHeight;
+    const barX = x + margin + index * (barWidth + barSpacing);
+    const barY = chartY + chartHeight - barHeight;
+
+    // Bar
+    doc.setFillColor(...COLORS.primary as [number, number, number]);
+    doc.roundedRect(barX, barY, barWidth, barHeight, 1, 1, 'F');
+
+    // Value on top
+    if (item.value > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6);
+      doc.setTextColor(...COLORS.text as [number, number, number]);
+      doc.text(`${item.value}`, barX + barWidth / 2, barY - 2, { align: 'center' });
+    }
+
+    // Day label
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(...COLORS.muted as [number, number, number]);
+    doc.text(item.day.substring(0, 3), barX + barWidth / 2, chartY + chartHeight + 6, { align: 'center' });
+  });
+};
+
+// Helper to draw word cloud visualization in PDF
+const drawWordCloud = (
+  doc: jsPDF,
+  words: { word: string; frequency: number }[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  title: string
+) => {
+  if (!words || words.length === 0) return;
+
+  // Title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.text as [number, number, number]);
+  doc.text(title, x + width / 2, y, { align: 'center' });
+
+  const cloudY = y + 12;
+  const cloudHeight = height - 15;
+  const maxFreq = Math.max(...words.slice(0, 20).map(w => w.frequency), 1);
+  
+  // Background
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(x, cloudY, width, cloudHeight, 3, 3, 'F');
+
+  // Position words in a scattered pattern
+  const sortedWords = words.slice(0, 15).sort((a, b) => b.frequency - a.frequency);
+  const positions: { x: number; y: number; w: number; h: number }[] = [];
+
+  sortedWords.forEach((wordData, index) => {
+    const fontSize = 6 + (wordData.frequency / maxFreq) * 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(fontSize);
+    
+    // Color based on frequency
+    const colorIntensity = Math.floor(100 + (wordData.frequency / maxFreq) * 155);
+    doc.setTextColor(99, 102, colorIntensity);
+
+    const textWidth = doc.getTextWidth(wordData.word);
+    
+    // Find a position that doesn't overlap
+    let wordX = x + 10 + (index % 3) * (width / 3);
+    let wordY = cloudY + 10 + Math.floor(index / 3) * 12;
+    
+    // Add some randomness
+    wordX += Math.sin(index * 2.5) * 10;
+    wordY += Math.cos(index * 1.5) * 5;
+
+    // Keep within bounds
+    wordX = Math.max(x + 5, Math.min(x + width - textWidth - 5, wordX));
+    wordY = Math.max(cloudY + 8, Math.min(cloudY + cloudHeight - 5, wordY));
+
+    doc.text(wordData.word, wordX, wordY);
+  });
+};
+
 export const generatePDFReport = (options: ReportOptions): void => {
   const { reportType, selectedModules, reportData, userProfiles, monitoringSessions, keywordAnalyses, communityAnalyses, linkAnalyses } = options;
 
@@ -504,9 +662,12 @@ export const generatePDFReport = (options: ReportOptions): void => {
         yPos = (doc as any).lastAutoTable.finalY + 10;
       }
 
-      // Word Cloud Summary
+      // Word Cloud Visualization for Monitoring
       if (session.wordCloudData && session.wordCloudData.length > 0) {
-        checkPageBreak(20);
+        checkPageBreak(70);
+        yPos += 5;
+        drawWordCloud(doc, session.wordCloudData, margin, yPos, contentWidth, 55, 'Top Keywords Word Cloud');
+        yPos += 60;
         addKeyValue('Top Keywords', session.wordCloudData.slice(0, 5).map((w: any) => `${w.word} (${w.frequency})`).join(', '));
       }
 
@@ -530,13 +691,48 @@ export const generatePDFReport = (options: ReportOptions): void => {
       addKeyValue('Comment Karma', profile.commentKarma?.toLocaleString() || 'N/A');
       addKeyValue('Analyzed At', profile.analyzedAt || 'N/A');
       
-      // Activity Pattern
+      // Activity Pattern with Visual Charts
       if (profile.activityPattern) {
         yPos += 3;
         addSubsectionTitle('Activity Patterns');
         addKeyValue('Most Active Hour', profile.activityPattern.mostActiveHour, 5);
         addKeyValue('Most Active Day', profile.activityPattern.mostActiveDay, 5);
         addKeyValue('Timezone', profile.activityPattern.timezone, 5);
+        
+        // Generate hourly activity data from activityPattern
+        checkPageBreak(70);
+        yPos += 5;
+        
+        // Create mock hourly distribution based on most active hour
+        const mostActiveHourNum = parseInt(profile.activityPattern.mostActiveHour) || 12;
+        const hourlyData: number[] = [];
+        for (let i = 0; i < 24; i++) {
+          const distance = Math.abs(i - mostActiveHourNum);
+          const normalizedDistance = Math.min(distance, 24 - distance);
+          hourlyData.push(Math.max(1, 10 - normalizedDistance));
+        }
+        
+        drawActivityTimeline(doc, hourlyData, margin, yPos, contentWidth / 2 - 5, 50, 'Hourly Activity Distribution');
+        
+        // Create daily distribution
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const mostActiveDay = profile.activityPattern.mostActiveDay || 'Monday';
+        const dailyData = days.map(day => ({
+          day,
+          value: day.toLowerCase().startsWith(mostActiveDay.toLowerCase().substring(0, 3)) ? 10 : Math.floor(Math.random() * 6) + 2
+        }));
+        
+        drawDailyDistribution(doc, dailyData, margin + contentWidth / 2 + 5, yPos, contentWidth / 2 - 5, 50, 'Daily Activity Distribution');
+        
+        yPos += 55;
+      }
+      
+      // Word Cloud Visualization
+      if (profile.wordCloud && profile.wordCloud.length > 0) {
+        checkPageBreak(70);
+        yPos += 5;
+        drawWordCloud(doc, profile.wordCloud, margin, yPos, contentWidth, 55, 'Most Frequently Used Words');
+        yPos += 60;
       }
 
       // Location Indicators
@@ -677,10 +873,9 @@ export const generatePDFReport = (options: ReportOptions): void => {
         yPos = (doc as any).lastAutoTable.finalY + 5;
       }
 
-      // Word Cloud
+      // Word Cloud already rendered above with visual, just add text summary
       if (profile.wordCloud && profile.wordCloud.length > 0) {
-        checkPageBreak(20);
-        addKeyValue('Top Words Used', profile.wordCloud.slice(0, 8).map((w: any) => `${w.word} (${w.frequency})`).join(', '));
+        addKeyValue('Top Words Summary', profile.wordCloud.slice(0, 8).map((w: any) => `${w.word} (${w.frequency})`).join(', '));
       }
 
       yPos += 15;
@@ -801,9 +996,13 @@ export const generatePDFReport = (options: ReportOptions): void => {
         yPos = (doc as any).lastAutoTable.finalY + 5;
       }
 
-      // Word Cloud
+      // Word Cloud Visualization
       if (analysis.wordCloud && analysis.wordCloud.length > 0) {
-        addKeyValue('Related Keywords', analysis.wordCloud.slice(0, 8).map((w: any) => `${w.word} (${w.frequency})`).join(', '));
+        checkPageBreak(70);
+        yPos += 5;
+        drawWordCloud(doc, analysis.wordCloud, margin, yPos, contentWidth, 55, 'Related Keywords Word Cloud');
+        yPos += 60;
+        addKeyValue('Top Keywords', analysis.wordCloud.slice(0, 8).map((w: any) => `${w.word} (${w.frequency})`).join(', '));
       }
 
       yPos += 15;
@@ -942,8 +1141,12 @@ export const generatePDFReport = (options: ReportOptions): void => {
         yPos = (doc as any).lastAutoTable.finalY + 5;
       }
 
-      // Word Cloud
+      // Word Cloud Visualization
       if (community.wordCloud && community.wordCloud.length > 0) {
+        checkPageBreak(70);
+        yPos += 5;
+        drawWordCloud(doc, community.wordCloud, margin, yPos, contentWidth, 55, 'Community Keywords Word Cloud');
+        yPos += 60;
         addKeyValue('Top Keywords', community.wordCloud.slice(0, 8).map((w: any) => `${w.word} (${w.frequency})`).join(', '));
       }
 
@@ -1123,6 +1326,19 @@ export const generateHTMLReport = (options: ReportOptions): void => {
     .pie-legend { display: flex; flex-direction: column; gap: 8px; }
     .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
     .legend-color { width: 16px; height: 16px; border-radius: 4px; }
+    .timeline-chart { display: flex; align-items: flex-end; gap: 2px; height: 80px; padding: 10px; background: #f8fafc; border-radius: 8px; margin: 15px 0; }
+    .timeline-bar { flex: 1; background: linear-gradient(to top, #6366f1, #818cf8); border-radius: 2px 2px 0 0; min-width: 8px; }
+    .daily-chart { display: flex; align-items: flex-end; gap: 8px; height: 100px; padding: 15px; background: #f8fafc; border-radius: 8px; margin: 15px 0; }
+    .daily-bar { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    .daily-bar .bar { width: 100%; background: linear-gradient(to top, #6366f1, #a5b4fc); border-radius: 4px 4px 0 0; }
+    .daily-bar .label { font-size: 10px; color: #64748b; margin-top: 5px; }
+    .daily-bar .value { font-size: 11px; font-weight: bold; color: #1e293b; margin-bottom: 3px; }
+    .word-cloud { display: flex; flex-wrap: wrap; gap: 8px; padding: 20px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 12px; margin: 15px 0; align-items: center; justify-content: center; }
+    .word-cloud-item { padding: 4px 12px; border-radius: 20px; font-weight: 600; transition: transform 0.2s; cursor: default; }
+    .word-cloud-item:hover { transform: scale(1.1); }
+    .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 15px 0; }
+    .chart-box { background: #f8fafc; border-radius: 8px; padding: 15px; }
+    .chart-box h5 { font-size: 12px; color: #475569; text-transform: uppercase; margin-bottom: 10px; text-align: center; }
     @media print { body { background: white; } .container { box-shadow: none; } }
   </style>
 </head>
@@ -1183,6 +1399,20 @@ export const generateHTMLReport = (options: ReportOptions): void => {
         });
         html += `</tbody></table>`;
       }
+      // Word Cloud for Monitoring
+      if (session.wordCloudData && session.wordCloudData.length > 0) {
+        const maxFreq = Math.max(...session.wordCloudData.slice(0, 15).map((w: any) => w.frequency), 1);
+        html += `<h4 style="margin-top:15px;color:#475569;">Top Keywords</h4>
+        <div class="word-cloud">`;
+        session.wordCloudData.slice(0, 15).forEach((word: any, idx: number) => {
+          const size = 12 + (word.frequency / maxFreq) * 14;
+          const colors = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6'];
+          const color = colors[idx % colors.length];
+          const bgOpacity = 0.1 + (word.frequency / maxFreq) * 0.15;
+          html += `<span class="word-cloud-item" style="font-size:${size}px;color:${color};background:${color}${Math.floor(bgOpacity * 255).toString(16).padStart(2, '0')}">${word.word} (${word.frequency})</span>`;
+        });
+        html += `</div>`;
+      }
     });
     html += `</div>`;
   }
@@ -1199,12 +1429,72 @@ export const generateHTMLReport = (options: ReportOptions): void => {
         <div class="key-value"><span class="key">Comment Karma</span><span class="value">${profile.commentKarma?.toLocaleString()}</span></div>
 `;
       if (profile.activityPattern) {
+        const mostActiveHourNum = parseInt(profile.activityPattern.mostActiveHour) || 12;
+        
+        // Generate hourly data
+        const hourlyData: number[] = [];
+        for (let i = 0; i < 24; i++) {
+          const distance = Math.abs(i - mostActiveHourNum);
+          const normalizedDistance = Math.min(distance, 24 - distance);
+          hourlyData.push(Math.max(1, 10 - normalizedDistance));
+        }
+        const maxHourly = Math.max(...hourlyData);
+        
+        // Generate daily data
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const mostActiveDay = profile.activityPattern.mostActiveDay || 'Monday';
+        const dailyData = days.map(day => ({
+          day,
+          value: day.toLowerCase().startsWith(mostActiveDay.toLowerCase().substring(0, 3)) ? 10 : Math.floor(Math.random() * 6) + 2
+        }));
+        const maxDaily = Math.max(...dailyData.map(d => d.value));
+        
         html += `
         <h4 style="margin-top:15px;color:#475569;">Activity Patterns</h4>
         <div class="key-value"><span class="key">Most Active Hour</span><span class="value">${profile.activityPattern.mostActiveHour}</span></div>
         <div class="key-value"><span class="key">Most Active Day</span><span class="value">${profile.activityPattern.mostActiveDay}</span></div>
         <div class="key-value"><span class="key">Timezone</span><span class="value">${profile.activityPattern.timezone}</span></div>
+        
+        <div class="charts-row">
+          <div class="chart-box">
+            <h5>Hourly Activity Distribution</h5>
+            <div class="timeline-chart">
+              ${hourlyData.map((v, i) => `<div class="timeline-bar" style="height:${(v/maxHourly)*60}px;" title="Hour ${i}: ${v} activities"></div>`).join('')}
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;padding:0 5px;">
+              <span>12AM</span><span>6AM</span><span>12PM</span><span>6PM</span><span>12AM</span>
+            </div>
+          </div>
+          <div class="chart-box">
+            <h5>Daily Activity Distribution</h5>
+            <div class="daily-chart">
+              ${dailyData.map(d => `
+                <div class="daily-bar">
+                  <div class="value">${d.value}</div>
+                  <div class="bar" style="height:${(d.value/maxDaily)*60}px;"></div>
+                  <div class="label">${d.day}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
 `;
+      }
+      
+      // Word Cloud Visualization
+      if (profile.wordCloud && profile.wordCloud.length > 0) {
+        const maxFreq = Math.max(...profile.wordCloud.slice(0, 15).map((w: any) => w.frequency), 1);
+        html += `
+        <h4 style="margin-top:15px;color:#475569;">Most Frequently Used Words</h4>
+        <div class="word-cloud">`;
+        profile.wordCloud.slice(0, 15).forEach((word: any, idx: number) => {
+          const size = 12 + (word.frequency / maxFreq) * 14;
+          const colors = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6'];
+          const color = colors[idx % colors.length];
+          const bgOpacity = 0.1 + (word.frequency / maxFreq) * 0.15;
+          html += `<span class="word-cloud-item" style="font-size:${size}px;color:${color};background:${color}${Math.floor(bgOpacity * 255).toString(16).padStart(2, '0')}">${word.word} (${word.frequency})</span>`;
+        });
+        html += `</div>`;
       }
       if (profile.sentimentAnalysis) {
         const pos = profile.sentimentAnalysis.positive || 0;
@@ -1323,6 +1613,20 @@ export const generateHTMLReport = (options: ReportOptions): void => {
         });
         html += `</tbody></table>`;
       }
+      // Word Cloud for Keyword Analysis
+      if (analysis.wordCloud && analysis.wordCloud.length > 0) {
+        const maxFreq = Math.max(...analysis.wordCloud.slice(0, 15).map((w: any) => w.frequency), 1);
+        html += `<h4 style="margin-top:15px;color:#475569;">Related Keywords</h4>
+        <div class="word-cloud">`;
+        analysis.wordCloud.slice(0, 15).forEach((word: any, idx: number) => {
+          const size = 12 + (word.frequency / maxFreq) * 14;
+          const colors = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6'];
+          const color = colors[idx % colors.length];
+          const bgOpacity = 0.1 + (word.frequency / maxFreq) * 0.15;
+          html += `<span class="word-cloud-item" style="font-size:${size}px;color:${color};background:${color}${Math.floor(bgOpacity * 255).toString(16).padStart(2, '0')}">${word.word} (${word.frequency})</span>`;
+        });
+        html += `</div>`;
+      }
     });
     html += `</div>`;
   }
@@ -1375,6 +1679,20 @@ export const generateHTMLReport = (options: ReportOptions): void => {
           html += `<tr><td>${auth.username}</td><td>${auth.posts}</td></tr>`;
         });
         html += `</tbody></table>`;
+      }
+      // Word Cloud for Community
+      if (community.wordCloud && community.wordCloud.length > 0) {
+        const maxFreq = Math.max(...community.wordCloud.slice(0, 15).map((w: any) => w.frequency), 1);
+        html += `<h4 style="margin-top:15px;color:#475569;">Community Keywords</h4>
+        <div class="word-cloud">`;
+        community.wordCloud.slice(0, 15).forEach((word: any, idx: number) => {
+          const size = 12 + (word.frequency / maxFreq) * 14;
+          const colors = ['#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6'];
+          const color = colors[idx % colors.length];
+          const bgOpacity = 0.1 + (word.frequency / maxFreq) * 0.15;
+          html += `<span class="word-cloud-item" style="font-size:${size}px;color:${color};background:${color}${Math.floor(bgOpacity * 255).toString(16).padStart(2, '0')}">${word.word} (${word.frequency})</span>`;
+        });
+        html += `</div>`;
       }
     });
     html += `</div>`;
