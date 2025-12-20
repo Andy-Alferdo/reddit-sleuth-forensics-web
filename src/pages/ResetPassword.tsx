@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,35 +8,82 @@ import MovingBackground from '@/components/MovingBackground';
 import logo from '@/assets/intel-reddit-logo.png';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, Loader2 } from 'lucide-react';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isValidToken, setIsValidToken] = useState(false);
+  const [isValidSession, setIsValidSession] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Check if we have the reset token in the URL
-    const accessToken = searchParams.get('access_token');
-    const type = searchParams.get('type');
-    
-    if (type === 'recovery' && accessToken) {
-      setIsValidToken(true);
-    } else {
-      toast({
-        title: "Invalid Reset Link",
-        description: "This password reset link is invalid or has expired.",
-        variant: "destructive",
-      });
-      setTimeout(() => navigate('/login'), 3000);
-    }
-  }, [searchParams, navigate, toast]);
+    // Listen for auth state changes - Supabase handles the token from the URL hash
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event, 'Session:', !!session);
+      
+      if (event === 'PASSWORD_RECOVERY') {
+        // User clicked the recovery link and is now in recovery mode
+        setIsValidSession(true);
+        setIsChecking(false);
+        toast({
+          title: "Ready to Reset",
+          description: "Please enter your new password below.",
+        });
+      } else if (event === 'SIGNED_IN' && session) {
+        // User might already be signed in via recovery link
+        setIsValidSession(true);
+        setIsChecking(false);
+      }
+    });
+
+    // Also check current session after a brief delay
+    const checkSession = async () => {
+      // Give Supabase time to process the URL hash
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        setIsValidSession(true);
+      } else {
+        // Check if there's a hash in the URL (indicates a recovery attempt)
+        const hash = window.location.hash;
+        if (hash && (hash.includes('type=recovery') || hash.includes('access_token'))) {
+          // Wait a bit more for Supabase to process
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          const { data: { session: retrySession } } = await supabase.auth.getSession();
+          if (retrySession) {
+            setIsValidSession(true);
+          } else {
+            toast({
+              title: "Invalid or Expired Link",
+              description: "This password reset link is invalid or has expired. Please request a new one.",
+              variant: "destructive",
+            });
+            setTimeout(() => navigate('/login'), 3000);
+          }
+        } else if (!hash) {
+          // No hash means direct navigation without a reset link
+          toast({
+            title: "No Reset Link",
+            description: "Please use the reset link sent to your email.",
+            variant: "destructive",
+          });
+          setTimeout(() => navigate('/login'), 2000);
+        }
+      }
+      setIsChecking(false);
+    };
+
+    checkSession();
+
+    return () => subscription.unsubscribe();
+  }, [navigate, toast]);
 
   const validatePassword = (pass: string): string | null => {
     if (pass.length < 8) {
@@ -57,7 +104,6 @@ const ResetPassword = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate password
     const passwordError = validatePassword(password);
     if (passwordError) {
       toast({
@@ -68,7 +114,6 @@ const ResetPassword = () => {
       return;
     }
 
-    // Check if passwords match
     if (password !== confirmPassword) {
       toast({
         title: "Passwords Don't Match",
@@ -107,14 +152,30 @@ const ResetPassword = () => {
     }
   };
 
-  if (!isValidToken) {
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-forensic-dark to-forensic-darker flex items-center justify-center">
+        <MovingBackground />
+        <div className="relative z-10">
+          <Card className="backdrop-blur-sm bg-card/90 border-primary/20">
+            <CardContent className="pt-6 flex flex-col items-center gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-center text-muted-foreground">Verifying reset link...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isValidSession) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-forensic-dark to-forensic-darker flex items-center justify-center">
         <MovingBackground />
         <div className="relative z-10">
           <Card className="backdrop-blur-sm bg-card/90 border-primary/20">
             <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground">Verifying reset link...</p>
+              <p className="text-center text-muted-foreground">Redirecting to login...</p>
             </CardContent>
           </Card>
         </div>
@@ -202,7 +263,14 @@ const ResetPassword = () => {
                 className="w-full mt-6"
                 disabled={loading}
               >
-                {loading ? 'Resetting Password...' : 'Reset Password'}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Resetting Password...
+                  </>
+                ) : (
+                  'Reset Password'
+                )}
               </Button>
 
               <Button 
