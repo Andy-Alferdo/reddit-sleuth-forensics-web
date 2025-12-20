@@ -94,11 +94,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
         // Sign out immediately to force user to login with credentials
         await supabase.auth.signOut();
         
-        toast({
-          title: "Account Created",
-          description: "Please login with your credentials.",
-        });
-        navigate('/login');
+        navigate('/login', { state: { fromSignup: true } });
       }
     } catch (error: any) {
       let message = error.message;
