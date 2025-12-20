@@ -5,6 +5,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./components/LoginPage";
+import RegisterPage from "./components/RegisterPage";
 import AdminLogin from "./components/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import ResetPassword from "./pages/ResetPassword";
@@ -76,6 +77,9 @@ const App = () => {
               {/* Public routes */}
               <Route path="/login" element={
                 isLoggedIn ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={handleLogin} />
+              } />
+              <Route path="/register" element={
+                isLoggedIn ? <Navigate to="/dashboard" replace /> : <RegisterPage onLogin={handleLogin} />
               } />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/admin/login" element={<AdminLogin />} />
