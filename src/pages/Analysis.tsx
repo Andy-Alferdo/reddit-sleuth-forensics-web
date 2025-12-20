@@ -12,6 +12,13 @@ import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatActivityTime } from '@/lib/dateUtils';
+import { useInvestigation } from '@/contexts/InvestigationContext';
+
+interface SentimentItem {
+  text: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  explanation: string;
+}
 
 const Analysis = () => {
   const [keyword, setKeyword] = useState('');
@@ -22,6 +29,18 @@ const Analysis = () => {
   const [linkData, setLinkData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { addKeywordAnalysis, addCommunityAnalysis, addLinkAnalysis } = useInvestigation();
+
+  const getSentimentBadge = (sentiment: string) => {
+    switch (sentiment?.toLowerCase()) {
+      case 'positive':
+        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Positive</Badge>;
+      case 'negative':
+        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Negative</Badge>;
+      default:
+        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Neutral</Badge>;
+    }
+  };
 
   const handleKeywordAnalysis = async () => {
     if (!keyword.trim()) return;
@@ -41,8 +60,6 @@ const Analysis = () => {
       if (error) throw error;
 
       const posts = redditData.posts || [];
-
-      // Posts are already filtered by keyword via Reddit's search API
       const matchingPosts = posts;
 
       // Count subreddit mentions
@@ -81,7 +98,6 @@ const Analysis = () => {
       const now = new Date();
       const past7Days: { [key: string]: number } = {};
       
-      // Initialize past 7 days with 0
       for (let i = 6; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
@@ -105,6 +121,8 @@ const Analysis = () => {
 
       // Analyze sentiment for keyword results
       let keywordSentimentData = null;
+      let postSentiments: SentimentItem[] = [];
+      
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: {
@@ -113,26 +131,38 @@ const Analysis = () => {
           }
         });
 
-        if (!analysisError && analysisData?.sentiment?.postBreakdown) {
-          const breakdown = analysisData.sentiment.postBreakdown;
-          keywordSentimentData = [
-            { name: 'Positive', value: Math.round((breakdown.positive || 0) * 100) },
-            { name: 'Neutral', value: Math.round((breakdown.neutral || 0) * 100) },
-            { name: 'Negative', value: Math.round((breakdown.negative || 0) * 100) }
-          ];
+        if (!analysisError && analysisData) {
+          if (analysisData.sentiment?.postBreakdown) {
+            const breakdown = analysisData.sentiment.postBreakdown;
+            keywordSentimentData = [
+              { name: 'Positive', value: Math.round((breakdown.positive || 0) * 100) },
+              { name: 'Neutral', value: Math.round((breakdown.neutral || 0) * 100) },
+              { name: 'Negative', value: Math.round((breakdown.negative || 0) * 100) }
+            ];
+          }
+          postSentiments = analysisData.postSentiments || [];
         }
       } catch (sentimentErr) {
         console.error('Keyword sentiment analysis error:', sentimentErr);
       }
 
-      setKeywordData({
+      const analysisResult = {
         keyword,
         totalMentions: matchingPosts.length,
         topSubreddits,
         wordCloud: wordCloudData,
         trendData: trendData.length > 0 ? trendData : [{ name: 'Recent', value: matchingPosts.length }],
         recentPosts: matchingPosts.slice(0, 10),
-        sentimentChartData: keywordSentimentData
+        sentimentChartData: keywordSentimentData,
+        postSentiments
+      };
+
+      setKeywordData(analysisResult);
+      
+      // Save to investigation context
+      addKeywordAnalysis({
+        ...analysisResult,
+        analyzedAt: new Date().toISOString()
       });
 
       toast({
@@ -185,6 +215,8 @@ const Analysis = () => {
 
       // Analyze content for sentiment
       let sentimentData = null;
+      let postSentiments: SentimentItem[] = [];
+      
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: {
@@ -193,13 +225,16 @@ const Analysis = () => {
           }
         });
 
-        if (!analysisError && analysisData?.sentiment?.postBreakdown) {
-          const breakdown = analysisData.sentiment.postBreakdown;
-          sentimentData = {
-            positive: Math.round((breakdown.positive || 0) * 100),
-            neutral: Math.round((breakdown.neutral || 0) * 100),
-            negative: Math.round((breakdown.negative || 0) * 100)
-          };
+        if (!analysisError && analysisData) {
+          if (analysisData.sentiment?.postBreakdown) {
+            const breakdown = analysisData.sentiment.postBreakdown;
+            sentimentData = {
+              positive: Math.round((breakdown.positive || 0) * 100),
+              neutral: Math.round((breakdown.neutral || 0) * 100),
+              negative: Math.round((breakdown.negative || 0) * 100)
+            };
+          }
+          postSentiments = analysisData.postSentiments || [];
         }
       } catch (sentimentErr) {
         console.error('Sentiment analysis error:', sentimentErr);
@@ -259,7 +294,7 @@ const Analysis = () => {
         { name: 'Negative', value: sentimentData.negative || 0 }
       ] : null;
 
-      setCommunityData({
+      const analysisResult = {
         name: subredditInfo.display_name_prefixed || `r/${cleanSubreddit}`,
         subscribers: subredditInfo.subscribers || 0,
         activeUsers: subredditInfo.accounts_active || 0,
@@ -274,12 +309,21 @@ const Analysis = () => {
         activityData,
         recentPosts: posts.slice(0, 10),
         sentimentChartData,
+        postSentiments,
         stats: {
           totalPosts: posts.length,
           totalUpvotes,
           totalComments,
           avgUpvotes: posts.length > 0 ? Math.round(totalUpvotes / posts.length) : 0
         }
+      };
+
+      setCommunityData(analysisResult);
+      
+      // Save to investigation context
+      addCommunityAnalysis({
+        ...analysisResult,
+        analyzedAt: new Date().toISOString()
       });
 
       toast({
@@ -362,7 +406,7 @@ const Analysis = () => {
         }))
         .sort((a, b) => b.totalActivity - a.totalActivity);
 
-      // Calculate community crossover (users who post in multiple related communities)
+      // Calculate community crossover
       const communityCrossover = [];
       const topCommunities = sortedSubreddits.slice(0, 5);
       
@@ -386,7 +430,7 @@ const Analysis = () => {
         value: s.totalActivity
       }));
 
-      setLinkData({
+      const analysisResult = {
         primaryUser: cleanUsername,
         totalKarma: (redditData.user?.link_karma || 0) + (redditData.user?.comment_karma || 0),
         userToCommunities: sortedSubreddits.slice(0, 5),
@@ -401,6 +445,14 @@ const Analysis = () => {
           totalPosts: posts.length,
           totalComments: comments.length
         }
+      };
+
+      setLinkData(analysisResult);
+      
+      // Save to investigation context
+      addLinkAnalysis({
+        ...analysisResult,
+        analyzedAt: new Date().toISOString()
       });
 
       toast({
@@ -554,6 +606,40 @@ const Analysis = () => {
                         </div>
                       </div>
                     ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Sentiment Analysis Table for Keywords */}
+              {keywordData.postSentiments && keywordData.postSentiments.length > 0 && (
+                <Card className="border-primary/20 shadow-glow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                      <span>Post Sentiment Analysis (AI-Powered)</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-3 font-semibold">Post</th>
+                            <th className="text-left p-3 font-semibold w-32">Sentiment</th>
+                            <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {keywordData.postSentiments.map((item: SentimentItem, index: number) => (
+                            <tr key={index} className="border-b hover:bg-muted/50">
+                              <td className="p-3 text-sm">{item.text}</td>
+                              <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
+                              <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -737,6 +823,40 @@ const Analysis = () => {
                 </CardContent>
               </Card>
 
+              {/* Sentiment Analysis Table for Community */}
+              {communityData.postSentiments && communityData.postSentiments.length > 0 && (
+                <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-forensic-accent" />
+                      Post Sentiment Analysis (AI-Powered)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-3 font-semibold">Post</th>
+                            <th className="text-left p-3 font-semibold w-32">Sentiment</th>
+                            <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {communityData.postSentiments.map((item: SentimentItem, index: number) => (
+                            <tr key={index} className="border-b hover:bg-muted/50">
+                              <td className="p-3 text-sm">{item.text}</td>
+                              <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
+                              <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Community Analytics */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {communityData.wordCloud && communityData.wordCloud.length > 0 && (
@@ -837,50 +957,49 @@ const Analysis = () => {
                       <p className="text-sm text-muted-foreground">Cross-Links</p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-card border border-border">
-                      <BarChart3 className="h-6 w-6 text-foreground mx-auto mb-2" />
-                      <div className="font-bold text-foreground">{linkData.networkMetrics.avgActivityScore}</div>
-                      <p className="text-sm text-muted-foreground">Avg Score</p>
-                    </div>
-                    <div className="text-center p-4 rounded-lg bg-card border border-border">
-                      <MessageSquare className="h-6 w-6 text-foreground mx-auto mb-2" />
                       <div className="font-bold text-foreground">{linkData.networkMetrics.totalPosts}</div>
-                      <p className="text-sm text-muted-foreground">Posts</p>
+                      <p className="text-sm text-muted-foreground">Total Posts</p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-card border border-border">
-                      <MessageSquare className="h-6 w-6 text-foreground mx-auto mb-2" />
                       <div className="font-bold text-foreground">{linkData.networkMetrics.totalComments}</div>
-                      <p className="text-sm text-muted-foreground">Comments</p>
+                      <p className="text-sm text-muted-foreground">Total Comments</p>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-card border border-border">
+                      <div className="font-bold text-foreground">{linkData.totalKarma.toLocaleString()}</div>
+                      <p className="text-sm text-muted-foreground">Total Karma</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* User to Communities */}
                 <Card className="border-primary/20 shadow-glow">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
-                      <Users className="h-5 w-5 text-primary" />
-                      <span>User to Community Connections</span>
+                      <Share2 className="h-5 w-5 text-primary" />
+                      <span>Community Connections</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {linkData.userToCommunities.map((conn: any, index: number) => (
-                        <div key={index} className="p-4 rounded-lg bg-card border border-border">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <h3 className="font-semibold text-lg">{conn.community}</h3>
-                              <p className="text-sm text-muted-foreground">{conn.posts} posts, {conn.comments} comments</p>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-primary">{conn.activity}%</div>
-                              <p className="text-xs text-muted-foreground">Activity</p>
-                            </div>
+                    <div className="space-y-3">
+                      {linkData.userToCommunities.map((item: any, index: number) => (
+                        <div key={index} className="p-3 rounded-lg border border-border">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-medium">{item.community}</span>
+                            <Badge variant="secondary">{item.totalActivity} activities</Badge>
                           </div>
-                          <div className="w-full bg-muted rounded-full h-2">
+                          <div className="flex gap-2 text-xs text-muted-foreground">
+                            <span>{item.posts} posts</span>
+                            <span>•</span>
+                            <span>{item.comments} comments</span>
+                            <span>•</span>
+                            <span>▲ {item.engagement}</span>
+                          </div>
+                          <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
                             <div 
-                              className="bg-primary h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${conn.activity}%` }}
+                              className="h-full bg-primary rounded-full transition-all"
+                              style={{ width: `${item.activity}%` }}
                             />
                           </div>
                         </div>
@@ -889,32 +1008,37 @@ const Analysis = () => {
                   </CardContent>
                 </Card>
 
+                {/* Community Crossover */}
                 <Card className="border-primary/20 shadow-glow">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
-                      <AlertTriangle className="h-5 w-5 text-accent" />
-                      <span>Community to Community Links</span>
+                      <Network className="h-5 w-5 text-primary" />
+                      <span>Community Crossover</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       {linkData.communityCrossover.length > 0 ? (
-                        linkData.communityCrossover.map((link: any, index: number) => (
-                          <div key={index} className="p-3 rounded-lg bg-card border border-border">
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm font-medium">{link.from} → {link.to}</span>
-                              <span className="text-sm font-bold text-forensic-accent">{link.strength}%</span>
+                        linkData.communityCrossover.map((item: any, index: number) => (
+                          <div key={index} className="p-3 rounded-lg border border-border">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">{item.from}</Badge>
+                                <span className="text-muted-foreground">↔</span>
+                                <Badge variant="outline">{item.to}</Badge>
+                              </div>
+                              <span className="text-sm font-medium">{item.strength}%</span>
                             </div>
-                            <div className="w-full bg-muted rounded-full h-2">
+                            <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
                               <div 
-                                className="bg-forensic-accent h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${link.strength}%` }}
+                                className="h-full bg-forensic-accent rounded-full transition-all"
+                                style={{ width: `${item.strength}%` }}
                               />
                             </div>
                           </div>
                         ))
                       ) : (
-                        <p className="text-muted-foreground text-center py-4">Not enough communities for cross-links</p>
+                        <p className="text-muted-foreground text-center py-4">No cross-community activity detected</p>
                       )}
                     </div>
                   </CardContent>
@@ -925,9 +1049,9 @@ const Analysis = () => {
               {linkData.communityDistribution && linkData.communityDistribution.length > 0 && (
                 <AnalyticsChart 
                   data={linkData.communityDistribution} 
-                  title="Community Activity Distribution" 
+                  title="Activity Distribution Across Communities" 
                   type="bar" 
-                  height={250}
+                  height={300}
                 />
               )}
             </div>
@@ -937,7 +1061,7 @@ const Analysis = () => {
             <Card className="border-dashed border-muted-foreground/30">
               <CardContent className="py-12 text-center">
                 <Network className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Enter a username to discover community connections</p>
+                <p className="text-muted-foreground">Enter a username to analyze their community connections</p>
               </CardContent>
             </Card>
           )}
