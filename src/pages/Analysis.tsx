@@ -29,31 +29,25 @@ const Analysis = () => {
     setKeywordData(null);
 
     try {
-      // Search for keyword in a general subreddit (using 'all' for broad search)
+      // Search for keyword across Reddit using search API
       const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
         body: { 
-          subreddit: 'all',
-          type: 'community'
+          keyword: keyword.trim(),
+          type: 'search'
         }
       });
 
       if (error) throw error;
 
       const posts = redditData.posts || [];
-      
-      // Filter posts containing the keyword
-      const keywordLower = keyword.toLowerCase();
-      const matchingPosts = posts.filter((post: any) => 
-        post.title?.toLowerCase().includes(keywordLower) || 
-        post.selftext?.toLowerCase().includes(keywordLower)
-      );
+
+      // Posts are already filtered by keyword via Reddit's search API
+      const matchingPosts = posts;
 
       // Count subreddit mentions
       const subredditCounts: { [key: string]: number } = {};
       posts.forEach((post: any) => {
-        if (post.title?.toLowerCase().includes(keywordLower) || post.selftext?.toLowerCase().includes(keywordLower)) {
-          subredditCounts[post.subreddit] = (subredditCounts[post.subreddit] || 0) + 1;
-        }
+        subredditCounts[post.subreddit] = (subredditCounts[post.subreddit] || 0) + 1;
       });
 
       const topSubreddits = Object.entries(subredditCounts)
@@ -66,6 +60,7 @@ const Analysis = () => {
       const words = textContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
       const wordFreq: { [key: string]: number } = {};
       const stopWords = ['that', 'this', 'with', 'from', 'have', 'been', 'will', 'your', 'their', 'what', 'when', 'where', 'just', 'like', 'more', 'would', 'could', 'should', 'about', 'there', 'which', 'them', 'these', 'than', 'then', 'also', 'only'];
+      const keywordLower = keyword.toLowerCase();
       words.forEach(word => {
         if (!stopWords.includes(word) && word !== keywordLower) {
           wordFreq[word] = (wordFreq[word] || 0) + 1;

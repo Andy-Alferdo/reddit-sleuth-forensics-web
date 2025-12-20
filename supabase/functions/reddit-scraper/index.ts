@@ -37,8 +37,8 @@ serve(async (req) => {
   }
 
   try {
-    const { username, type, subreddit } = await req.json();
-    console.log(`Reddit scraper called for: ${username || subreddit}, type: ${type}`);
+    const { username, type, subreddit, keyword } = await req.json();
+    console.log(`Reddit scraper called for: ${username || subreddit || keyword}, type: ${type}`);
 
     const REDDIT_CLIENT_ID = Deno.env.get('REDDIT_CLIENT_ID');
     const REDDIT_CLIENT_SECRET = Deno.env.get('REDDIT_CLIENT_SECRET');
@@ -68,7 +68,29 @@ serve(async (req) => {
 
     let responseData: any = {};
 
-    if (type === 'user') {
+    if (type === 'search') {
+      // Search for keyword across Reddit
+      const searchResponse = await fetch(`https://oauth.reddit.com/search?q=${encodeURIComponent(keyword)}&limit=100&sort=relevance&t=week`, {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'User-Agent': 'IntelReddit/1.0',
+        },
+      });
+
+      if (!searchResponse.ok) {
+        throw new Error('Failed to search Reddit');
+      }
+
+      const searchData = await searchResponse.json();
+      const posts: RedditPost[] = searchData.data?.children?.map((child: any) => child.data) || [];
+      console.log(`Search found ${posts.length} posts for keyword: ${keyword}`);
+
+      responseData = {
+        posts,
+        keyword,
+      };
+
+    } else if (type === 'user') {
       // Fetch user data
       const userResponse = await fetch(`https://oauth.reddit.com/user/${username}/about`, {
         headers: {
