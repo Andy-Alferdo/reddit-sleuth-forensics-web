@@ -113,11 +113,12 @@ const Analysis = () => {
           }
         });
 
-        if (!analysisError && analysisData?.sentiment?.breakdown) {
+        if (!analysisError && analysisData?.sentiment?.postBreakdown) {
+          const breakdown = analysisData.sentiment.postBreakdown;
           keywordSentimentData = [
-            { name: 'Positive', value: analysisData.sentiment.breakdown.positive || 0 },
-            { name: 'Neutral', value: analysisData.sentiment.breakdown.neutral || 0 },
-            { name: 'Negative', value: analysisData.sentiment.breakdown.negative || 0 }
+            { name: 'Positive', value: Math.round((breakdown.positive || 0) * 100) },
+            { name: 'Neutral', value: Math.round((breakdown.neutral || 0) * 100) },
+            { name: 'Negative', value: Math.round((breakdown.negative || 0) * 100) }
           ];
         }
       } catch (sentimentErr) {
@@ -192,8 +193,13 @@ const Analysis = () => {
           }
         });
 
-        if (!analysisError && analysisData) {
-          sentimentData = analysisData.sentiment?.breakdown || null;
+        if (!analysisError && analysisData?.sentiment?.postBreakdown) {
+          const breakdown = analysisData.sentiment.postBreakdown;
+          sentimentData = {
+            positive: Math.round((breakdown.positive || 0) * 100),
+            neutral: Math.round((breakdown.neutral || 0) * 100),
+            negative: Math.round((breakdown.negative || 0) * 100)
+          };
         }
       } catch (sentimentErr) {
         console.error('Sentiment analysis error:', sentimentErr);
