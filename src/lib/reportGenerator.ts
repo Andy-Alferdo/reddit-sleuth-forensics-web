@@ -111,6 +111,132 @@ const COLORS = {
   text: [30, 41, 59],
   muted: [100, 116, 139],
   border: [226, 232, 240],
+  positive: [34, 197, 94], // Green for positive sentiment
+  neutral: [234, 179, 8], // Yellow for neutral
+  negative: [239, 68, 68], // Red for negative
+};
+
+// Helper to draw a bar chart in PDF
+const drawBarChart = (
+  doc: jsPDF,
+  data: { label: string; value: number; color?: [number, number, number] }[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  title?: string
+) => {
+  const margin = 5;
+  const chartWidth = width - margin * 2;
+  const chartHeight = height - 30;
+  const barSpacing = 5;
+  const maxValue = Math.max(...data.map(d => d.value), 1);
+  const barWidth = (chartWidth - (data.length - 1) * barSpacing) / data.length;
+
+  // Title
+  if (title) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...COLORS.text as [number, number, number]);
+    doc.text(title, x + width / 2, y, { align: 'center' });
+  }
+
+  const chartY = y + 10;
+
+  // Draw bars
+  data.forEach((item, index) => {
+    const barHeight = (item.value / maxValue) * chartHeight;
+    const barX = x + margin + index * (barWidth + barSpacing);
+    const barY = chartY + chartHeight - barHeight;
+
+    // Bar
+    const color = item.color || COLORS.primary;
+    doc.setFillColor(...color as [number, number, number]);
+    doc.roundedRect(barX, barY, barWidth, barHeight, 2, 2, 'F');
+
+    // Value on top
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...COLORS.text as [number, number, number]);
+    doc.text(`${item.value}%`, barX + barWidth / 2, barY - 2, { align: 'center' });
+
+    // Label below
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...COLORS.muted as [number, number, number]);
+    const labelLines = doc.splitTextToSize(item.label, barWidth + 2);
+    doc.text(labelLines[0] || item.label, barX + barWidth / 2, chartY + chartHeight + 8, { align: 'center' });
+  });
+};
+
+// Helper to draw a pie chart in PDF
+const drawPieChart = (
+  doc: jsPDF,
+  data: { label: string; value: number; color: [number, number, number] }[],
+  centerX: number,
+  centerY: number,
+  radius: number,
+  title?: string
+) => {
+  const total = data.reduce((sum, d) => sum + d.value, 0) || 1;
+  let startAngle = -Math.PI / 2; // Start from top
+
+  // Title
+  if (title) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...COLORS.text as [number, number, number]);
+    doc.text(title, centerX, centerY - radius - 8, { align: 'center' });
+  }
+
+  data.forEach((item) => {
+    const sliceAngle = (item.value / total) * 2 * Math.PI;
+    const endAngle = startAngle + sliceAngle;
+
+    // Draw slice using lines (approximation)
+    doc.setFillColor(...item.color);
+    
+    const points: { x: number; y: number }[] = [{ x: centerX, y: centerY }];
+    const steps = Math.max(20, Math.floor(sliceAngle * 20));
+    
+    for (let i = 0; i <= steps; i++) {
+      const angle = startAngle + (sliceAngle * i) / steps;
+      points.push({
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle)
+      });
+    }
+
+    // Draw as filled polygon
+    if (points.length > 2) {
+      doc.setFillColor(...item.color);
+      const path = points.map((p, i) => (i === 0 ? `${p.x} ${p.y} m` : `${p.x} ${p.y} l`)).join(' ');
+      // Use triangle fan approach for pie
+      for (let i = 1; i < points.length - 1; i++) {
+        doc.triangle(
+          points[0].x, points[0].y,
+          points[i].x, points[i].y,
+          points[i + 1].x, points[i + 1].y,
+          'F'
+        );
+      }
+    }
+
+    startAngle = endAngle;
+  });
+
+  // Legend
+  let legendY = centerY + radius + 12;
+  data.forEach((item, index) => {
+    const legendX = centerX - 30;
+    doc.setFillColor(...item.color);
+    doc.rect(legendX, legendY - 3, 8, 8, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...COLORS.text as [number, number, number]);
+    doc.text(`${item.label}: ${item.value}%`, legendX + 12, legendY + 3);
+    legendY += 12;
+  });
 };
 
 export const generatePDFReport = (options: ReportOptions): void => {
@@ -431,12 +557,27 @@ export const generatePDFReport = (options: ReportOptions): void => {
         });
       }
 
-      // Sentiment Analysis
+      // Sentiment Analysis with Visual Chart
       if ((reportType === 'automated' || selectedModules.sentimentAnalysis) && profile.sentimentAnalysis) {
         yPos += 3;
-        checkPageBreak(40);
+        checkPageBreak(80);
         addSubsectionTitle('Sentiment Analysis');
         
+        // Draw bar chart for sentiment
+        const sentimentChartData = [
+          { label: 'Positive', value: profile.sentimentAnalysis.positive || 0, color: COLORS.positive as [number, number, number] },
+          { label: 'Neutral', value: profile.sentimentAnalysis.neutral || 0, color: COLORS.neutral as [number, number, number] },
+          { label: 'Negative', value: profile.sentimentAnalysis.negative || 0, color: COLORS.negative as [number, number, number] },
+        ];
+        
+        drawBarChart(doc, sentimentChartData, margin, yPos, 80, 50, 'Sentiment Distribution');
+        
+        // Draw pie chart next to bar chart
+        drawPieChart(doc, sentimentChartData, margin + 130, yPos + 25, 20, '');
+        
+        yPos += 60;
+        
+        // Also include table for clarity
         const sentimentData = [
           ['Sentiment', 'Percentage'],
           ['Positive', `${profile.sentimentAnalysis.positive || 0}%`],
@@ -579,10 +720,22 @@ export const generatePDFReport = (options: ReportOptions): void => {
         yPos = (doc as any).lastAutoTable.finalY + 5;
       }
 
-      // Sentiment Analysis for Keyword
+      // Sentiment Analysis for Keyword with Chart
       if ((reportType === 'automated' || selectedModules.sentimentAnalysis) && analysis.sentimentChartData && analysis.sentimentChartData.length > 0) {
-        checkPageBreak(40);
+        checkPageBreak(80);
         addSubsectionTitle('Sentiment Distribution');
+        
+        // Draw visual chart
+        const chartData = analysis.sentimentChartData.map((item: any) => ({
+          label: item.name,
+          value: item.value,
+          color: item.name.toLowerCase() === 'positive' ? COLORS.positive as [number, number, number] :
+                 item.name.toLowerCase() === 'negative' ? COLORS.negative as [number, number, number] :
+                 COLORS.neutral as [number, number, number]
+        }));
+        
+        drawBarChart(doc, chartData, margin, yPos, 100, 50, '');
+        yPos += 55;
         
         const sentimentRows = analysis.sentimentChartData.map((item: any) => [
           item.name,
@@ -686,10 +839,22 @@ export const generatePDFReport = (options: ReportOptions): void => {
         addKeyValue('Average Upvotes', community.stats.avgUpvotes?.toString() || 'N/A', 5);
       }
 
-      // Sentiment Analysis for Community
+      // Sentiment Analysis for Community with Chart
       if ((reportType === 'automated' || selectedModules.sentimentAnalysis) && community.sentimentChartData && community.sentimentChartData.length > 0) {
-        checkPageBreak(40);
+        checkPageBreak(80);
         addSubsectionTitle('Sentiment Distribution');
+        
+        // Draw visual chart
+        const chartData = community.sentimentChartData.map((item: any) => ({
+          label: item.name,
+          value: item.value,
+          color: item.name.toLowerCase() === 'positive' ? COLORS.positive as [number, number, number] :
+                 item.name.toLowerCase() === 'negative' ? COLORS.negative as [number, number, number] :
+                 COLORS.neutral as [number, number, number]
+        }));
+        
+        drawBarChart(doc, chartData, margin, yPos, 100, 50, '');
+        yPos += 55;
         
         const sentimentRows = community.sentimentChartData.map((item: any) => [
           item.name,
@@ -949,6 +1114,15 @@ export const generateHTMLReport = (options: ReportOptions): void => {
     .key-value .value { flex: 1; color: #1e293b; font-weight: 500; }
     .warning-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
     .footer { background: #1e293b; color: #94a3b8; padding: 30px; text-align: center; font-size: 12px; }
+    .chart-container { display: flex; gap: 30px; align-items: center; margin: 20px 0; flex-wrap: wrap; }
+    .bar-chart { display: flex; align-items: flex-end; gap: 10px; height: 120px; padding: 10px; background: #f8fafc; border-radius: 8px; }
+    .bar-item { display: flex; flex-direction: column; align-items: center; }
+    .bar { width: 60px; border-radius: 4px 4px 0 0; transition: height 0.3s; }
+    .bar-label { font-size: 11px; color: #64748b; margin-top: 5px; text-align: center; }
+    .bar-value { font-size: 12px; font-weight: bold; color: #1e293b; margin-bottom: 3px; }
+    .pie-legend { display: flex; flex-direction: column; gap: 8px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .legend-color { width: 16px; height: 16px; border-radius: 4px; }
     @media print { body { background: white; } .container { box-shadow: none; } }
   </style>
 </head>
@@ -1033,12 +1207,41 @@ export const generateHTMLReport = (options: ReportOptions): void => {
 `;
       }
       if (profile.sentimentAnalysis) {
+        const pos = profile.sentimentAnalysis.positive || 0;
+        const neu = profile.sentimentAnalysis.neutral || 0;
+        const neg = profile.sentimentAnalysis.negative || 0;
+        const maxVal = Math.max(pos, neu, neg, 1);
+        
         html += `
         <h4 style="margin-top:15px;color:#475569;">Sentiment Analysis</h4>
+        <div class="chart-container">
+          <div class="bar-chart">
+            <div class="bar-item">
+              <div class="bar-value">${pos}%</div>
+              <div class="bar" style="height:${(pos/maxVal)*80}px;background:#22c55e;"></div>
+              <div class="bar-label">Positive</div>
+            </div>
+            <div class="bar-item">
+              <div class="bar-value">${neu}%</div>
+              <div class="bar" style="height:${(neu/maxVal)*80}px;background:#eab308;"></div>
+              <div class="bar-label">Neutral</div>
+            </div>
+            <div class="bar-item">
+              <div class="bar-value">${neg}%</div>
+              <div class="bar" style="height:${(neg/maxVal)*80}px;background:#ef4444;"></div>
+              <div class="bar-label">Negative</div>
+            </div>
+          </div>
+          <div class="pie-legend">
+            <div class="legend-item"><div class="legend-color" style="background:#22c55e;"></div>Positive: ${pos}%</div>
+            <div class="legend-item"><div class="legend-color" style="background:#eab308;"></div>Neutral: ${neu}%</div>
+            <div class="legend-item"><div class="legend-color" style="background:#ef4444;"></div>Negative: ${neg}%</div>
+          </div>
+        </div>
         <table><thead><tr><th>Sentiment</th><th>Percentage</th></tr></thead><tbody>
-          <tr><td><span class="badge badge-positive">Positive</span></td><td>${profile.sentimentAnalysis.positive || 0}%</td></tr>
-          <tr><td><span class="badge badge-neutral">Neutral</span></td><td>${profile.sentimentAnalysis.neutral || 0}%</td></tr>
-          <tr><td><span class="badge badge-negative">Negative</span></td><td>${profile.sentimentAnalysis.negative || 0}%</td></tr>
+          <tr><td><span class="badge badge-positive">Positive</span></td><td>${pos}%</td></tr>
+          <tr><td><span class="badge badge-neutral">Neutral</span></td><td>${neu}%</td></tr>
+          <tr><td><span class="badge badge-negative">Negative</span></td><td>${neg}%</td></tr>
         </tbody></table>
 `;
       }
@@ -1083,7 +1286,21 @@ export const generateHTMLReport = (options: ReportOptions): void => {
         <div class="key-value"><span class="key">Total Mentions</span><span class="value">${analysis.totalMentions}</span></div>
 `;
       if (analysis.sentimentChartData && analysis.sentimentChartData.length > 0) {
-        html += `<table><thead><tr><th>Sentiment</th><th>Percentage</th></tr></thead><tbody>`;
+        const maxVal = Math.max(...analysis.sentimentChartData.map((d: any) => d.value), 1);
+        html += `<h4 style="margin-top:15px;color:#475569;">Sentiment Distribution</h4>
+        <div class="chart-container">
+          <div class="bar-chart">`;
+        analysis.sentimentChartData.forEach((item: any) => {
+          const color = item.name.toLowerCase() === 'positive' ? '#22c55e' : item.name.toLowerCase() === 'negative' ? '#ef4444' : '#eab308';
+          html += `
+            <div class="bar-item">
+              <div class="bar-value">${item.value}%</div>
+              <div class="bar" style="height:${(item.value/maxVal)*80}px;background:${color};"></div>
+              <div class="bar-label">${item.name}</div>
+            </div>`;
+        });
+        html += `</div></div>
+        <table><thead><tr><th>Sentiment</th><th>Percentage</th></tr></thead><tbody>`;
         analysis.sentimentChartData.forEach((item: any) => {
           const badgeClass = item.name.toLowerCase() === 'positive' ? 'badge-positive' : item.name.toLowerCase() === 'negative' ? 'badge-negative' : 'badge-neutral';
           html += `<tr><td><span class="badge ${badgeClass}">${item.name}</span></td><td>${item.value}%</td></tr>`;
@@ -1122,7 +1339,20 @@ export const generateHTMLReport = (options: ReportOptions): void => {
         <p style="margin:10px 0;color:#475569;">${community.description?.substring(0, 200) || ''}</p>
 `;
       if (community.sentimentChartData && community.sentimentChartData.length > 0) {
+        const maxVal = Math.max(...community.sentimentChartData.map((d: any) => d.value), 1);
         html += `<h4 style="margin-top:15px;color:#475569;">Sentiment Distribution</h4>
+        <div class="chart-container">
+          <div class="bar-chart">`;
+        community.sentimentChartData.forEach((item: any) => {
+          const color = item.name.toLowerCase() === 'positive' ? '#22c55e' : item.name.toLowerCase() === 'negative' ? '#ef4444' : '#eab308';
+          html += `
+            <div class="bar-item">
+              <div class="bar-value">${item.value}%</div>
+              <div class="bar" style="height:${(item.value/maxVal)*80}px;background:${color};"></div>
+              <div class="bar-label">${item.name}</div>
+            </div>`;
+        });
+        html += `</div></div>
         <table><thead><tr><th>Sentiment</th><th>Percentage</th></tr></thead><tbody>`;
         community.sentimentChartData.forEach((item: any) => {
           const badgeClass = item.name.toLowerCase() === 'positive' ? 'badge-positive' : item.name.toLowerCase() === 'negative' ? 'badge-negative' : 'badge-neutral';
