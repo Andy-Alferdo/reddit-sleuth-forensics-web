@@ -81,6 +81,12 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     }
   };
 
+  // Pre-fill reset email when dialog opens
+  const handleOpenResetDialog = () => {
+    setResetEmail(email); // Pre-fill with login email
+    setIsResetDialogOpen(true);
+  };
+
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -96,11 +102,11 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     setIsResetLoading(true);
 
     try {
-      // First check if email exists in profiles table
+      // Check if email exists in profiles table (case-insensitive)
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('email')
-        .eq('email', resetEmail.toLowerCase().trim())
+        .ilike('email', resetEmail.trim())
         .maybeSingle();
 
       if (profileError) {
@@ -119,7 +125,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
       }
 
       // Email exists, send reset link
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
@@ -209,7 +215,13 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 </label>
               </div>
               
-              <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+              <Dialog open={isResetDialogOpen} onOpenChange={(open) => {
+                if (open) {
+                  handleOpenResetDialog();
+                } else {
+                  setIsResetDialogOpen(false);
+                }
+              }}>
                 <DialogTrigger asChild>
                   <button type="button" className="text-primary hover:text-primary/80 transition-colors">
                     Forgot Password?
