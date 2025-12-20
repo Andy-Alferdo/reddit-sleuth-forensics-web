@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, LayoutDashboard, FolderOpen, Plus, Loader2 } from "lucide-react";
+import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, LayoutDashboard, FolderOpen, Plus, Loader2, Home } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import logo from '@/assets/intel-reddit-logo.png';
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Case Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Monitoring", url: "/monitoring", icon: Monitor },
   { title: "Analysis", url: "/analysis", icon: BarChart3 },
   { title: "User Profiling", url: "/user-profiling", icon: User },
@@ -137,6 +137,26 @@ export function AppSidebar() {
           <img src={logo} alt="Intel Reddit" className="w-8 h-8" />
           <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
         </div>
+
+        {/* Home Link */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink 
+                    to="/" 
+                    end 
+                    className={({ isActive }) => getNavCls({ isActive })}
+                  >
+                    <Home className="h-4 w-4" />
+                    {!isCollapsed && <span>Home</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Cases Section - Always Visible */}
         <SidebarGroup>
