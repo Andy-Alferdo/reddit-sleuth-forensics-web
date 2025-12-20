@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock } from 'lucide-react';
+import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { supabase } from '@/integrations/supabase/client';
@@ -456,22 +456,33 @@ const Analysis = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="keyword">Keyword to Analyze</Label>
-                <div className="flex space-x-2">
+                <div className="relative">
                   <Input
                     id="keyword"
                     placeholder="Enter keyword (e.g., AI, crypto, gaming)"
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleKeywordAnalysis()}
-                    className="flex-1"
+                    className="pr-20"
                   />
-                  <Button 
+                  {keyword && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-10 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setKeyword('')}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
                     onClick={handleKeywordAnalysis}
                     disabled={isLoading || !keyword.trim()}
-                    variant="forensic"
-                    className="px-6"
                   >
-                    {isLoading ? 'Analyzing...' : 'Analyze'}
+                    <Search className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -594,25 +605,33 @@ const Analysis = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">r/</span>
-                  <Input
-                    placeholder="subreddit name"
-                    value={subreddit}
-                    onChange={(e) => setSubreddit(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleCommunityAnalysis()}
-                    className="pl-8"
-                  />
-                </div>
-                <Button 
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">r/</span>
+                <Input
+                  placeholder="subreddit name"
+                  value={subreddit}
+                  onChange={(e) => setSubreddit(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleCommunityAnalysis()}
+                  className="pl-8 pr-20"
+                />
+                {subreddit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-10 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setSubreddit('')}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
                   onClick={handleCommunityAnalysis}
                   disabled={isLoading || !subreddit.trim()}
-                  variant="forensic"
-                  className="px-6"
                 >
-                  <Search className="h-4 w-4 mr-2" />
-                  {isLoading ? "Analyzing..." : "Analyze"}
+                  <Search className="h-4 w-4" />
                 </Button>
               </div>
             </CardContent>
@@ -766,22 +785,33 @@ const Analysis = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="link-username">Reddit Username</Label>
-                <div className="flex space-x-2">
+                <div className="relative">
                   <Input
                     id="link-username"
                     placeholder="Enter username (e.g., spez)"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleLinkAnalysis()}
-                    className="flex-1"
+                    className="pr-20"
                   />
-                  <Button 
+                  {username && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-10 top-1/2 -translate-y-1/2 h-7 w-7"
+                      onClick={() => setUsername('')}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
                     onClick={handleLinkAnalysis}
                     disabled={isLoading || !username.trim()}
-                    variant="forensic"
-                    className="px-6"
                   >
-                    {isLoading ? 'Analyzing...' : 'Analyze'}
+                    <Search className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
