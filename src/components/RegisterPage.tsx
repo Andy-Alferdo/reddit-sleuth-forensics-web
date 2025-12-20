@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MovingBackground from '@/components/MovingBackground';
 import logo from '@/assets/intel-reddit-logo.png';
-import { Mail, Lock, Loader2, Eye, EyeOff, User, Check, X } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff, User, Check, X, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -22,6 +22,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showRequirements, setShowRequirements] = useState(false);
 
   const passwordRequirements = [
     { label: 'At least 8 characters', test: (pwd: string) => pwd.length >= 8 },
@@ -175,20 +176,31 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="pl-12 pr-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full"
+                  className="pl-12 pr-20 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRequirements(!showRequirements)}
+                    className={`text-muted-foreground hover:text-foreground transition-colors ${showRequirements ? 'text-primary' : ''}`}
+                    title="Password requirements"
+                  >
+                    <Info className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
               
-              {/* Password Strength Indicator */}
-              {password.length > 0 && (
-                <div className="px-2 space-y-1">
+              {/* Password Strength Indicator - Toggle with Info icon */}
+              {showRequirements && (
+                <div className="px-4 py-3 bg-background/30 rounded-xl border border-primary/20 space-y-1.5">
+                  <p className="text-xs font-medium text-foreground mb-2">Password Requirements:</p>
                   {passwordRequirements.map((req, index) => {
                     const isMet = req.test(password);
                     return (
