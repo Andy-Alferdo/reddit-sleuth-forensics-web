@@ -9,6 +9,7 @@ import RegisterPage from "./components/RegisterPage";
 import AdminLogin from "./components/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import ResetPassword from "./pages/ResetPassword";
+import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import NewCase from "./pages/NewCase";
 import Monitoring from "./pages/Monitoring";
@@ -95,7 +96,8 @@ const App = () => {
                         <Header />
                         <main className="flex-1 overflow-auto">
                           <Routes>
-                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/" element={<Home />} />
+                            <Route path="/home" element={<Home />} />
                             <Route path="/dashboard" element={<Dashboard />} />
                             <Route path="/new-case" element={<NewCase />} />
                             <Route path="/monitoring" element={<Monitoring />} />
