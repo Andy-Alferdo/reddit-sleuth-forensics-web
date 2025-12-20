@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle } from 'lucide-react';
+import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle, Search, X } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { supabase } from '@/integrations/supabase/client';
@@ -212,21 +212,33 @@ const UserProfiling = () => {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="username">Reddit Username</Label>
-            <div className="flex space-x-2">
+            <div className="relative">
               <Input
                 id="username"
                 placeholder="Enter username (e.g., u/username or username)"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="flex-1"
+                onKeyPress={(e) => e.key === 'Enter' && handleAnalyzeUser()}
+                className="pr-20"
               />
-              <Button 
+              {username && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-10 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => setUsername('')}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
                 onClick={handleAnalyzeUser}
                 disabled={isLoading || !username.trim()}
-                variant="forensic"
-                className="px-6"
               >
-                {isLoading ? 'Analyzing...' : 'Analyze User'}
+                <Search className="h-4 w-4" />
               </Button>
             </div>
           </div>
