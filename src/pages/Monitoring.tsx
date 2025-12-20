@@ -89,38 +89,75 @@ const Monitoring = () => {
   };
 
   // Calculate real activity breakdown from scraped data
-  // For communities, filter posts from past week
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  
-  const filteredActivities = profileData?.communityName
-    ? activities.filter(a => {
-        const activityDate = new Date(a.timestamp);
-        return a.type === 'post' && activityDate >= oneWeekAgo;
-      })
-    : activities;
-  
-  const postsCount = filteredActivities.filter(a => a.type === 'post').length;
-  const commentsCount = filteredActivities.filter(a => a.type === 'comment').length;
-  
-  const activityBreakdownData = profileData?.communityName 
-    ? [
-        { name: 'Posts', value: 45 },
-      ]
-    : [
+  // For communities, calculate posts per day for the last 7 days
+  const getActivityBreakdownData = () => {
+    if (profileData?.communityName) {
+      // Get day names for last 7 days
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const today = new Date();
+      const dailyData: { name: string; value: number }[] = [];
+      
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dayName = days[date.getDay()];
+        const dateStr = date.toDateString();
+        
+        // Count posts for this day
+        const count = activities.filter(a => {
+          if (a.type !== 'post') return false;
+          const activityDate = new Date(a.timestamp);
+          return activityDate.toDateString() === dateStr;
+        }).length;
+        
+        dailyData.push({ name: dayName, value: count });
+      }
+      
+      return dailyData;
+    } else {
+      // User monitoring - posts vs comments
+      const postsCount = activities.filter(a => a.type === 'post').length;
+      const commentsCount = activities.filter(a => a.type === 'comment').length;
+      return [
         { name: 'Posts', value: postsCount },
         { name: 'Comments', value: commentsCount },
       ];
+    }
+  };
+  
+  const activityBreakdownData = getActivityBreakdownData();
+
+  // Generate word cloud with proper category distribution
+  const generateWordCloudWithCategories = (words: { word: string; frequency: number }[]) => {
+    if (words.length === 0) return [];
+    
+    const maxFreq = Math.max(...words.map(w => w.frequency));
+    const minFreq = Math.min(...words.map(w => w.frequency));
+    const range = maxFreq - minFreq || 1;
+    
+    return words.map(w => {
+      const normalized = (w.frequency - minFreq) / range;
+      let category: 'high' | 'medium' | 'low';
+      if (normalized >= 0.66) {
+        category = 'high';
+      } else if (normalized >= 0.33) {
+        category = 'medium';
+      } else {
+        category = 'low';
+      }
+      return { ...w, category };
+    });
+  };
 
   const realTimeWordCloud = [
     { word: "technology", frequency: 89, category: "high" as const },
     { word: "innovation", frequency: 76, category: "high" as const },
-    { word: "discussion", frequency: 65, category: "medium" as const },
-    { word: "update", frequency: 58, category: "medium" as const },
-    { word: "community", frequency: 71, category: "high" as const },
-    { word: "analysis", frequency: 45, category: "medium" as const },
-    { word: "trends", frequency: 42, category: "low" as const },
-    { word: "insights", frequency: 38, category: "low" as const },
+    { word: "discussion", frequency: 55, category: "medium" as const },
+    { word: "update", frequency: 48, category: "medium" as const },
+    { word: "community", frequency: 42, category: "medium" as const },
+    { word: "analysis", frequency: 35, category: "low" as const },
+    { word: "trends", frequency: 28, category: "low" as const },
+    { word: "insights", frequency: 22, category: "low" as const },
   ];
 
   const activityTimelineData = [
@@ -338,15 +375,12 @@ const Monitoring = () => {
         }
       });
 
-      const newWordCloud = Object.entries(wordFreq)
+      const sortedWords = Object.entries(wordFreq)
         .sort(([,a], [,b]) => b - a)
-        .slice(0, 10)
-        .map(([word, freq]) => ({
-          word,
-          frequency: freq,
-          category: freq > 20 ? 'high' as const : freq > 10 ? 'medium' as const : 'low' as const
-        }));
-
+        .slice(0, 15)
+        .map(([word, freq]) => ({ word, frequency: freq }));
+      
+      const newWordCloud = generateWordCloudWithCategories(sortedWords);
       setWordCloudData(newWordCloud);
 
     } catch (error) {
@@ -850,7 +884,12 @@ const Monitoring = () => {
               {/* Activity Breakdown */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Activity Breakdown</CardTitle>
+                  <CardTitle>
+                    {profileData.communityName ? 'Posts (Last 7 Days)' : 'Activity Breakdown'}
+                  </CardTitle>
+                  {profileData.communityName && (
+                    <CardDescription>Daily post distribution</CardDescription>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
