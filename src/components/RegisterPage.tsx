@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MovingBackground from '@/components/MovingBackground';
 import logo from '@/assets/intel-reddit-logo.png';
-import { Mail, Lock, Loader2, Eye, EyeOff, User } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff, User, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,24 +23,24 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const passwordRequirements = [
+    { label: 'At least 8 characters', test: (pwd: string) => pwd.length >= 8 },
+    { label: 'One uppercase letter', test: (pwd: string) => /[A-Z]/.test(pwd) },
+    { label: 'One lowercase letter', test: (pwd: string) => /[a-z]/.test(pwd) },
+    { label: 'One number', test: (pwd: string) => /[0-9]/.test(pwd) },
+    { label: 'One special character (!@#$%^&*)', test: (pwd: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd) },
+  ];
+
   const validatePassword = (pwd: string): string | null => {
-    if (pwd.length < 8) {
-      return "Password must be at least 8 characters.";
-    }
-    if (!/[A-Z]/.test(pwd)) {
-      return "Password must contain at least 1 uppercase letter.";
-    }
-    if (!/[a-z]/.test(pwd)) {
-      return "Password must contain at least 1 lowercase letter.";
-    }
-    if (!/[0-9]/.test(pwd)) {
-      return "Password must contain at least 1 number.";
-    }
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) {
-      return "Password must contain at least 1 special character (!@#$%^&* etc.).";
+    for (const req of passwordRequirements) {
+      if (!req.test(pwd)) {
+        return req.label + " is required.";
+      }
     }
     return null;
   };
+
+  const allRequirementsMet = passwordRequirements.every(req => req.test(password));
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,24 +165,50 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
             </div>
             
             {/* Password Input */}
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-                className="pl-12 pr-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+            <div className="space-y-2">
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="pl-12 pr-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              
+              {/* Password Strength Indicator */}
+              {password.length > 0 && (
+                <div className="px-2 space-y-1">
+                  {passwordRequirements.map((req, index) => {
+                    const isMet = req.test(password);
+                    return (
+                      <div 
+                        key={index} 
+                        className={`flex items-center gap-2 text-xs transition-colors ${
+                          isMet ? 'text-green-500' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {isMet ? (
+                          <Check className="w-3 h-3" />
+                        ) : (
+                          <X className="w-3 h-3" />
+                        )}
+                        <span>{req.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Confirm Password Input */}
