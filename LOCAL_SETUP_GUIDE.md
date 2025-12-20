@@ -6,15 +6,16 @@ This guide explains how to run the Reddit Sleuth project entirely on your local 
 
 ## Table of Contents
 1. [Prerequisites](#prerequisites)
-2. [Local PostgreSQL Database Setup](#local-postgresql-database-setup)
-3. [Database Schema Recreation](#database-schema-recreation)
-4. [Environment Configuration](#environment-configuration)
-5. [API Keys Setup](#api-keys-setup)
-6. [Modifying Edge Functions for Direct API Access](#modifying-edge-functions-for-direct-api-access)
-7. [Using Custom Trained Models (Alternative to Gemini AI)](#using-custom-trained-models-alternative-to-gemini-ai)
-8. [Adding Explainable AI (XAI)](#adding-explainable-ai-xai)
-9. [Running the Application Locally](#running-the-application-locally)
-10. [Troubleshooting](#troubleshooting)
+2. [Quick Start](#quick-start)
+3. [Local PostgreSQL Database Setup](#local-postgresql-database-setup)
+4. [Complete Database Schema](#complete-database-schema)
+5. [Environment Configuration](#environment-configuration)
+6. [API Keys Setup](#api-keys-setup)
+7. [Backend Options](#backend-options)
+8. [Using Custom Trained Models](#using-custom-trained-models-alternative-to-gemini-ai)
+9. [Adding Explainable AI (XAI)](#adding-explainable-ai-xai)
+10. [Running the Application](#running-the-application-locally)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -26,7 +27,28 @@ Install the following on your system:
 2. **PostgreSQL** (v14 or higher): https://www.postgresql.org/download/
 3. **Git**: https://git-scm.com/downloads
 4. **npm** or **bun**: Comes with Node.js
-5. **Supabase CLI** (optional, for edge functions): https://supabase.com/docs/guides/cli
+5. **Python 3.9+** (optional, for custom ML models): https://www.python.org/downloads/
+6. **Supabase CLI** (optional, for edge functions): https://supabase.com/docs/guides/cli
+
+---
+
+## Quick Start
+
+For those who want to get running quickly:
+
+```bash
+# 1. Clone the repository
+git clone <your-repo-url>
+cd reddit-sleuth
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up PostgreSQL (see detailed instructions below)
+# 4. Create .env.local file with your credentials
+# 5. Start the development server
+npm run dev
+```
 
 ---
 
@@ -50,11 +72,12 @@ brew services start postgresql@14
 sudo apt update
 sudo apt install postgresql postgresql-contrib
 sudo systemctl start postgresql
+sudo systemctl enable postgresql
 ```
 
-### Step 2: Create Database
+### Step 2: Create Database and User
 
-Open PostgreSQL command line (psql):
+Open PostgreSQL command line:
 
 ```bash
 # On Windows: Use pgAdmin or Command Prompt
@@ -64,69 +87,206 @@ psql -U postgres
 sudo -u postgres psql
 ```
 
-Create the database:
+Create the database and user:
 
 ```sql
+-- Create database
 CREATE DATABASE reddit_sleuth;
-\c reddit_sleuth
-```
 
-### Step 3: Create Database User (Optional but recommended)
+-- Create user with secure password
+CREATE USER reddit_admin WITH PASSWORD 'your_secure_password_here';
 
-```sql
-CREATE USER reddit_admin WITH PASSWORD 'your_secure_password';
+-- Grant privileges
 GRANT ALL PRIVILEGES ON DATABASE reddit_sleuth TO reddit_admin;
+
+-- Connect to the database
 \c reddit_sleuth
+
+-- Grant schema privileges
 GRANT ALL ON SCHEMA public TO reddit_admin;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO reddit_admin;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO reddit_admin;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO reddit_admin;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO reddit_admin;
 ```
 
 ---
 
-## Database Schema Recreation
+## Complete Database Schema
 
-Connect to your database and run the following SQL commands to recreate the exact schema:
+Connect to your database and run the following SQL to recreate the full schema:
 
 ```sql
--- Enable UUID extension
+-- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Create app_role enum
-CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user');
+DO $$ BEGIN
+    CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- Create profiles table
-CREATE TABLE public.profiles (
-    id UUID PRIMARY KEY,
-    email TEXT,
+-- =====================================================
+-- PROFILES TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE,
     full_name TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create user_roles table
-CREATE TABLE public.user_roles (
+-- =====================================================
+-- USER ROLES TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.user_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    role app_role NOT NULL,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    role app_role NOT NULL DEFAULT 'user',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, role)
 );
 
--- Create function to update timestamps
+-- =====================================================
+-- INVESTIGATION CASES TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.investigation_cases (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_number TEXT NOT NULL UNIQUE,
+    case_name TEXT NOT NULL,
+    description TEXT,
+    status TEXT DEFAULT 'active',
+    priority TEXT DEFAULT 'medium',
+    department TEXT,
+    lead_investigator TEXT,
+    created_by UUID REFERENCES public.profiles(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- REDDIT POSTS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.reddit_posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id TEXT UNIQUE,
+    case_id UUID REFERENCES public.investigation_cases(id) ON DELETE CASCADE,
+    author TEXT,
+    subreddit TEXT,
+    title TEXT,
+    content TEXT,
+    score INTEGER DEFAULT 0,
+    num_comments INTEGER DEFAULT 0,
+    permalink TEXT,
+    created_utc TIMESTAMP WITH TIME ZONE,
+    collected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    sentiment TEXT,
+    sentiment_explanation TEXT,
+    metadata JSONB
+);
+
+-- =====================================================
+-- REDDIT COMMENTS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.reddit_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    comment_id TEXT UNIQUE,
+    case_id UUID REFERENCES public.investigation_cases(id) ON DELETE CASCADE,
+    author TEXT,
+    subreddit TEXT,
+    body TEXT,
+    score INTEGER DEFAULT 0,
+    link_title TEXT,
+    permalink TEXT,
+    created_utc TIMESTAMP WITH TIME ZONE,
+    collected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    sentiment TEXT,
+    sentiment_explanation TEXT,
+    metadata JSONB
+);
+
+-- =====================================================
+-- USER PROFILES ANALYZED TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.user_profiles_analyzed (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_id UUID REFERENCES public.investigation_cases(id) ON DELETE CASCADE,
+    username TEXT NOT NULL,
+    account_age TEXT,
+    total_karma INTEGER,
+    post_karma INTEGER,
+    comment_karma INTEGER,
+    active_subreddits JSONB,
+    activity_pattern JSONB,
+    sentiment_analysis JSONB,
+    post_sentiments JSONB,
+    comment_sentiments JSONB,
+    location_indicators JSONB,
+    behavior_patterns JSONB,
+    word_cloud JSONB,
+    analyzed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- ANALYSIS RESULTS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.analysis_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_id UUID REFERENCES public.investigation_cases(id) ON DELETE CASCADE,
+    analysis_type TEXT NOT NULL,
+    target TEXT NOT NULL,
+    result_data JSONB,
+    sentiment_data JSONB,
+    analyzed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- MONITORING SESSIONS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.monitoring_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_id UUID REFERENCES public.investigation_cases(id) ON DELETE CASCADE,
+    target_name TEXT NOT NULL,
+    search_type TEXT NOT NULL,
+    profile_data JSONB,
+    activities JSONB,
+    word_cloud_data JSONB,
+    new_activity_count INTEGER DEFAULT 0,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    ended_at TIMESTAMP WITH TIME ZONE
+);
+
+-- =====================================================
+-- INVESTIGATION REPORTS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS public.investigation_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    case_id UUID REFERENCES public.investigation_cases(id) ON DELETE CASCADE,
+    report_type TEXT NOT NULL,
+    report_data JSONB,
+    selected_modules JSONB,
+    export_format TEXT,
+    generated_by UUID REFERENCES public.profiles(id),
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- HELPER FUNCTIONS
+-- =====================================================
+
+-- Function to update timestamps
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = now();
+    NEW.updated_at = NOW();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for profiles updated_at
-CREATE TRIGGER update_profiles_updated_at
-    BEFORE UPDATE ON public.profiles
-    FOR EACH ROW
-    EXECUTE FUNCTION public.update_updated_at_column();
-
--- Create security definer function for role checking
+-- Function to check user roles
 CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
 RETURNS BOOLEAN
 LANGUAGE SQL
@@ -142,85 +302,177 @@ AS $$
     )
 $$;
 
--- Note: RLS policies require auth.uid() which is Supabase-specific
--- For local PostgreSQL without Supabase Auth, you'll need to implement
--- authentication differently or disable RLS for development
+-- =====================================================
+-- TRIGGERS
+-- =====================================================
+
+-- Trigger for profiles updated_at
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+CREATE TRIGGER update_profiles_updated_at
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Trigger for investigation_cases updated_at
+DROP TRIGGER IF EXISTS update_investigation_cases_updated_at ON public.investigation_cases;
+CREATE TRIGGER update_investigation_cases_updated_at
+    BEFORE UPDATE ON public.investigation_cases
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_updated_at_column();
+
+-- =====================================================
+-- INDEXES FOR PERFORMANCE
+-- =====================================================
+CREATE INDEX IF NOT EXISTS idx_reddit_posts_case_id ON public.reddit_posts(case_id);
+CREATE INDEX IF NOT EXISTS idx_reddit_posts_author ON public.reddit_posts(author);
+CREATE INDEX IF NOT EXISTS idx_reddit_posts_subreddit ON public.reddit_posts(subreddit);
+CREATE INDEX IF NOT EXISTS idx_reddit_comments_case_id ON public.reddit_comments(case_id);
+CREATE INDEX IF NOT EXISTS idx_reddit_comments_author ON public.reddit_comments(author);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_analyzed_username ON public.user_profiles_analyzed(username);
+CREATE INDEX IF NOT EXISTS idx_investigation_cases_status ON public.investigation_cases(status);
+
+-- =====================================================
+-- SAMPLE DATA (OPTIONAL)
+-- =====================================================
+-- Insert a default admin user
+INSERT INTO public.profiles (id, email, full_name)
+VALUES (gen_random_uuid(), 'admin@reddit-sleuth.local', 'System Administrator')
+ON CONFLICT (email) DO NOTHING;
+
+-- Grant admin role to the admin user
+INSERT INTO public.user_roles (user_id, role)
+SELECT id, 'admin'::app_role
+FROM public.profiles
+WHERE email = 'admin@reddit-sleuth.local'
+ON CONFLICT (user_id, role) DO NOTHING;
 ```
 
-### Adding Authentication Support (Without Supabase)
+### Authentication Options
 
-Since `auth.users` is Supabase-specific, you have two options:
+Since `auth.users` is Supabase-specific, you have these options:
 
-**Option A: Use Supabase Local Development**
-- Install Supabase CLI and run `supabase init` and `supabase start`
-- This gives you local Supabase Auth
+**Option A: Use Supabase Local Development (Recommended)**
+```bash
+# Install Supabase CLI
+npm install -g supabase
 
-**Option B: Create Your Own Auth Table**
+# Initialize and start local Supabase
+supabase init
+supabase start
+```
+This provides local Supabase Auth with all features.
+
+**Option B: Implement Custom Authentication**
+Create a simple authentication system with bcrypt:
+
 ```sql
-CREATE TABLE public.users (
+-- Add password column to profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
+
+-- Create session tokens table
+CREATE TABLE IF NOT EXISTS public.sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email TEXT UNIQUE NOT NULL,
-    encrypted_password TEXT NOT NULL,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Add foreign key to profiles
-ALTER TABLE public.profiles
-ADD CONSTRAINT profiles_user_id_fkey
-FOREIGN KEY (id) REFERENCES public.users(id) ON DELETE CASCADE;
-
--- Add foreign key to user_roles
-ALTER TABLE public.user_roles
-ADD CONSTRAINT user_roles_user_id_fkey
-FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 ```
 
 ---
 
 ## Environment Configuration
 
-### Step 1: Create `.env.local` File
+### Create `.env.local` File
 
 Create a `.env.local` file in the project root:
 
 ```env
-# Database Connection
+# ===========================================
+# DATABASE CONFIGURATION
+# ===========================================
 VITE_DATABASE_URL=postgresql://reddit_admin:your_secure_password@localhost:5432/reddit_sleuth
 
-# Reddit API Credentials
+# For direct PostgreSQL connection (if not using Supabase)
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=reddit_sleuth
+DATABASE_USER=reddit_admin
+DATABASE_PASSWORD=your_secure_password
+
+# ===========================================
+# REDDIT API CREDENTIALS
+# ===========================================
+REDDIT_CLIENT_ID=your_reddit_client_id
+REDDIT_CLIENT_SECRET=your_reddit_client_secret
+REDDIT_USER_AGENT=RedditSleuth/1.0.0
+
+# For frontend (if needed)
 VITE_REDDIT_CLIENT_ID=your_reddit_client_id
-VITE_REDDIT_CLIENT_SECRET=your_reddit_client_secret
 
-# Google Gemini API
-VITE_GEMINI_API_KEY=your_gemini_api_key
+# ===========================================
+# AI/ML API KEYS (Choose one or use custom model)
+# ===========================================
+# Google Gemini API (Direct)
+GEMINI_API_KEY=your_gemini_api_key
 
-# Application Settings
+# OR OpenAI API (Alternative)
+OPENAI_API_KEY=your_openai_api_key
+
+# OR Custom Model Server
+MODEL_SERVER_URL=http://localhost:5000
+
+# ===========================================
+# SUPABASE LOCAL (If using Supabase CLI)
+# ===========================================
+# These are provided by `supabase start`
+VITE_SUPABASE_URL=http://localhost:54321
+VITE_SUPABASE_PUBLISHABLE_KEY=your_local_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_local_service_role_key
+
+# ===========================================
+# APPLICATION SETTINGS
+# ===========================================
 VITE_API_URL=http://localhost:3000
+NODE_ENV=development
+PORT=3000
 ```
 
-### Step 2: Update Supabase Client
+### Create Database Client
 
-Since you're not using Supabase, you'll need to replace the Supabase client with a PostgreSQL client.
+If not using Supabase, create a PostgreSQL client. Install the package:
 
-Install PostgreSQL client:
 ```bash
 npm install pg
 ```
 
-Create a new database client file `src/lib/database.ts`:
+Create `src/lib/database.ts`:
 
 ```typescript
 import { Pool } from 'pg';
 
 const pool = new Pool({
-  connectionString: import.meta.env.VITE_DATABASE_URL,
-  ssl: false // Set to true if using SSL
+  host: process.env.DATABASE_HOST || 'localhost',
+  port: parseInt(process.env.DATABASE_PORT || '5432'),
+  database: process.env.DATABASE_NAME || 'reddit_sleuth',
+  user: process.env.DATABASE_USER || 'reddit_admin',
+  password: process.env.DATABASE_PASSWORD,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 export const query = async (text: string, params?: any[]) => {
-  const result = await pool.query(text, params);
-  return result.rows;
+  const client = await pool.connect();
+  try {
+    const result = await client.query(text, params);
+    return { data: result.rows, error: null };
+  } catch (error) {
+    return { data: null, error };
+  } finally {
+    client.release();
+  }
 };
+
+export const getClient = () => pool;
 
 export default pool;
 ```
@@ -235,153 +487,258 @@ export default pool;
 2. Click "Create App" or "Create Another App"
 3. Fill in:
    - **Name**: Reddit Sleuth Local
-   - **App type**: Script
-   - **Description**: Local development
+   - **App type**: Select **script**
+   - **Description**: Local development for Reddit analysis
    - **About URL**: http://localhost:8080
    - **Redirect URI**: http://localhost:8080/callback
 4. Click "Create app"
 5. Note down:
-   - **Client ID** (under the app name)
-   - **Client Secret** (next to "secret")
+   - **Client ID**: The string under the app name (e.g., `Ab1Cd2Ef3Gh4Ij`)
+   - **Client Secret**: Next to "secret"
+
+**Rate Limits:**
+- 60 requests per minute
+- 600 requests per 10 minutes
+- Free to use
 
 ### 2. Google Gemini API Setup
 
-1. Go to https://makersuite.google.com/app/apikey
+1. Go to https://aistudio.google.com/app/apikey
 2. Click "Create API Key"
 3. Select or create a Google Cloud project
 4. Copy the API key
-5. Add to `.env.local`
+5. Add to `.env.local` as `GEMINI_API_KEY`
 
-**Pricing**: https://ai.google.dev/pricing
-- Gemini 2.5 Flash: $0.075 per 1M input tokens, $0.30 per 1M output tokens
-- Has free tier with rate limits
+**Pricing (as of 2024):**
+- Gemini 1.5 Flash: $0.075 per 1M input tokens, $0.30 per 1M output tokens
+- Free tier: 15 requests per minute, 1M tokens per day
+
+### 3. OpenAI API Setup (Alternative)
+
+1. Go to https://platform.openai.com/api-keys
+2. Create a new API key
+3. Add to `.env.local` as `OPENAI_API_KEY`
+
+**Pricing:**
+- GPT-4o-mini: $0.15 per 1M input tokens, $0.60 per 1M output tokens
+- GPT-4o: $5 per 1M input tokens, $15 per 1M output tokens
 
 ---
 
-## Modifying Edge Functions for Direct API Access
+## Backend Options
 
-### Option 1: Convert to Express.js Backend
+### Option 1: Express.js Backend (Recommended for Local)
 
-Create a local Express server `server/index.js`:
+Create a complete Express.js backend server.
+
+**Install dependencies:**
+```bash
+npm install express cors dotenv node-fetch
+```
+
+Create `server/index.js`:
 
 ```javascript
 import express from 'express';
 import cors from 'cors';
-import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: '.env.local' });
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Reddit OAuth Token Cache
+let redditToken = null;
+let tokenExpiry = 0;
+
+// Get Reddit Access Token
+async function getRedditToken() {
+  if (redditToken && Date.now() < tokenExpiry) {
+    return redditToken;
+  }
+
+  const auth = Buffer.from(
+    `${process.env.REDDIT_CLIENT_ID}:${process.env.REDDIT_CLIENT_SECRET}`
+  ).toString('base64');
+
+  const response = await fetch('https://www.reddit.com/api/v1/access_token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': process.env.REDDIT_USER_AGENT || 'RedditSleuth/1.0.0'
+    },
+    body: 'grant_type=client_credentials'
+  });
+
+  const data = await response.json();
+  redditToken = data.access_token;
+  tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // Refresh 1 min early
+  return redditToken;
+}
 
 // Reddit Scraper Endpoint
 app.post('/api/reddit-scraper', async (req, res) => {
   const { username, type, subreddit } = req.body;
   
   try {
-    // Get Reddit OAuth token
-    const tokenResponse = await fetch('https://www.reddit.com/api/v1/access_token', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(
-          `${process.env.REDDIT_CLIENT_ID}:${process.env.REDDIT_CLIENT_SECRET}`
-        ).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: 'grant_type=client_credentials',
-    });
-    
-    const { access_token } = await tokenResponse.json();
-    
-    // Fetch Reddit data based on type
-    let data = {};
-    
+    const token = await getRedditToken();
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'User-Agent': process.env.REDDIT_USER_AGENT || 'RedditSleuth/1.0.0'
+    };
+
     if (type === 'user') {
-      const aboutRes = await fetch(`https://oauth.reddit.com/user/${username}/about`, {
-        headers: { 'Authorization': `Bearer ${access_token}` }
+      // Fetch user data
+      const [aboutRes, postsRes, commentsRes] = await Promise.all([
+        fetch(`https://oauth.reddit.com/user/${username}/about`, { headers }),
+        fetch(`https://oauth.reddit.com/user/${username}/submitted?limit=100`, { headers }),
+        fetch(`https://oauth.reddit.com/user/${username}/comments?limit=100`, { headers })
+      ]);
+
+      if (aboutRes.status === 404) {
+        return res.json({ error: 'not_found', message: `User ${username} not found` });
+      }
+
+      const [about, posts, comments] = await Promise.all([
+        aboutRes.json(),
+        postsRes.json(),
+        commentsRes.json()
+      ]);
+
+      res.json({
+        user: about.data,
+        posts: posts.data?.children?.map(c => c.data) || [],
+        comments: comments.data?.children?.map(c => c.data) || []
       });
-      const postsRes = await fetch(`https://oauth.reddit.com/user/${username}/submitted?limit=100`, {
-        headers: { 'Authorization': `Bearer ${access_token}` }
-      });
-      const commentsRes = await fetch(`https://oauth.reddit.com/user/${username}/comments?limit=100`, {
-        headers: { 'Authorization': `Bearer ${access_token}` }
-      });
-      
-      data = {
-        about: await aboutRes.json(),
-        posts: await postsRes.json(),
-        comments: await commentsRes.json()
-      };
+
     } else if (type === 'community') {
-      const aboutRes = await fetch(`https://oauth.reddit.com/r/${subreddit}/about`, {
-        headers: { 'Authorization': `Bearer ${access_token}` }
+      // Fetch subreddit data
+      const [aboutRes, postsRes] = await Promise.all([
+        fetch(`https://oauth.reddit.com/r/${subreddit}/about`, { headers }),
+        fetch(`https://oauth.reddit.com/r/${subreddit}/hot?limit=100`, { headers })
+      ]);
+
+      if (aboutRes.status === 404) {
+        return res.json({ error: 'not_found', message: `Subreddit r/${subreddit} not found` });
+      }
+
+      const [about, posts] = await Promise.all([
+        aboutRes.json(),
+        postsRes.json()
+      ]);
+
+      res.json({
+        subreddit: about.data,
+        posts: posts.data?.children?.map(c => c.data) || []
       });
-      const postsRes = await fetch(`https://oauth.reddit.com/r/${subreddit}/hot?limit=100`, {
-        headers: { 'Authorization': `Bearer ${access_token}` }
-      });
-      
-      data = {
-        about: await aboutRes.json(),
-        posts: await postsRes.json()
-      };
     }
-    
-    res.json(data);
+
   } catch (error) {
     console.error('Reddit API Error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'api_error', message: error.message });
   }
 });
 
-// Analyze Content Endpoint
+// Content Analyzer Endpoint (using Gemini)
 app.post('/api/analyze-content', async (req, res) => {
   const { posts, comments } = req.body;
   
   try {
-    // Format content for Gemini
-    const formattedContent = [
-      ...posts.map(p => `POST: ${p.title}\n${p.selftext || ''}\nSubreddit: ${p.subreddit}`),
-      ...comments.map(c => `COMMENT: ${c.body}\nSubreddit: ${c.subreddit}`)
-    ].join('\n\n');
-    
-    // Call Google Gemini API directly
+    const formattedPosts = posts.slice(0, 10).map((p, idx) => 
+      `POST${idx + 1}: ${p.title} ${p.selftext || ''}`.slice(0, 500)
+    );
+    const formattedComments = comments.slice(0, 15).map((c, idx) => 
+      `COMMENT${idx + 1}: ${c.body}`.slice(0, 300)
+    );
+
+    const prompt = `Analyze sentiment for each post and comment. Return ONLY valid JSON.
+
+LOCATION EXTRACTION: Scan ALL text for location mentions including cities, states, countries, regions, neighborhoods, landmarks, timezone references, and location-related phrases.
+
+Required format:
+{
+  "postSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "reason"}],
+  "commentSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "reason"}],
+  "sentiment": {
+    "postBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0},
+    "commentBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0}
+  },
+  "locations": ["City, Country", "Region"],
+  "patterns": {"topicInterests": ["topic1", "topic2"]}
+}
+
+POSTS:
+${formattedPosts.join('\n\n')}
+
+COMMENTS:
+${formattedComments.join('\n\n')}`;
+
+    // Call Gemini API directly
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Analyze the following Reddit content and provide sentiment analysis, detected locations, and behavior patterns in JSON format:\n\n${formattedContent}`
-            }]
-          }],
+          contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
+            temperature: 0.3,
+            maxOutputTokens: 4096,
           }
         })
       }
     );
-    
+
     if (!response.ok) {
       if (response.status === 429) {
-        return res.status(429).json({ error: 'Rate limit exceeded. Please try again later.' });
+        return res.status(429).json({ error: 'rate_limit', message: 'Rate limit exceeded' });
       }
       throw new Error(`Gemini API error: ${response.status}`);
     }
-    
+
     const data = await response.json();
-    const analysisText = data.candidates[0].content.parts[0].text;
+    const content = data.candidates[0].content.parts[0].text;
     
     // Parse JSON from response
-    const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
     const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-    
-    res.json(analysis);
+
+    // Calculate subreddit activity
+    const subredditActivity = [...posts, ...comments].reduce((acc, item) => {
+      const sub = item.subreddit;
+      if (sub) {
+        acc[sub] = (acc[sub] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
+    const topSubreddits = Object.entries(subredditActivity)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    res.json({
+      ...analysis,
+      topSubreddits,
+      stats: {
+        totalPosts: posts.length,
+        totalComments: comments.length,
+        totalActivity: posts.length + comments.length,
+      }
+    });
+
   } catch (error) {
     console.error('Analysis Error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'analysis_error', message: error.message });
   }
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
 const PORT = process.env.PORT || 3000;
@@ -390,9 +747,14 @@ app.listen(PORT, () => {
 });
 ```
 
-Install dependencies:
-```bash
-npm install express cors node-fetch dotenv
+Add to `package.json` scripts:
+```json
+{
+  "scripts": {
+    "server": "node server/index.js",
+    "dev:full": "concurrently \"npm run server\" \"npm run dev\""
+  }
+}
 ```
 
 ### Option 2: Use Supabase CLI Locally
@@ -404,15 +766,19 @@ npm install -g supabase
 # Initialize Supabase in your project
 supabase init
 
-# Start local Supabase (includes Auth, Database, Edge Functions)
+# Start local Supabase services
 supabase start
 
-# This will give you local URLs for all services
+# This provides:
+# - PostgreSQL database on port 54322
+# - Auth server on port 54321
+# - Edge Functions runtime
+# - Storage server
 ```
 
-Modify edge functions to use direct API calls:
+Update edge functions to use direct Gemini API:
 
-**`supabase/functions/analyze-content/index.ts`** (Direct Gemini API):
+**`supabase/functions/analyze-content/index.ts`:**
 
 ```typescript
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -431,24 +797,27 @@ serve(async (req) => {
     const { posts, comments } = await req.json();
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
-    const formattedContent = [
-      ...posts.map((p: any) => `POST: ${p.title}\n${p.selftext || ''}`),
-      ...comments.map((c: any) => `COMMENT: ${c.body}`)
-    ].join('\n\n');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY not configured');
+    }
+
+    const formattedPosts = posts.slice(0, 10).map((p: any, idx: number) => 
+      `POST${idx + 1}: ${p.title} ${p.selftext || ''}`.slice(0, 500)
+    );
+    const formattedComments = comments.slice(0, 15).map((c: any, idx: number) => 
+      `COMMENT${idx + 1}: ${c.body}`.slice(0, 300)
+    );
+
+    const prompt = `Analyze sentiment and extract locations. Return ONLY valid JSON...`; // Full prompt here
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{
-            parts: [{ text: `Analyze this Reddit content and return JSON with sentiment, locations, patterns:\n\n${formattedContent}` }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
-          }
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
         })
       }
     );
@@ -458,8 +827,8 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const analysisText = data.candidates[0].content.parts[0].text;
-    const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+    const content = data.candidates[0].content.parts[0].text;
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
     const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
 
     return new Response(JSON.stringify(analysis), {
@@ -474,43 +843,30 @@ serve(async (req) => {
 });
 ```
 
+Set secrets for local Supabase:
+```bash
+supabase secrets set GEMINI_API_KEY=your_api_key
+supabase secrets set REDDIT_CLIENT_ID=your_client_id
+supabase secrets set REDDIT_CLIENT_SECRET=your_client_secret
+```
+
 ---
 
 ## Using Custom Trained Models (Alternative to Gemini AI)
 
-If you have trained your own machine learning model for Reddit content analysis, you can replace the Gemini AI integration with your custom model.
+If you have trained your own ML model for Reddit analysis:
 
 ### Supported Model Formats
 
-- **`.pkl`** (Python Pickle): Scikit-learn, traditional ML models
-- **`.safetensors`**: PyTorch, Transformers models (secure format)
+- **`.pkl`** (Pickle): Scikit-learn models
+- **`.safetensors`**: PyTorch/Transformers (secure format)
 - **`.pt` / `.pth`**: PyTorch models
-- **`.h5`** / **`.keras`**: TensorFlow/Keras models
-- **`.onnx`**: Cross-platform ONNX models
+- **`.h5` / `.keras`**: TensorFlow/Keras models
+- **`.onnx`**: ONNX format (cross-platform)
 
-### Option A: Run Model Locally
+### Create Model Inference Server
 
-#### Step 1: Install Python Dependencies
-
-Create `requirements.txt`:
-```txt
-flask==3.0.0
-flask-cors==4.0.0
-torch==2.1.0
-transformers==4.35.0
-safetensors==0.4.0
-scikit-learn==1.3.2
-numpy==1.24.3
-```
-
-Install:
-```bash
-pip install -r requirements.txt
-```
-
-#### Step 2: Create Model Inference Server
-
-Create `server/model_server.py`:
+**`server/model_server.py`:**
 
 ```python
 from flask import Flask, request, jsonify
@@ -518,34 +874,23 @@ from flask_cors import CORS
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from safetensors.torch import load_file
-import pickle
 import numpy as np
 
 app = Flask(__name__)
 CORS(app)
 
-# Load your model
-MODEL_PATH = "./models/reddit_classifier.safetensors"  # or .pkl, .pt
-MODEL_TYPE = "transformer"  # or "sklearn", "pytorch"
+# Configuration
+MODEL_PATH = "./models/reddit_classifier.safetensors"
+MODEL_TYPE = "transformer"  # or "sklearn"
 
-# Initialize model based on type
+# Initialize model
 if MODEL_TYPE == "transformer":
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     model = AutoModelForSequenceClassification.from_pretrained(
-        "bert-base-uncased",
-        num_labels=3  # Adjust based on your model
+        "bert-base-uncased", num_labels=3
     )
-    # Load trained weights
     state_dict = load_file(MODEL_PATH)
     model.load_state_dict(state_dict)
-    model.eval()
-    
-elif MODEL_TYPE == "sklearn":
-    with open(MODEL_PATH, 'rb') as f:
-        model = pickle.load(f)
-        
-elif MODEL_TYPE == "pytorch":
-    model = torch.load(MODEL_PATH)
     model.eval()
 
 @app.route('/predict', methods=['POST'])
@@ -554,65 +899,27 @@ def predict():
         data = request.json
         texts = data.get('texts', [])
         
-        if MODEL_TYPE == "transformer":
-            # Tokenize inputs
-            inputs = tokenizer(
-                texts,
-                padding=True,
-                truncation=True,
-                max_length=512,
-                return_tensors="pt"
-            )
-            
-            # Get predictions
-            with torch.no_grad():
-                outputs = model(**inputs)
-                predictions = torch.nn.functional.softmax(outputs.logits, dim=-1)
-            
-            # Format results
-            results = []
-            for i, text in enumerate(texts):
-                probs = predictions[i].tolist()
-                predicted_class = torch.argmax(predictions[i]).item()
-                
-                results.append({
-                    "text": text,
-                    "prediction": predicted_class,
-                    "confidence": probs[predicted_class],
-                    "probabilities": {
-                        "normal": probs[0],
-                        "suspicious": probs[1],
-                        "harmful": probs[2]
-                    }
-                })
+        inputs = tokenizer(texts, padding=True, truncation=True, 
+                          max_length=512, return_tensors="pt")
         
-        elif MODEL_TYPE == "sklearn":
-            predictions = model.predict(texts)
-            probabilities = model.predict_proba(texts)
-            
-            results = []
-            for i, text in enumerate(texts):
-                results.append({
-                    "text": text,
-                    "prediction": int(predictions[i]),
-                    "confidence": float(np.max(probabilities[i])),
-                    "probabilities": {
-                        "normal": float(probabilities[i][0]),
-                        "suspicious": float(probabilities[i][1]),
-                        "harmful": float(probabilities[i][2])
-                    }
-                })
+        with torch.no_grad():
+            outputs = model(**inputs)
+            predictions = torch.nn.functional.softmax(outputs.logits, dim=-1)
         
-        return jsonify({
-            "success": True,
-            "results": results
-        })
+        results = []
+        for i, text in enumerate(texts):
+            probs = predictions[i].tolist()
+            results.append({
+                "text": text[:100],
+                "sentiment": ["positive", "neutral", "negative"][torch.argmax(predictions[i]).item()],
+                "confidence": max(probs),
+                "probabilities": {"positive": probs[0], "neutral": probs[1], "negative": probs[2]}
+            })
+        
+        return jsonify({"success": True, "results": results})
         
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -622,565 +929,234 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
 ```
 
-#### Step 3: Start Model Server
+**Install dependencies:**
+```bash
+pip install flask flask-cors torch transformers safetensors
+```
 
+**Run the model server:**
 ```bash
 python server/model_server.py
 # Server runs on http://localhost:5000
-```
-
-#### Step 4: Update Edge Function to Use Custom Model
-
-Modify `supabase/functions/analyze-content/index.ts`:
-
-```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const { posts, comments } = await req.json();
-    
-    // Format texts for analysis
-    const texts = [
-      ...posts.map((p: any) => `${p.title} ${p.selftext || ''}`),
-      ...comments.map((c: any) => c.body)
-    ];
-
-    // Call your local model server
-    const MODEL_SERVER_URL = Deno.env.get('MODEL_SERVER_URL') || 'http://localhost:5000';
-    
-    const response = await fetch(`${MODEL_SERVER_URL}/predict`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ texts })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Model server error: ${response.status}`);
-    }
-
-    const predictions = await response.json();
-    
-    // Format response to match expected structure
-    const analysis = {
-      sentiment: calculateOverallSentiment(predictions.results),
-      patterns: identifyPatterns(predictions.results),
-      suspicious_content: predictions.results.filter(r => r.prediction === 1)
-    };
-
-    return new Response(JSON.stringify(analysis), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-});
-
-function calculateOverallSentiment(results: any[]) {
-  const avgConfidence = results.reduce((sum, r) => sum + r.confidence, 0) / results.length;
-  const suspiciousCount = results.filter(r => r.prediction === 1).length;
-  
-  return {
-    overall: suspiciousCount > results.length * 0.3 ? "suspicious" : "normal",
-    confidence: avgConfidence,
-    suspicious_ratio: suspiciousCount / results.length
-  };
-}
-
-function identifyPatterns(results: any[]) {
-  // Implement pattern identification logic based on predictions
-  return results
-    .filter(r => r.prediction !== 0)
-    .map(r => ({
-      text: r.text.substring(0, 100),
-      category: r.prediction === 1 ? "suspicious" : "harmful",
-      confidence: r.confidence
-    }));
-}
-```
-
-### Option B: Host Model Online
-
-#### 1. Using Hugging Face Model Hub
-
-**Upload your model:**
-
-```bash
-# Install Hugging Face CLI
-pip install huggingface_hub
-
-# Login
-huggingface-cli login
-
-# Upload model
-python upload_model.py
-```
-
-**`upload_model.py`:**
-```python
-from huggingface_hub import HfApi, create_repo
-import torch
-
-# Create repository
-repo_id = "your-username/reddit-sleuth-model"
-create_repo(repo_id, private=False)
-
-# Upload model files
-api = HfApi()
-api.upload_file(
-    path_or_fileobj="./models/reddit_classifier.safetensors",
-    path_in_repo="model.safetensors",
-    repo_id=repo_id,
-)
-api.upload_file(
-    path_or_fileobj="./models/config.json",
-    path_in_repo="config.json",
-    repo_id=repo_id,
-)
-```
-
-**Load model in your application:**
-
-```python
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
-# Load from Hugging Face Hub
-model = AutoModelForSequenceClassification.from_pretrained("your-username/reddit-sleuth-model")
-tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-```
-
-#### 2. Using Cloud Storage (S3, Google Cloud Storage)
-
-**Upload to AWS S3:**
-
-```bash
-# Install AWS CLI
-pip install awscli
-
-# Configure credentials
-aws configure
-
-# Upload model
-aws s3 cp ./models/reddit_classifier.safetensors s3://your-bucket/models/
-```
-
-**Download in application:**
-
-```python
-import boto3
-from safetensors.torch import load_file
-
-# Download from S3
-s3 = boto3.client('s3')
-s3.download_file('your-bucket', 'models/reddit_classifier.safetensors', '/tmp/model.safetensors')
-
-# Load model
-state_dict = load_file('/tmp/model.safetensors')
-model.load_state_dict(state_dict)
-```
-
-#### 3. Deploy Model as API (Hugging Face Inference API)
-
-```python
-import requests
-
-API_URL = "https://api-inference.huggingface.co/models/your-username/reddit-sleuth-model"
-headers = {"Authorization": f"Bearer {HUGGING_FACE_API_TOKEN}"}
-
-def query(texts):
-    response = requests.post(API_URL, headers=headers, json={"inputs": texts})
-    return response.json()
-
-# Use in your application
-results = query(["Text to analyze", "Another text"])
 ```
 
 ---
 
 ## Adding Explainable AI (XAI)
 
-Implement XAI to show why your model made specific predictions.
-
-### Method 1: LIME (Local Interpretable Model-agnostic Explanations)
-
-#### Install LIME
-
-```bash
-pip install lime
-```
-
-#### Add to Model Server
+### LIME Integration
 
 ```python
 from lime.lime_text import LimeTextExplainer
 
-# Initialize explainer
-explainer = LimeTextExplainer(class_names=['normal', 'suspicious', 'harmful'])
+explainer = LimeTextExplainer(class_names=['positive', 'neutral', 'negative'])
 
 @app.route('/explain', methods=['POST'])
 def explain():
-    try:
-        data = request.json
-        text = data.get('text')
-        
-        # Define prediction function for LIME
-        def predict_proba(texts):
-            inputs = tokenizer(
-                texts,
-                padding=True,
-                truncation=True,
-                max_length=512,
-                return_tensors="pt"
-            )
-            with torch.no_grad():
-                outputs = model(**inputs)
-                probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
-            return probs.numpy()
-        
-        # Generate explanation
-        exp = explainer.explain_instance(
-            text,
-            predict_proba,
-            num_features=10,
-            num_samples=1000
-        )
-        
-        # Get feature importance
-        explanation = exp.as_list()
-        prediction = exp.predict_proba.argmax()
-        
-        return jsonify({
-            "text": text,
-            "prediction": int(prediction),
-            "explanation": [
-                {
-                    "feature": feature,
-                    "importance": float(weight)
-                }
-                for feature, weight in explanation
-            ],
-            "html": exp.as_html()  # Visual representation
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    text = request.json.get('text')
+    
+    def predict_proba(texts):
+        inputs = tokenizer(texts, padding=True, truncation=True, 
+                          max_length=512, return_tensors="pt")
+        with torch.no_grad():
+            outputs = model(**inputs)
+            return torch.nn.functional.softmax(outputs.logits, dim=-1).numpy()
+    
+    exp = explainer.explain_instance(text, predict_proba, num_features=10)
+    
+    return jsonify({
+        "text": text,
+        "explanation": [{"feature": f, "importance": float(w)} for f, w in exp.as_list()],
+        "prediction": exp.predict_proba.argmax()
+    })
 ```
 
-### Method 2: SHAP (SHapley Additive exPlanations)
-
-#### Install SHAP
-
-```bash
-pip install shap
-```
-
-#### Add to Model Server
+### SHAP Integration
 
 ```python
 import shap
 
-# Initialize SHAP explainer
-# For transformer models
-explainer = shap.Explainer(model, tokenizer)
-
 @app.route('/explain-shap', methods=['POST'])
 def explain_shap():
-    try:
-        data = request.json
-        text = data.get('text')
-        
-        # Get SHAP values
-        shap_values = explainer([text])
-        
-        # Extract token importance
-        tokens = tokenizer.tokenize(text)
-        values = shap_values.values[0]
-        
-        explanation = []
-        for token, value in zip(tokens, values):
-            explanation.append({
-                "token": token,
-                "importance": float(value[1])  # Importance for suspicious class
-            })
-        
-        # Sort by absolute importance
-        explanation.sort(key=lambda x: abs(x['importance']), reverse=True)
-        
-        return jsonify({
-            "text": text,
-            "explanation": explanation[:20],  # Top 20 tokens
-            "visualization_data": {
-                "tokens": tokens,
-                "values": values.tolist()
-            }
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-```
-
-### Method 3: Attention Visualization (For Transformer Models)
-
-```python
-@app.route('/explain-attention', methods=['POST'])
-def explain_attention():
-    try:
-        data = request.json
-        text = data.get('text')
-        
-        # Get model attention weights
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
-        
-        with torch.no_grad():
-            outputs = model(**inputs, output_attentions=True)
-            attentions = outputs.attentions  # Tuple of attention weights
-        
-        # Get last layer attention (most relevant for prediction)
-        last_layer_attention = attentions[-1][0]  # [num_heads, seq_len, seq_len]
-        
-        # Average across attention heads
-        avg_attention = last_layer_attention.mean(dim=0)  # [seq_len, seq_len]
-        
-        # Get attention to [CLS] token (used for classification)
-        cls_attention = avg_attention[0, :].tolist()
-        
-        tokens = tokenizer.convert_ids_to_tokens(inputs['input_ids'][0])
-        
-        explanation = [
-            {
-                "token": token,
-                "attention_weight": float(weight)
-            }
-            for token, weight in zip(tokens, cls_attention)
-        ]
-        
-        # Sort by attention weight
-        explanation.sort(key=lambda x: x['attention_weight'], reverse=True)
-        
-        return jsonify({
-            "text": text,
-            "explanation": explanation,
-            "method": "attention_weights"
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-```
-
-### Frontend Integration - Display XAI Results
-
-Create `src/components/ExplanationView.tsx`:
-
-```typescript
-import React from 'react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-
-interface ExplanationProps {
-  text: string;
-  explanation: Array<{
-    feature: string;
-    importance: number;
-  }>;
-}
-
-export const ExplanationView: React.FC<ExplanationProps> = ({ text, explanation }) => {
-  return (
-    <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">Why This Prediction?</h3>
-      
-      <div className="mb-4">
-        <p className="text-sm text-muted-foreground mb-2">Analyzed Text:</p>
-        <p className="p-3 bg-muted rounded-md">{text}</p>
-      </div>
-      
-      <div>
-        <p className="text-sm text-muted-foreground mb-2">Key Contributing Factors:</p>
-        <div className="space-y-2">
-          {explanation.slice(0, 10).map((item, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <span className="text-sm">{item.feature}</span>
-              <div className="flex items-center gap-2">
-                <div 
-                  className="h-2 rounded"
-                  style={{
-                    width: `${Math.abs(item.importance) * 100}px`,
-                    backgroundColor: item.importance > 0 ? '#ef4444' : '#10b981'
-                  }}
-                />
-                <Badge variant={item.importance > 0 ? 'destructive' : 'default'}>
-                  {item.importance > 0 ? 'Increases Risk' : 'Decreases Risk'}
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </Card>
-  );
-};
-```
-
-### Update Analysis Page to Include XAI
-
-```typescript
-const explainPrediction = async (text: string) => {
-  const response = await fetch('http://localhost:5000/explain', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
-  });
-  
-  const explanation = await response.json();
-  setExplanationData(explanation);
-};
-
-// In your component JSX
-{explanationData && (
-  <ExplanationView 
-    text={explanationData.text}
-    explanation={explanationData.explanation}
-  />
-)}
+    text = request.json.get('text')
+    
+    explainer = shap.Explainer(model, tokenizer)
+    shap_values = explainer([text])
+    
+    tokens = tokenizer.tokenize(text)
+    values = shap_values.values[0]
+    
+    return jsonify({
+        "text": text,
+        "explanation": [{"token": t, "importance": float(v[1])} 
+                       for t, v in zip(tokens, values)][:20]
+    })
 ```
 
 ---
 
 ## Running the Application Locally
 
-### Option 1: With Express Backend
+### Full Stack Startup
 
-1. **Start PostgreSQL**:
-   ```bash
-   # Should already be running from earlier setup
-   ```
+**Terminal 1 - Database (if not running as service):**
+```bash
+# Linux/macOS
+sudo systemctl start postgresql
+# or
+brew services start postgresql
 
-2. **Start Express Backend**:
-   ```bash
-   cd server
-   node index.js
-   # Server runs on http://localhost:3000
-   ```
+# Windows
+net start postgresql
+```
 
-3. **Start React Frontend**:
-   ```bash
-   npm install
-   npm run dev
-   # App runs on http://localhost:8080
-   ```
+**Terminal 2 - Backend Server:**
+```bash
+# Option A: Express backend
+npm run server
 
-4. **Update Frontend API Calls**:
-   Replace Supabase function calls with direct API calls:
+# Option B: Supabase local
+supabase start
+supabase functions serve
+```
 
-   ```typescript
-   // Instead of:
-   const { data } = await supabase.functions.invoke('reddit-scraper', { body: { username } });
+**Terminal 3 - Model Server (if using custom models):**
+```bash
+python server/model_server.py
+```
 
-   // Use:
-   const response = await fetch('http://localhost:3000/api/reddit-scraper', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ username, type: 'user' })
-   });
-   const data = await response.json();
-   ```
+**Terminal 4 - Frontend:**
+```bash
+npm run dev
+# App runs on http://localhost:8080
+```
 
-### Option 2: With Supabase CLI
+### Update Frontend API Calls
 
-1. **Start Supabase locally**:
-   ```bash
-   supabase start
-   ```
+If using Express backend instead of Supabase functions, update API calls:
 
-2. **Deploy functions locally**:
-   ```bash
-   supabase functions deploy reddit-scraper
-   supabase functions deploy analyze-content
-   ```
+```typescript
+// Create src/lib/api.ts
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-3. **Update `.env.local`** with local Supabase URLs (provided by `supabase start`)
+export const redditScraper = async (params: { username?: string; type: string; subreddit?: string }) => {
+  const response = await fetch(`${API_URL}/api/reddit-scraper`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  });
+  return response.json();
+};
 
-4. **Start React Frontend**:
-   ```bash
-   npm run dev
-   ```
+export const analyzeContent = async (params: { posts: any[]; comments: any[] }) => {
+  const response = await fetch(`${API_URL}/api/analyze-content`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  });
+  return response.json();
+};
+```
 
 ---
 
 ## Troubleshooting
 
-### PostgreSQL Connection Issues
+### PostgreSQL Issues
+
 ```bash
 # Check if PostgreSQL is running
 sudo systemctl status postgresql  # Linux
-brew services list  # macOS
-services.msc  # Windows (look for postgresql)
+brew services list                # macOS
+services.msc                      # Windows
 
 # Test connection
 psql -U reddit_admin -d reddit_sleuth -h localhost
+
+# Reset password
+sudo -u postgres psql
+ALTER USER reddit_admin PASSWORD 'new_password';
 ```
 
-### Reddit API Rate Limits
-- Reddit limits: 60 requests per minute
-- Solution: Implement request queuing or caching
+### Reddit API Issues
 
-### Gemini API Errors
-- **403 Forbidden**: Invalid API key
-- **429 Too Many Requests**: Rate limited (free tier: 15 RPM)
-- **400 Bad Request**: Check request format matches Gemini API specs
+| Error | Cause | Solution |
+|-------|-------|----------|
+| 401 Unauthorized | Invalid credentials | Check CLIENT_ID and CLIENT_SECRET |
+| 403 Forbidden | Invalid User-Agent | Use format: `AppName/1.0.0` |
+| 429 Too Many Requests | Rate limited | Wait and retry, implement backoff |
+| 404 Not Found | User/subreddit doesn't exist | Verify name spelling |
+
+### Gemini API Issues
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| 400 Bad Request | Invalid request format | Check JSON structure |
+| 403 Forbidden | Invalid API key | Verify key in Google AI Studio |
+| 429 Rate Limited | Too many requests | Free tier: 15 RPM, wait and retry |
+| 500 Server Error | Gemini service issue | Retry or use fallback |
 
 ### CORS Issues
-- Ensure backend has proper CORS headers
-- For Express, use `cors` middleware
-- For local Supabase, CORS is handled automatically
 
-### Database Permission Errors
-```sql
--- Grant all permissions to your user
-GRANT ALL PRIVILEGES ON DATABASE reddit_sleuth TO reddit_admin;
-\c reddit_sleuth
-GRANT ALL ON SCHEMA public TO reddit_admin;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO reddit_admin;
+If getting CORS errors in browser:
+
+```javascript
+// In Express server
+app.use(cors({
+  origin: ['http://localhost:8080', 'http://localhost:5173'],
+  credentials: true
+}));
 ```
+
+### Module Not Found
+
+```bash
+# Reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
+
+# For Python
+pip install -r requirements.txt --force-reinstall
+```
+
+---
+
+## Cost Comparison
+
+| Service | Lovable Cloud | Local Setup |
+|---------|--------------|-------------|
+| Database | Usage-based | Free (self-hosted) |
+| Reddit API | Free | Free |
+| AI Analysis | Lovable AI credits | $0-5/month (Gemini free tier) |
+| Hosting | Included | Self-managed |
+| Total | Usage-based | ~$0-10/month |
 
 ---
 
 ## Summary
 
-You now have a complete local setup:
+Your local setup includes:
 
-1. ✅ Local PostgreSQL database with Reddit Sleuth schema
-2. ✅ Direct Reddit API access (no gateway)
-3. ✅ Direct Google Gemini API access (no Lovable AI Gateway)
-4. ✅ Local backend (Express or Supabase CLI)
-5. ✅ React frontend running locally
-
-**Key Differences from Lovable Cloud:**
-- You manage your own database
-- You pay for API usage directly (Reddit is free, Gemini has free tier)
-- You handle authentication yourself
-- You deploy and scale your own infrastructure
-
-**Cost Estimates:**
-- PostgreSQL: Free (self-hosted)
-- Reddit API: Free (with rate limits)
-- Gemini API: Free tier available, then ~$0.075 per 1M tokens
-- Total: $0-5/month for hobby projects
+1. ✅ Local PostgreSQL database with full schema
+2. ✅ Direct Reddit API access
+3. ✅ Direct Gemini/OpenAI API access (or custom models)
+4. ✅ Express backend or local Supabase
+5. ✅ Full React frontend
 
 **Next Steps:**
-- Implement authentication (JWT, session-based, or use Supabase Auth locally)
-- Add rate limiting to your API endpoints
-- Set up monitoring and logging
-- Consider Docker containers for easier deployment
+- Set up proper authentication (JWT or Supabase Auth)
+- Add rate limiting to API endpoints
+- Configure logging and monitoring
+- Consider Docker for easier deployment
+- Set up CI/CD pipeline
+
+---
+
+## Additional Resources
+
+- [Reddit API Docs](https://www.reddit.com/dev/api/)
+- [Google AI Studio](https://aistudio.google.com/)
+- [Supabase CLI Docs](https://supabase.com/docs/guides/cli)
+- [PostgreSQL Docs](https://www.postgresql.org/docs/)
+- [LIME Documentation](https://lime-ml.readthedocs.io/)
+- [SHAP Documentation](https://shap.readthedocs.io/)
