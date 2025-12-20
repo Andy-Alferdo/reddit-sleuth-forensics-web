@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,6 +17,7 @@ interface LoginPageProps {
 
 const LoginPage = ({ onLogin }: LoginPageProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +27,18 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   const [resetEmail, setResetEmail] = useState('');
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isResetLoading, setIsResetLoading] = useState(false);
+
+  // Show success message when coming from signup
+  useEffect(() => {
+    if (location.state?.fromSignup) {
+      toast({
+        title: "Account Created Successfully!",
+        description: "Please login with your credentials.",
+      });
+      // Clear the state to prevent showing toast on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
