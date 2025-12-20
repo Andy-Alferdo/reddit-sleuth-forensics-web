@@ -50,6 +50,16 @@ serve(async (req) => {
 
 CRITICAL: You must analyze EVERY post and comment individually and include them ALL in the arrays.
 
+LOCATION EXTRACTION: Carefully scan ALL text for ANY location mentions including:
+- Cities, states, countries, regions (e.g., "New York", "California", "UK", "Europe")
+- Neighborhoods, districts, landmarks (e.g., "Brooklyn", "Silicon Valley", "Times Square")
+- Location-related phrases (e.g., "I live in...", "from...", "moved to...", "visiting...", "here in...")
+- Subreddit location references (e.g., if posting in r/nyc, r/london, r/australia)
+- Timezone references (e.g., "EST", "PST", "GMT")
+- Weather/climate references that indicate location
+- Local events, sports teams, or businesses that indicate location
+If no locations found, return ["No specific locations detected"]
+
 Required format:
 {
   "postSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "XAI reason"}],
@@ -58,7 +68,7 @@ Required format:
     "postBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0},
     "commentBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0}
   },
-  "locations": ["location1", "location2"],
+  "locations": ["City, Country", "Region", "etc"],
   "patterns": {"topicInterests": ["topic1", "topic2"]}
 }`
           },
