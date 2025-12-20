@@ -9,140 +9,350 @@ import { Separator } from '@/components/ui/separator';
 import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Analysis = () => {
   const [keyword, setKeyword] = useState('');
   const [username, setUsername] = useState('');
-  const [community, setCommunity] = useState('');
   const [subreddit, setSubreddit] = useState('');
-  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [keywordData, setKeywordData] = useState<any>(null);
+  const [communityData, setCommunityData] = useState<any>(null);
+  const [linkData, setLinkData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-
-  // Sample data for word cloud
-  const wordCloudData = [
-    { word: "cybersecurity", frequency: 95, category: "high" as const },
-    { word: "malware", frequency: 78, category: "high" as const },
-    { word: "phishing", frequency: 67, category: "medium" as const },
-    { word: "encryption", frequency: 89, category: "high" as const },
-    { word: "vulnerability", frequency: 56, category: "medium" as const },
-    { word: "firewall", frequency: 45, category: "medium" as const },
-    { word: "authentication", frequency: 34, category: "low" as const },
-    { word: "breach", frequency: 87, category: "high" as const },
-    { word: "privacy", frequency: 76, category: "high" as const },
-    { word: "hack", frequency: 54, category: "medium" as const },
-    { word: "trojan", frequency: 32, category: "low" as const },
-    { word: "ransomware", frequency: 71, category: "high" as const },
-  ];
-
-  // Sample data for charts
-  const trendChartData = [
-    { name: 'Jan', value: 400 },
-    { name: 'Feb', value: 300 },
-    { name: 'Mar', value: 600 },
-    { name: 'Apr', value: 800 },
-    { name: 'May', value: 500 },
-    { name: 'Jun', value: 900 },
-  ];
-
-  const communityChartData = [
-    { name: 'r/cybersecurity', value: 2100 },
-    { name: 'r/privacy', value: 1800 },
-    { name: 'r/netsec', value: 850 },
-    { name: 'r/hacking', value: 650 },
-  ];
-
-  const sentimentChartData = [
-    { name: 'Positive', value: 45 },
-    { name: 'Neutral', value: 35 },
-    { name: 'Negative', value: 20 },
-  ];
+  const { toast } = useToast();
 
   const handleKeywordAnalysis = async () => {
     if (!keyword.trim()) return;
     
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setAnalysisData({
-      type: 'keyword',
-      keyword,
-      totalMentions: 847,
-      sentiment: 'Neutral',
-      geographicData: [
-        { location: 'United States', mentions: 312 },
-        { location: 'United Kingdom', mentions: 156 },
-        { location: 'Canada', mentions: 89 },
-        { location: 'Australia', mentions: 67 },
-      ],
-      timeline: [
-        { date: '2023-10-01', mentions: 45 },
-        { date: '2023-10-08', mentions: 67 },
-        { date: '2023-10-15', mentions: 123 },
-      ],
-      topSubreddits: [
-        { name: 'r/technology', mentions: 234 },
-        { name: 'r/science', mentions: 178 },
-        { name: 'r/news', mentions: 145 },
-      ]
-    });
-    
-    setIsLoading(false);
+    setKeywordData(null);
+
+    try {
+      // Search for keyword in a general subreddit (using 'all' for broad search)
+      const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
+        body: { 
+          subreddit: 'all',
+          type: 'community'
+        }
+      });
+
+      if (error) throw error;
+
+      const posts = redditData.posts || [];
+      
+      // Filter posts containing the keyword
+      const keywordLower = keyword.toLowerCase();
+      const matchingPosts = posts.filter((post: any) => 
+        post.title?.toLowerCase().includes(keywordLower) || 
+        post.selftext?.toLowerCase().includes(keywordLower)
+      );
+
+      // Count subreddit mentions
+      const subredditCounts: { [key: string]: number } = {};
+      posts.forEach((post: any) => {
+        if (post.title?.toLowerCase().includes(keywordLower) || post.selftext?.toLowerCase().includes(keywordLower)) {
+          subredditCounts[post.subreddit] = (subredditCounts[post.subreddit] || 0) + 1;
+        }
+      });
+
+      const topSubreddits = Object.entries(subredditCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5)
+        .map(([name, mentions]) => ({ name: `r/${name}`, mentions }));
+
+      // Generate word cloud from matching posts
+      const textContent = matchingPosts.map((p: any) => `${p.title} ${p.selftext || ''}`).join(' ');
+      const words = textContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+      const wordFreq: { [key: string]: number } = {};
+      const stopWords = ['that', 'this', 'with', 'from', 'have', 'been', 'will', 'your', 'their', 'what', 'when', 'where', 'just', 'like', 'more', 'would', 'could', 'should', 'about', 'there', 'which', 'them', 'these', 'than', 'then', 'also', 'only'];
+      words.forEach(word => {
+        if (!stopWords.includes(word) && word !== keywordLower) {
+          wordFreq[word] = (wordFreq[word] || 0) + 1;
+        }
+      });
+
+      const wordCloudData = Object.entries(wordFreq)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 12)
+        .map(([word, freq]) => ({
+          word,
+          frequency: freq,
+          category: freq > 10 ? 'high' as const : freq > 5 ? 'medium' as const : 'low' as const
+        }));
+
+      // Calculate activity by time
+      const timelineData: { [key: string]: number } = {};
+      matchingPosts.forEach((post: any) => {
+        const date = new Date(post.created_utc * 1000);
+        const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+        timelineData[monthKey] = (timelineData[monthKey] || 0) + 1;
+      });
+
+      const trendData = Object.entries(timelineData).map(([name, value]) => ({ name, value }));
+
+      setKeywordData({
+        keyword,
+        totalMentions: matchingPosts.length,
+        topSubreddits,
+        wordCloud: wordCloudData,
+        trendData: trendData.length > 0 ? trendData : [{ name: 'Recent', value: matchingPosts.length }],
+        recentPosts: matchingPosts.slice(0, 5)
+      });
+
+      toast({
+        title: "Keyword Analysis Complete",
+        description: `Found ${matchingPosts.length} mentions of "${keyword}"`,
+      });
+
+    } catch (err: any) {
+      console.error('Error in keyword analysis:', err);
+      toast({
+        title: "Analysis Failed",
+        description: err.message || 'Failed to analyze keyword',
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCommunityAnalysis = async () => {
-    if (!community.trim()) return;
+    if (!subreddit.trim()) return;
     
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setAnalysisData({
-      type: 'community',
-      community,
-      memberCount: 2100000,
-      activeUsers: 15000,
-      topUsers: [
-        { username: 'user1', posts: 234, karma: 45000 },
-        { username: 'user2', posts: 189, karma: 38000 },
-        { username: 'user3', posts: 156, karma: 31000 },
-      ],
-      topTopics: [
-        { topic: 'Security Vulnerabilities', mentions: 456 },
-        { topic: 'Best Practices', mentions: 389 },
-        { topic: 'New Threats', mentions: 312 },
-      ]
-    });
-    
-    setIsLoading(false);
+    setCommunityData(null);
+
+    try {
+      const cleanSubreddit = subreddit.replace(/^r\//, '');
+
+      const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
+        body: { 
+          subreddit: cleanSubreddit,
+          type: 'community'
+        }
+      });
+
+      if (error) throw error;
+
+      if (redditData?.error === 'not_found') {
+        toast({
+          title: "Subreddit Not Found",
+          description: redditData.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const subredditInfo = redditData.subreddit;
+      const posts = redditData.posts || [];
+
+      // Generate word cloud from posts
+      const textContent = posts.map((p: any) => `${p.title} ${p.selftext || ''}`).join(' ');
+      const words = textContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+      const wordFreq: { [key: string]: number } = {};
+      const stopWords = ['that', 'this', 'with', 'from', 'have', 'been', 'will', 'your', 'their', 'what', 'when', 'where', 'just', 'like', 'more', 'would', 'could', 'should', 'about', 'there', 'which', 'them', 'these', 'than', 'then', 'also', 'only'];
+      words.forEach(word => {
+        if (!stopWords.includes(word)) {
+          wordFreq[word] = (wordFreq[word] || 0) + 1;
+        }
+      });
+
+      const wordCloudData = Object.entries(wordFreq)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 12)
+        .map(([word, freq]) => ({
+          word,
+          frequency: freq,
+          category: freq > 20 ? 'high' as const : freq > 10 ? 'medium' as const : 'low' as const
+        }));
+
+      // Calculate top authors
+      const authorCounts: { [key: string]: number } = {};
+      posts.forEach((post: any) => {
+        if (post.author && post.author !== '[deleted]') {
+          authorCounts[post.author] = (authorCounts[post.author] || 0) + 1;
+        }
+      });
+
+      const topAuthors = Object.entries(authorCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5)
+        .map(([username, posts]) => ({ username: `u/${username}`, posts }));
+
+      // Calculate activity by day of week
+      const dayActivity: { [key: string]: number } = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+      posts.forEach((post: any) => {
+        const date = new Date(post.created_utc * 1000);
+        const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+        dayActivity[day] = (dayActivity[day] || 0) + 1;
+      });
+
+      const activityData = Object.entries(dayActivity).map(([name, value]) => ({ name, value }));
+
+      // Calculate engagement metrics
+      const totalUpvotes = posts.reduce((sum: number, p: any) => sum + (p.score || 0), 0);
+      const totalComments = posts.reduce((sum: number, p: any) => sum + (p.num_comments || 0), 0);
+
+      setCommunityData({
+        name: subredditInfo.display_name_prefixed || `r/${cleanSubreddit}`,
+        subscribers: subredditInfo.subscribers || 0,
+        activeUsers: subredditInfo.accounts_active || 0,
+        description: subredditInfo.public_description || subredditInfo.description || 'No description available',
+        created: new Date(subredditInfo.created_utc * 1000).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        wordCloud: wordCloudData,
+        topAuthors,
+        activityData,
+        recentPosts: posts.slice(0, 5),
+        stats: {
+          totalPosts: posts.length,
+          totalUpvotes,
+          totalComments,
+          avgUpvotes: posts.length > 0 ? Math.round(totalUpvotes / posts.length) : 0
+        }
+      });
+
+      toast({
+        title: "Community Analysis Complete",
+        description: `Successfully analyzed r/${cleanSubreddit}`,
+      });
+
+    } catch (err: any) {
+      console.error('Error in community analysis:', err);
+      toast({
+        title: "Analysis Failed",
+        description: err.message || 'Failed to analyze community',
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLinkAnalysis = async () => {
     if (!username.trim()) return;
     
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    setAnalysisData({
-      type: 'link',
-      primaryUser: username,
-      userToCommunities: [
-        { community: 'r/cybersecurity', activity: 85, posts: 234 },
-        { community: 'r/privacy', activity: 72, posts: 156 },
-        { community: 'r/netsec', activity: 68, posts: 98 },
-      ],
-      communityCrossover: [
-        { from: 'r/cybersecurity', to: 'r/privacy', strength: 75 },
-        { from: 'r/privacy', to: 'r/netsec', strength: 62 },
-        { from: 'r/cybersecurity', to: 'r/netsec', strength: 58 },
-      ],
-      networkMetrics: {
-        totalCommunities: 8,
-        avgActivityScore: 78,
-        crossCommunityLinks: 12
+    setLinkData(null);
+
+    try {
+      const cleanUsername = username.replace(/^u\//, '');
+
+      const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
+        body: { 
+          username: cleanUsername,
+          type: 'user'
+        }
+      });
+
+      if (error) throw error;
+
+      if (redditData?.error === 'not_found') {
+        toast({
+          title: "User Not Found",
+          description: redditData.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
       }
-    });
-    
-    setIsLoading(false);
+
+      const posts = redditData.posts || [];
+      const comments = redditData.comments || [];
+      const allContent = [...posts, ...comments];
+
+      // Calculate subreddit activity
+      const subredditActivity: { [key: string]: { posts: number; comments: number; totalScore: number } } = {};
+      
+      posts.forEach((post: any) => {
+        if (!subredditActivity[post.subreddit]) {
+          subredditActivity[post.subreddit] = { posts: 0, comments: 0, totalScore: 0 };
+        }
+        subredditActivity[post.subreddit].posts++;
+        subredditActivity[post.subreddit].totalScore += post.score || 0;
+      });
+
+      comments.forEach((comment: any) => {
+        if (!subredditActivity[comment.subreddit]) {
+          subredditActivity[comment.subreddit] = { posts: 0, comments: 0, totalScore: 0 };
+        }
+        subredditActivity[comment.subreddit].comments++;
+        subredditActivity[comment.subreddit].totalScore += comment.score || 0;
+      });
+
+      // Sort by total activity
+      const sortedSubreddits = Object.entries(subredditActivity)
+        .map(([name, data]) => ({
+          community: `r/${name}`,
+          posts: data.posts,
+          comments: data.comments,
+          totalActivity: data.posts + data.comments,
+          engagement: data.totalScore,
+          activity: Math.min(100, Math.round((data.posts + data.comments) / allContent.length * 100 * 3))
+        }))
+        .sort((a, b) => b.totalActivity - a.totalActivity);
+
+      // Calculate community crossover (users who post in multiple related communities)
+      const communityCrossover = [];
+      const topCommunities = sortedSubreddits.slice(0, 5);
+      
+      for (let i = 0; i < Math.min(3, topCommunities.length); i++) {
+        for (let j = i + 1; j < Math.min(4, topCommunities.length); j++) {
+          const strength = Math.round(
+            ((topCommunities[i].totalActivity + topCommunities[j].totalActivity) / 
+            (allContent.length || 1)) * 100
+          );
+          communityCrossover.push({
+            from: topCommunities[i].community,
+            to: topCommunities[j].community,
+            strength: Math.min(100, strength)
+          });
+        }
+      }
+
+      // Community distribution for chart
+      const communityDistribution = sortedSubreddits.slice(0, 6).map(s => ({
+        name: s.community,
+        value: s.totalActivity
+      }));
+
+      setLinkData({
+        primaryUser: cleanUsername,
+        totalKarma: (redditData.user?.link_karma || 0) + (redditData.user?.comment_karma || 0),
+        userToCommunities: sortedSubreddits.slice(0, 5),
+        communityCrossover: communityCrossover.slice(0, 5),
+        communityDistribution,
+        networkMetrics: {
+          totalCommunities: Object.keys(subredditActivity).length,
+          avgActivityScore: allContent.length > 0 
+            ? Math.round(allContent.reduce((sum, item) => sum + (item.score || 0), 0) / allContent.length)
+            : 0,
+          crossCommunityLinks: communityCrossover.length,
+          totalPosts: posts.length,
+          totalComments: comments.length
+        }
+      });
+
+      toast({
+        title: "Link Analysis Complete",
+        description: `Analyzed ${Object.keys(subredditActivity).length} community connections for u/${cleanUsername}`,
+      });
+
+    } catch (err: any) {
+      console.error('Error in link analysis:', err);
+      toast({
+        title: "Analysis Failed",
+        description: err.message || 'Failed to analyze user links',
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -152,7 +362,7 @@ const Analysis = () => {
         <p className="text-muted-foreground">Comprehensive analysis across different dimensions</p>
       </div>
 
-      <Tabs defaultValue="keyword" className="w-full" onValueChange={() => { setAnalysisData(null); setHasSearched(false); }}>
+      <Tabs defaultValue="keyword" className="w-full" onValueChange={() => { setKeywordData(null); setCommunityData(null); setLinkData(null); }}>
         <TabsList className="grid w-full grid-cols-3 mb-6">
           <TabsTrigger value="keyword" className="data-[state=active]:bg-forensic-accent/20 data-[state=active]:text-forensic-accent">
             <TrendingUp className="h-4 w-4 mr-2" />
@@ -168,6 +378,7 @@ const Analysis = () => {
           </TabsTrigger>
         </TabsList>
 
+        {/* Keyword Analysis Tab */}
         <TabsContent value="keyword" className="space-y-6">
           <Card className="border-primary/20 shadow-glow">
             <CardHeader>
@@ -175,6 +386,7 @@ const Analysis = () => {
                 <BarChart3 className="h-5 w-5 text-primary" />
                 <span>Analyze Keyword</span>
               </CardTitle>
+              <CardDescription>Search for keywords across Reddit's front page posts</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -182,15 +394,17 @@ const Analysis = () => {
                 <div className="flex space-x-2">
                   <Input
                     id="keyword"
-                    placeholder="Enter keyword for analysis..."
+                    placeholder="Enter keyword (e.g., AI, crypto, gaming)"
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleKeywordAnalysis()}
                     className="flex-1"
                   />
                   <Button 
                     onClick={handleKeywordAnalysis}
                     disabled={isLoading || !keyword.trim()}
-                    className="px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
+                    variant="forensic"
+                    className="px-6"
                   >
                     {isLoading ? 'Analyzing...' : 'Analyze'}
                   </Button>
@@ -199,66 +413,20 @@ const Analysis = () => {
             </CardContent>
           </Card>
 
-          {analysisData?.type === 'keyword' && (
+          {keywordData && (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="border-primary/20 shadow-glow">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <BarChart3 className="h-5 w-5 text-primary" />
-                      <span>Overview</span>
+                      <span>Keyword Overview: "{keywordData.keyword}"</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
-                          <div className="text-2xl font-bold text-primary">{analysisData.totalMentions}</div>
-                          <p className="text-sm text-muted-foreground">Total Mentions</p>
-                        </div>
-                        <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/30">
-                          <div className="text-2xl font-bold text-accent">{analysisData.sentiment}</div>
-                          <p className="text-sm text-muted-foreground">Sentiment</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-primary/20 shadow-glow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <MapPin className="h-5 w-5 text-primary" />
-                      <span>Geographic Distribution</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {analysisData.geographicData.map((location: any, index: number) => (
-                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
-                          <span className="font-medium">{location.location}</span>
-                          <span className="text-primary font-semibold">{location.mentions}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-primary/20 shadow-glow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Calendar className="h-5 w-5 text-primary" />
-                      <span>Timeline Analysis</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {analysisData.timeline.map((point: any, index: number) => (
-                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
-                          <span className="font-medium">{point.date}</span>
-                          <span className="text-primary font-semibold">{point.mentions} mentions</span>
-                        </div>
-                      ))}
+                    <div className="text-center p-6 rounded-lg bg-primary/10 border border-primary/30">
+                      <div className="text-4xl font-bold text-primary">{keywordData.totalMentions}</div>
+                      <p className="text-muted-foreground">Mentions Found</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -272,47 +440,61 @@ const Analysis = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {analysisData.topSubreddits.map((subreddit: any, index: number) => (
-                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
-                          <span className="font-medium">{subreddit.name}</span>
-                          <span className="text-primary font-semibold">{subreddit.mentions} mentions</span>
-                        </div>
-                      ))}
+                      {keywordData.topSubreddits.length > 0 ? (
+                        keywordData.topSubreddits.map((sub: any, index: number) => (
+                          <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
+                            <span className="font-medium">{sub.name}</span>
+                            <Badge variant="secondary">{sub.mentions} mentions</Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground text-center py-4">No subreddit data available</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <WordCloud words={wordCloudData} title="Top Keywords Analysis" />
+              {/* Recent Posts */}
+              {keywordData.recentPosts && keywordData.recentPosts.length > 0 && (
+                <Card className="border-primary/20 shadow-glow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                      <span>Recent Posts Mentioning "{keywordData.keyword}"</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {keywordData.recentPosts.map((post: any, index: number) => (
+                      <div key={index} className="border border-border/50 rounded-lg p-3 space-y-2">
+                        <h4 className="font-medium text-sm leading-tight">{post.title}</h4>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>r/{post.subreddit} • by u/{post.author}</span>
+                          <Badge variant="secondary" className="text-xs">▲ {post.score}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {keywordData.wordCloud && keywordData.wordCloud.length > 0 && (
+                  <WordCloud words={keywordData.wordCloud} title="Related Keywords" />
+                )}
+                {keywordData.trendData && keywordData.trendData.length > 0 && (
                   <AnalyticsChart 
-                    data={trendChartData} 
-                    title="Activity Trends Over Time" 
-                    type="line" 
-                    height={250}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <AnalyticsChart 
-                    data={communityChartData} 
-                    title="Top Communities by Activity" 
+                    data={keywordData.trendData} 
+                    title="Mention Trends" 
                     type="bar" 
                     height={250}
                   />
-                  <AnalyticsChart 
-                    data={sentimentChartData} 
-                    title="Sentiment Analysis" 
-                    type="pie" 
-                    height={250}
-                  />
-                </div>
+                )}
               </div>
             </>
           )}
 
-          {!analysisData && !isLoading && (
+          {!keywordData && !isLoading && (
             <Card className="border-dashed border-muted-foreground/30">
               <CardContent className="py-12 text-center">
                 <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -322,6 +504,7 @@ const Analysis = () => {
           )}
         </TabsContent>
 
+        {/* Community Analysis Tab */}
         <TabsContent value="community" className="space-y-6">
           <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
             <CardHeader>
@@ -336,38 +519,20 @@ const Analysis = () => {
             <CardContent>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    r/
-                  </span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">r/</span>
                   <Input
                     placeholder="subreddit name"
                     value={subreddit}
                     onChange={(e) => setSubreddit(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter" && subreddit.trim()) {
-                        setIsLoading(true);
-                        setTimeout(() => {
-                          setIsLoading(false);
-                          setHasSearched(true);
-                        }, 1500);
-                      }
-                    }}
+                    onKeyPress={(e) => e.key === 'Enter' && handleCommunityAnalysis()}
                     className="pl-8"
                   />
                 </div>
                 <Button 
-                  onClick={() => {
-                    if (subreddit.trim()) {
-                      setIsLoading(true);
-                      setTimeout(() => {
-                        setIsLoading(false);
-                        setHasSearched(true);
-                      }, 1500);
-                    }
-                  }} 
+                  onClick={handleCommunityAnalysis}
                   disabled={isLoading || !subreddit.trim()}
-                  className="px-6"
                   variant="forensic"
+                  className="px-6"
                 >
                   <Search className="h-4 w-4 mr-2" />
                   {isLoading ? "Analyzing..." : "Analyze"}
@@ -376,7 +541,7 @@ const Analysis = () => {
             </CardContent>
           </Card>
 
-          {hasSearched && (
+          {communityData && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Community Information */}
@@ -389,149 +554,111 @@ const Analysis = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <h3 className="font-semibold text-lg">r/technology</h3>
+                      <h3 className="font-semibold text-lg">{communityData.name}</h3>
                       <Badge variant="secondary" className="mt-1">
-                        14.2M members
+                        {communityData.subscribers.toLocaleString()} members
                       </Badge>
+                      {communityData.activeUsers > 0 && (
+                        <Badge variant="outline" className="ml-2 mt-1">
+                          {communityData.activeUsers.toLocaleString()} online
+                        </Badge>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      Created: January 25, 2008
+                      Created: {communityData.created}
                     </div>
 
                     <Separator />
 
                     <div>
                       <h4 className="font-medium mb-2">Description</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Subreddit dedicated to the news and discussions about the creation and use of technology and its surrounding issues.
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {communityData.description}
                       </p>
                     </div>
 
                     <Separator />
 
-                    <div>
-                      <h4 className="font-medium mb-2">Moderators</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {["AutoModerator", "qgyh2", "kn0thing", "spez", "maxwellhill"].map((mod) => (
-                          <Badge key={mod} variant="outline" className="text-xs">
-                            u/{mod}
-                          </Badge>
-                        ))}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="text-center p-3 rounded-lg bg-primary/10 border border-primary/30">
+                        <div className="font-bold text-primary">{communityData.stats.totalPosts}</div>
+                        <p className="text-xs text-muted-foreground">Recent Posts</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-forensic-accent/10 border border-forensic-accent/30">
+                        <div className="font-bold text-forensic-accent">{communityData.stats.avgUpvotes}</div>
+                        <p className="text-xs text-muted-foreground">Avg Upvotes</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Recent Posts */}
+                {/* Top Authors */}
                 <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5 text-forensic-accent" />
-                      Recent Posts
+                      <Users className="h-5 w-5 text-forensic-accent" />
+                      Top Contributors
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {[
-                      {
-                        title: "Major security vulnerability discovered in popular software",
-                        author: "user_analyst",
-                        timestamp: "2 hours ago",
-                        upvotes: 1247
-                      },
-                      {
-                        title: "New AI breakthrough announced by research team",
-                        author: "tech_insider",
-                        timestamp: "4 hours ago", 
-                        upvotes: 892
-                      },
-                      {
-                        title: "Tech company announces major layoffs",
-                        author: "news_reporter",
-                        timestamp: "6 hours ago",
-                        upvotes: 734
-                      }
-                    ].map((post, index) => (
-                      <div key={index} className="border border-border/50 rounded-lg p-3 space-y-2">
-                        <h4 className="font-medium text-sm leading-tight">
-                          {post.title}
-                        </h4>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>by u/{post.author}</span>
-                          <span>{post.timestamp}</span>
+                    {communityData.topAuthors.length > 0 ? (
+                      communityData.topAuthors.map((author: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
+                          <span className="font-medium">{author.username}</span>
+                          <Badge variant="secondary">{author.posts} posts</Badge>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Badge variant="secondary" className="text-xs">
-                            ▲ {post.upvotes}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground text-center py-4">No author data available</p>
+                    )}
                   </CardContent>
                 </Card>
               </div>
 
+              {/* Recent Posts */}
+              <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-forensic-accent" />
+                    Recent Posts
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {communityData.recentPosts.map((post: any, index: number) => (
+                    <div key={index} className="border border-border/50 rounded-lg p-3 space-y-2">
+                      <h4 className="font-medium text-sm leading-tight">{post.title}</h4>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>by u/{post.author}</span>
+                        <div className="flex gap-2">
+                          <Badge variant="secondary" className="text-xs">▲ {post.score}</Badge>
+                          <Badge variant="outline" className="text-xs">{post.num_comments} comments</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
               {/* Community Analytics */}
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <WordCloud words={[
-                    { word: "technology", frequency: 95, category: "high" as const },
-                    { word: "innovation", frequency: 78, category: "high" as const },
-                    { word: "artificial intelligence", frequency: 67, category: "medium" as const },
-                    { word: "startup", frequency: 58, category: "medium" as const },
-                    { word: "programming", frequency: 45, category: "medium" as const },
-                    { word: "cybersecurity", frequency: 42, category: "low" as const },
-                    { word: "blockchain", frequency: 38, category: "low" as const },
-                    { word: "software", frequency: 71, category: "high" as const },
-                  ]} title="Popular Topics" />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {communityData.wordCloud && communityData.wordCloud.length > 0 && (
+                  <WordCloud words={communityData.wordCloud} title="Popular Topics" />
+                )}
+                {communityData.activityData && (
                   <AnalyticsChart 
-                    data={[
-                      { name: 'Jan', value: 12500 },
-                      { name: 'Feb', value: 13200 },
-                      { name: 'Mar', value: 13800 },
-                      { name: 'Apr', value: 14100 },
-                      { name: 'May', value: 14200 },
-                      { name: 'Jun', value: 14200 },
-                    ]} 
-                    title="Member Growth Over Time" 
-                    type="line" 
-                    height={250}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <AnalyticsChart 
-                    data={[
-                      { name: 'Posts', value: 1247 },
-                      { name: 'Comments', value: 8934 },
-                      { name: 'Upvotes', value: 23456 },
-                      { name: 'Awards', value: 456 },
-                    ]} 
-                    title="Community Activity Breakdown" 
+                    data={communityData.activityData} 
+                    title="Post Frequency by Day" 
                     type="bar" 
                     height={250}
                   />
-                  <AnalyticsChart 
-                    data={[
-                      { name: 'Mon', value: 45 },
-                      { name: 'Tue', value: 52 },
-                      { name: 'Wed', value: 48 },
-                      { name: 'Thu', value: 61 },
-                      { name: 'Fri', value: 55 },
-                      { name: 'Sat', value: 38 },
-                      { name: 'Sun', value: 42 },
-                    ]} 
-                    title="Post Frequency by Day" 
-                    type="line" 
-                    height={250}
-                  />
-                </div>
+                )}
               </div>
             </div>
           )}
 
-          {!hasSearched && !isLoading && (
+          {!communityData && !isLoading && (
             <Card className="border-dashed border-muted-foreground/30">
               <CardContent className="py-12 text-center">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -541,6 +668,7 @@ const Analysis = () => {
           )}
         </TabsContent>
 
+        {/* Link Analysis Tab */}
         <TabsContent value="link" className="space-y-6">
           <Card className="border-primary/20 shadow-glow">
             <CardHeader>
@@ -548,6 +676,7 @@ const Analysis = () => {
                 <Network className="h-5 w-5 text-primary" />
                 <span>User to Community Link Analysis</span>
               </CardTitle>
+              <CardDescription>Discover a user's community connections and cross-community activity</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -555,15 +684,17 @@ const Analysis = () => {
                 <div className="flex space-x-2">
                   <Input
                     id="link-username"
-                    placeholder="Enter username to analyze community connections..."
+                    placeholder="Enter username (e.g., spez)"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleLinkAnalysis()}
                     className="flex-1"
                   />
                   <Button 
                     onClick={handleLinkAnalysis}
                     disabled={isLoading || !username.trim()}
-                    className="px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
+                    variant="forensic"
+                    className="px-6"
                   >
                     {isLoading ? 'Analyzing...' : 'Analyze'}
                   </Button>
@@ -572,28 +703,38 @@ const Analysis = () => {
             </CardContent>
           </Card>
 
-          {analysisData?.type === 'link' && (
+          {linkData && (
             <div className="space-y-6">
               <Card className="border-primary/20 shadow-glow">
                 <CardHeader>
-                  <CardTitle>Network Overview - u/{analysisData.primaryUser}</CardTitle>
+                  <CardTitle>Network Overview - u/{linkData.primaryUser}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
                       <Share2 className="h-6 w-6 text-primary mx-auto mb-2" />
-                      <div className="font-bold text-primary">{analysisData.networkMetrics.totalCommunities}</div>
+                      <div className="font-bold text-primary">{linkData.networkMetrics.totalCommunities}</div>
                       <p className="text-sm text-muted-foreground">Communities</p>
                     </div>
-                    <div className="text-center p-4 rounded-lg bg-accent/10 border border-accent/30">
-                      <Network className="h-6 w-6 text-accent mx-auto mb-2" />
-                      <div className="font-bold text-accent">{analysisData.networkMetrics.crossCommunityLinks}</div>
+                    <div className="text-center p-4 rounded-lg bg-forensic-accent/10 border border-forensic-accent/30">
+                      <Network className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
+                      <div className="font-bold text-forensic-accent">{linkData.networkMetrics.crossCommunityLinks}</div>
                       <p className="text-sm text-muted-foreground">Cross-Links</p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-card border border-border">
                       <BarChart3 className="h-6 w-6 text-foreground mx-auto mb-2" />
-                      <div className="font-bold text-foreground">{analysisData.networkMetrics.avgActivityScore}%</div>
-                      <p className="text-sm text-muted-foreground">Avg Activity</p>
+                      <div className="font-bold text-foreground">{linkData.networkMetrics.avgActivityScore}</div>
+                      <p className="text-sm text-muted-foreground">Avg Score</p>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-card border border-border">
+                      <MessageSquare className="h-6 w-6 text-foreground mx-auto mb-2" />
+                      <div className="font-bold text-foreground">{linkData.networkMetrics.totalPosts}</div>
+                      <p className="text-sm text-muted-foreground">Posts</p>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-card border border-border">
+                      <MessageSquare className="h-6 w-6 text-foreground mx-auto mb-2" />
+                      <div className="font-bold text-foreground">{linkData.networkMetrics.totalComments}</div>
+                      <p className="text-sm text-muted-foreground">Comments</p>
                     </div>
                   </div>
                 </CardContent>
@@ -609,12 +750,12 @@ const Analysis = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {analysisData.userToCommunities.map((conn: any, index: number) => (
+                      {linkData.userToCommunities.map((conn: any, index: number) => (
                         <div key={index} className="p-4 rounded-lg bg-card border border-border">
                           <div className="flex justify-between items-start mb-3">
                             <div>
                               <h3 className="font-semibold text-lg">{conn.community}</h3>
-                              <p className="text-sm text-muted-foreground">{conn.posts} posts</p>
+                              <p className="text-sm text-muted-foreground">{conn.posts} posts, {conn.comments} comments</p>
                             </div>
                             <div className="text-right">
                               <div className="text-lg font-bold text-primary">{conn.activity}%</div>
@@ -642,28 +783,42 @@ const Analysis = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {analysisData.communityCrossover.map((link: any, index: number) => (
-                        <div key={index} className="p-3 rounded-lg bg-card border border-border">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium">{link.from} → {link.to}</span>
-                            <span className="text-sm font-bold text-accent">{link.strength}%</span>
+                      {linkData.communityCrossover.length > 0 ? (
+                        linkData.communityCrossover.map((link: any, index: number) => (
+                          <div key={index} className="p-3 rounded-lg bg-card border border-border">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-sm font-medium">{link.from} → {link.to}</span>
+                              <span className="text-sm font-bold text-forensic-accent">{link.strength}%</span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div 
+                                className="bg-forensic-accent h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${link.strength}%` }}
+                              />
+                            </div>
                           </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-accent h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${link.strength}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground text-center py-4">Not enough communities for cross-links</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Community Distribution Chart */}
+              {linkData.communityDistribution && linkData.communityDistribution.length > 0 && (
+                <AnalyticsChart 
+                  data={linkData.communityDistribution} 
+                  title="Community Activity Distribution" 
+                  type="bar" 
+                  height={250}
+                />
+              )}
             </div>
           )}
 
-          {!analysisData && !isLoading && (
+          {!linkData && !isLoading && (
             <Card className="border-dashed border-muted-foreground/30">
               <CardContent className="py-12 text-center">
                 <Network className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
