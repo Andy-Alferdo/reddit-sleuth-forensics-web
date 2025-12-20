@@ -103,13 +103,35 @@ const Analysis = () => {
 
       const trendData = Object.entries(past7Days).map(([name, value]) => ({ name, value }));
 
+      // Analyze sentiment for keyword results
+      let keywordSentimentData = null;
+      try {
+        const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
+          body: {
+            posts: matchingPosts.slice(0, 20),
+            comments: []
+          }
+        });
+
+        if (!analysisError && analysisData?.sentiment?.breakdown) {
+          keywordSentimentData = [
+            { name: 'Positive', value: analysisData.sentiment.breakdown.positive || 0 },
+            { name: 'Neutral', value: analysisData.sentiment.breakdown.neutral || 0 },
+            { name: 'Negative', value: analysisData.sentiment.breakdown.negative || 0 }
+          ];
+        }
+      } catch (sentimentErr) {
+        console.error('Keyword sentiment analysis error:', sentimentErr);
+      }
+
       setKeywordData({
         keyword,
         totalMentions: matchingPosts.length,
         topSubreddits,
         wordCloud: wordCloudData,
         trendData: trendData.length > 0 ? trendData : [{ name: 'Recent', value: matchingPosts.length }],
-        recentPosts: matchingPosts.slice(0, 5)
+        recentPosts: matchingPosts.slice(0, 10),
+        sentimentChartData: keywordSentimentData
       });
 
       toast({
@@ -244,7 +266,7 @@ const Analysis = () => {
         wordCloud: wordCloudData,
         topAuthors,
         activityData,
-        recentPosts: posts.slice(0, 5),
+        recentPosts: posts.slice(0, 10),
         sentimentChartData,
         stats: {
           totalPosts: posts.length,
@@ -519,7 +541,7 @@ const Analysis = () => {
                 </Card>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {keywordData.wordCloud && keywordData.wordCloud.length > 0 && (
                   <WordCloud words={keywordData.wordCloud} title="Related Keywords" />
                 )}
@@ -528,6 +550,14 @@ const Analysis = () => {
                     data={keywordData.trendData} 
                     title="Mention Trends" 
                     type="bar" 
+                    height={250}
+                  />
+                )}
+                {keywordData.sentimentChartData && (
+                  <AnalyticsChart 
+                    data={keywordData.sentimentChartData} 
+                    title="Keyword Sentiment Analysis" 
+                    type="pie" 
                     height={250}
                   />
                 )}
