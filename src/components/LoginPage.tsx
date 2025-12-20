@@ -96,6 +96,29 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     setIsResetLoading(true);
 
     try {
+      // First check if email exists in profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', resetEmail.toLowerCase().trim())
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Profile check error:', profileError);
+      }
+
+      // If no profile found with this email, show error
+      if (!profileData) {
+        toast({
+          title: "Email Not Found",
+          description: "No account exists with this email address. Please check and try again.",
+          variant: "destructive",
+        });
+        setIsResetLoading(false);
+        return;
+      }
+
+      // Email exists, send reset link
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -104,7 +127,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
 
       toast({
         title: "Reset Link Sent",
-        description: "Check your email for the password reset link.",
+        description: "Check your email for the password reset link. The link is valid for 60 minutes.",
       });
 
       setResetEmail('');
