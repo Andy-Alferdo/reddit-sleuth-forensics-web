@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import MovingBackground from '@/components/MovingBackground';
 import logo from '@/assets/intel-reddit-logo.png';
-import { Shield, Mail, Send, Loader2, UserPlus, LogIn } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -21,8 +20,9 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isResetLoading, setIsResetLoading] = useState(false);
@@ -58,74 +58,9 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
         navigate('/dashboard');
       }
     } catch (error: any) {
-      console.error('Login error:', error);
       toast({
         title: "Login Failed",
         description: error.message || "Invalid email or password. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        title: "Missing Fields",
-        description: "Please enter email and password.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (password.length < 6) {
-      toast({
-        title: "Weak Password",
-        description: "Password must be at least 6 characters.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        toast({
-          title: "Account Created",
-          description: "You can now log in with your credentials.",
-        });
-        // Auto-login after signup (if email confirmation is disabled)
-        if (data.session) {
-          onLogin();
-          navigate('/dashboard');
-        }
-      }
-    } catch (error: any) {
-      console.error('Signup error:', error);
-      let message = error.message;
-      if (error.message?.includes('already registered')) {
-        message = "This email is already registered. Please log in instead.";
-      }
-      toast({
-        title: "Signup Failed",
-        description: message || "Failed to create account. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -156,13 +91,12 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
 
       toast({
         title: "Reset Link Sent",
-        description: "Check your email for the password reset link. The link will expire in 15 minutes.",
+        description: "Check your email for the password reset link.",
       });
 
       setResetEmail('');
       setIsResetDialogOpen(false);
     } catch (error: any) {
-      console.error('Password reset error:', error);
       toast({
         title: "Reset Failed",
         description: error.message || "Failed to send reset email. Please try again.",
@@ -177,151 +111,72 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
     <div className="min-h-screen bg-gradient-to-br from-forensic-dark to-forensic-darker flex items-center justify-center relative">
       <MovingBackground />
       
-      <div className="relative z-10 w-full max-w-md p-6">
-        <Card className="backdrop-blur-sm bg-card/90 border-primary/20 shadow-2xl">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <img 
-                src={logo} 
-                alt="Intel Reddit Logo" 
-                className="w-20 h-20 animate-glow-pulse"
-              />
-            </div>
-            <CardTitle className="text-2xl font-bold text-primary">Intel Reddit</CardTitle>
-            <p className="text-sm italic text-muted-foreground mt-2 font-serif">
-              "Digital footprints never lie, they only wait to be discovered"
-            </p>
-          </CardHeader>
+      <div className="relative z-10 w-full max-w-sm p-6">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <img 
+            src={logo} 
+            alt="Intel Reddit Logo" 
+            className="w-24 h-24 animate-glow-pulse"
+          />
+        </div>
+
+        {/* Login Form */}
+        <form onSubmit={handleLogin} className="space-y-4">
+          {/* Email Input */}
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={isLoading}
+              className="pl-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full backdrop-blur-sm"
+            />
+          </div>
           
-          <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="login">
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Login
-                </TabsTrigger>
-                <TabsTrigger value="signup">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Sign Up
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">Password</Label>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    variant="forensic" 
-                    className="w-full mt-6"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Logging in...
-                      </>
-                    ) : (
-                      <>
-                        <LogIn className="h-4 w-4 mr-2" />
-                        Login
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="Create a password (min 6 chars)"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    variant="forensic" 
-                    className="w-full mt-6"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Creating Account...
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Create Account
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+          {/* Password Input */}
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isLoading}
+              className="pl-12 pr-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full backdrop-blur-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+
+          {/* Remember Me & Forgot Password */}
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="remember"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                className="border-primary/50 data-[state=checked]:bg-primary"
+              />
+              <label htmlFor="remember" className="text-muted-foreground cursor-pointer">
+                Remember me
+              </label>
+            </div>
             
             <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="link" className="w-full text-sm text-muted-foreground mt-4">
-                  Forgot your password?
-                </Button>
+                <button type="button" className="text-primary hover:text-primary/80 transition-colors">
+                  Forgot Password?
+                </button>
               </DialogTrigger>
               <DialogContent className="bg-card z-50">
                 <DialogHeader>
@@ -366,15 +221,36 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 </form>
               </DialogContent>
             </Dialog>
+          </div>
+          
+          {/* Sign In Button - Gradient Style */}
+          <Button 
+            type="submit" 
+            className="w-full h-12 mt-6 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-400 text-white font-semibold shadow-lg shadow-blue-500/25 transition-all duration-300"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Signing In...
+              </>
+            ) : (
+              'Sign In'
+            )}
+          </Button>
+        </form>
 
-            <div className="mt-4 pt-4 border-t border-border/50">
-              <div className="flex items-center justify-center text-xs text-muted-foreground">
-                <Shield className="h-3 w-3 mr-1" />
-                Secure authentication powered by Supabase
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Register Link */}
+        <p className="text-center mt-6 text-sm text-muted-foreground">
+          Don't have an account?{' '}
+          <button
+            type="button"
+            onClick={() => navigate('/register')}
+            className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 font-semibold hover:from-cyan-300 hover:to-purple-300 transition-all"
+          >
+            Register Now
+          </button>
+        </p>
       </div>
     </div>
   );
