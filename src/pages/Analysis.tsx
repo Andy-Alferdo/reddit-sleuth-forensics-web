@@ -6,11 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare } from 'lucide-react';
+import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { formatActivityTime } from '@/lib/dateUtils';
 
 const Analysis = () => {
   const [keyword, setKeyword] = useState('');
@@ -76,15 +77,31 @@ const Analysis = () => {
           category: freq > 10 ? 'high' as const : freq > 5 ? 'medium' as const : 'low' as const
         }));
 
-      // Calculate activity by time
-      const timelineData: { [key: string]: number } = {};
+      // Calculate activity by day for past 7 days
+      const now = new Date();
+      const past7Days: { [key: string]: number } = {};
+      
+      // Initialize past 7 days with 0
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dayKey = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+        past7Days[dayKey] = 0;
+      }
+
       matchingPosts.forEach((post: any) => {
-        const date = new Date(post.created_utc * 1000);
-        const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
-        timelineData[monthKey] = (timelineData[monthKey] || 0) + 1;
+        const postDate = new Date(post.created_utc * 1000);
+        const daysDiff = Math.floor((now.getTime() - postDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff < 7) {
+          const dayKey = postDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+          if (past7Days[dayKey] !== undefined) {
+            past7Days[dayKey]++;
+          }
+        }
       });
 
-      const trendData = Object.entries(timelineData).map(([name, value]) => ({ name, value }));
+      const trendData = Object.entries(past7Days).map(([name, value]) => ({ name, value }));
 
       setKeywordData({
         keyword,
@@ -143,6 +160,23 @@ const Analysis = () => {
       const subredditInfo = redditData.subreddit;
       const posts = redditData.posts || [];
 
+      // Analyze content for sentiment
+      let sentimentData = null;
+      try {
+        const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
+          body: {
+            posts: posts.slice(0, 20),
+            comments: []
+          }
+        });
+
+        if (!analysisError && analysisData) {
+          sentimentData = analysisData.sentiment?.breakdown || null;
+        }
+      } catch (sentimentErr) {
+        console.error('Sentiment analysis error:', sentimentErr);
+      }
+
       // Generate word cloud from posts
       const textContent = posts.map((p: any) => `${p.title} ${p.selftext || ''}`).join(' ');
       const words = textContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
@@ -190,6 +224,13 @@ const Analysis = () => {
       const totalUpvotes = posts.reduce((sum: number, p: any) => sum + (p.score || 0), 0);
       const totalComments = posts.reduce((sum: number, p: any) => sum + (p.num_comments || 0), 0);
 
+      // Prepare sentiment chart data
+      const sentimentChartData = sentimentData ? [
+        { name: 'Positive', value: sentimentData.positive || 0 },
+        { name: 'Neutral', value: sentimentData.neutral || 0 },
+        { name: 'Negative', value: sentimentData.negative || 0 }
+      ] : null;
+
       setCommunityData({
         name: subredditInfo.display_name_prefixed || `r/${cleanSubreddit}`,
         subscribers: subredditInfo.subscribers || 0,
@@ -204,6 +245,7 @@ const Analysis = () => {
         topAuthors,
         activityData,
         recentPosts: posts.slice(0, 5),
+        sentimentChartData,
         stats: {
           totalPosts: posts.length,
           totalUpvotes,
@@ -463,6 +505,10 @@ const Analysis = () => {
                     {keywordData.recentPosts.map((post: any, index: number) => (
                       <div key={index} className="border border-border/50 rounded-lg p-3 space-y-2">
                         <h4 className="font-medium text-sm leading-tight">{post.title}</h4>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{formatActivityTime(post.created_utc)}</span>
+                        </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>r/{post.subreddit} • by u/{post.author}</span>
                           <Badge variant="secondary" className="text-xs">▲ {post.score}</Badge>
@@ -637,7 +683,7 @@ const Analysis = () => {
               </Card>
 
               {/* Community Analytics */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {communityData.wordCloud && communityData.wordCloud.length > 0 && (
                   <WordCloud words={communityData.wordCloud} title="Popular Topics" />
                 )}
@@ -646,6 +692,14 @@ const Analysis = () => {
                     data={communityData.activityData} 
                     title="Post Frequency by Day" 
                     type="bar" 
+                    height={250}
+                  />
+                )}
+                {communityData.sentimentChartData && (
+                  <AnalyticsChart 
+                    data={communityData.sentimentChartData} 
+                    title="Community Sentiment Analysis" 
+                    type="pie" 
                     height={250}
                   />
                 )}
