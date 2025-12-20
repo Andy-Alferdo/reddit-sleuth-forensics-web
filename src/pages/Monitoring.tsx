@@ -13,6 +13,7 @@ import { MiniSparkline } from '@/components/MiniSparkline';
 import { CompactBarChart } from '@/components/CompactBarChart';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrentTimePakistan, formatActivityTime } from '@/lib/dateUtils';
+import { useInvestigation } from '@/contexts/InvestigationContext';
 
 interface RedditActivity {
   id: string;
@@ -38,6 +39,7 @@ interface ProfileData {
 
 const Monitoring = () => {
   const { toast } = useToast();
+  const { addMonitoringSession } = useInvestigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'user' | 'community' | ''>('');
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -50,6 +52,7 @@ const Monitoring = () => {
   const [lastFetchTime, setLastFetchTime] = useState<string>('');
   const [newActivityCount, setNewActivityCount] = useState(0);
   const monitoringIntervalRef = useRef<number | null>(null);
+  const monitoringStartTimeRef = useRef<string>('');
 
   // Generate sample activities
   const generateActivities = (type: 'user' | 'community', name: string): RedditActivity[] => {
@@ -161,6 +164,19 @@ const Monitoring = () => {
   };
 
   const handleStopMonitoring = () => {
+    // Save monitoring session to investigation context before stopping
+    if (profileData && searchType) {
+      addMonitoringSession({
+        searchType: searchType,
+        targetName: profileData.username || profileData.communityName || searchQuery,
+        profileData: profileData,
+        activities: activities,
+        wordCloudData: wordCloudData,
+        startedAt: monitoringStartTimeRef.current,
+        newActivityCount: newActivityCount,
+      });
+    }
+    
     setIsMonitoring(false);
     setIsFetching(false);
     if (monitoringIntervalRef.current) {
@@ -168,10 +184,10 @@ const Monitoring = () => {
       monitoringIntervalRef.current = null;
     }
     toast({
-      title: "Monitoring Stopped",
+      title: "Monitoring Stopped & Saved",
       description: newActivityCount > 0 
-        ? `Real-time monitoring paused. Detected ${newActivityCount} new items during this session.`
-        : "Real-time monitoring paused.",
+        ? `Session saved. Detected ${newActivityCount} new items during this session.`
+        : "Session saved. Real-time monitoring paused.",
     });
   };
 
@@ -188,6 +204,7 @@ const Monitoring = () => {
   const handleStartMonitoring = async () => {
     setIsMonitoring(true);
     setNewActivityCount(0);
+    monitoringStartTimeRef.current = new Date().toISOString();
     
     toast({
       title: "Monitoring Started",
