@@ -91,17 +91,14 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
       if (error) throw error;
 
       if (data.user) {
+        // Sign out immediately to force user to login with credentials
+        await supabase.auth.signOut();
+        
         toast({
           title: "Account Created",
-          description: "Welcome to Intel Reddit!",
+          description: "Please login with your credentials.",
         });
-        // Auto-login after signup (if email confirmation is disabled)
-        if (data.session) {
-          onLogin();
-          navigate('/dashboard');
-        } else {
-          navigate('/login');
-        }
+        navigate('/login');
       }
     } catch (error: any) {
       let message = error.message;

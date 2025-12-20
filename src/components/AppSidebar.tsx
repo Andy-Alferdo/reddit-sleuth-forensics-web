@@ -3,6 +3,8 @@ import { Monitor, BarChart3, User, Network, FileText, Users, ArrowLeft, LogOut, 
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import logo from '@/assets/intel-reddit-logo.png';
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 import {
   Sidebar,
@@ -34,6 +36,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
   
@@ -50,9 +53,22 @@ export function AppSidebar() {
     navigate('/');
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      localStorage.clear();
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+      navigate('/login');
+    } catch (error) {
+      toast({
+        title: "Logout Failed",
+        description: "Failed to logout. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
