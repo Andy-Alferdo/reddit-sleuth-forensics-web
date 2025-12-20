@@ -39,7 +39,7 @@ interface ProfileData {
 
 const Monitoring = () => {
   const { toast } = useToast();
-  const { addMonitoringSession } = useInvestigation();
+  const { addMonitoringSession, saveMonitoringSessionToDb, currentCase } = useInvestigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'user' | 'community' | ''>('');
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -163,10 +163,10 @@ const Monitoring = () => {
     }
   };
 
-  const handleStopMonitoring = () => {
+  const handleStopMonitoring = async () => {
     // Save monitoring session to investigation context before stopping
     if (profileData && searchType) {
-      addMonitoringSession({
+      const sessionData = {
         searchType: searchType,
         targetName: profileData.username || profileData.communityName || searchQuery,
         profileData: profileData,
@@ -174,7 +174,18 @@ const Monitoring = () => {
         wordCloudData: wordCloudData,
         startedAt: monitoringStartTimeRef.current,
         newActivityCount: newActivityCount,
-      });
+      };
+      
+      addMonitoringSession(sessionData);
+      
+      // Also save to database if there's an active case
+      if (currentCase?.id) {
+        try {
+          await saveMonitoringSessionToDb(sessionData);
+        } catch (dbErr) {
+          console.error('Failed to save session to database:', dbErr);
+        }
+      }
     }
     
     setIsMonitoring(false);

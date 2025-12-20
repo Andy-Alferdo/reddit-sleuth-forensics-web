@@ -29,7 +29,7 @@ const Analysis = () => {
   const [linkData, setLinkData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { addKeywordAnalysis, addCommunityAnalysis, addLinkAnalysis } = useInvestigation();
+  const { addKeywordAnalysis, addCommunityAnalysis, addLinkAnalysis, saveKeywordAnalysisToDb, saveCommunityAnalysisToDb, saveLinkAnalysisToDb, currentCase } = useInvestigation();
 
   const getSentimentBadge = (sentiment: string) => {
     switch (sentiment?.toLowerCase()) {
@@ -160,10 +160,13 @@ const Analysis = () => {
       setKeywordData(analysisResult);
       
       // Save to investigation context
-      addKeywordAnalysis({
-        ...analysisResult,
-        analyzedAt: new Date().toISOString()
-      });
+      const analysisToSave = { ...analysisResult, analyzedAt: new Date().toISOString() };
+      addKeywordAnalysis(analysisToSave);
+      
+      // Save to database if active case
+      if (currentCase?.id) {
+        try { await saveKeywordAnalysisToDb(analysisToSave); } catch (e) { console.error(e); }
+      }
 
       toast({
         title: "Keyword Analysis Complete",
@@ -321,10 +324,13 @@ const Analysis = () => {
       setCommunityData(analysisResult);
       
       // Save to investigation context
-      addCommunityAnalysis({
-        ...analysisResult,
-        analyzedAt: new Date().toISOString()
-      });
+      const analysisToSave = { ...analysisResult, analyzedAt: new Date().toISOString() };
+      addCommunityAnalysis(analysisToSave);
+      
+      // Save to database if active case
+      if (currentCase?.id) {
+        try { await saveCommunityAnalysisToDb(analysisToSave); } catch (e) { console.error(e); }
+      }
 
       toast({
         title: "Community Analysis Complete",
@@ -450,10 +456,13 @@ const Analysis = () => {
       setLinkData(analysisResult);
       
       // Save to investigation context
-      addLinkAnalysis({
-        ...analysisResult,
-        analyzedAt: new Date().toISOString()
-      });
+      const analysisToSave = { ...analysisResult, analyzedAt: new Date().toISOString() };
+      addLinkAnalysis(analysisToSave);
+      
+      // Save to database if active case
+      if (currentCase?.id) {
+        try { await saveLinkAnalysisToDb(analysisToSave); } catch (e) { console.error(e); }
+      }
 
       toast({
         title: "Link Analysis Complete",
