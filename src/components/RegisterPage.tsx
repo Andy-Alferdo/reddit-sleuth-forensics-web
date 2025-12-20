@@ -23,6 +23,25 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const validatePassword = (pwd: string): string | null => {
+    if (pwd.length < 8) {
+      return "Password must be at least 8 characters.";
+    }
+    if (!/[A-Z]/.test(pwd)) {
+      return "Password must contain at least 1 uppercase letter.";
+    }
+    if (!/[a-z]/.test(pwd)) {
+      return "Password must contain at least 1 lowercase letter.";
+    }
+    if (!/[0-9]/.test(pwd)) {
+      return "Password must contain at least 1 number.";
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) {
+      return "Password must contain at least 1 special character (!@#$%^&* etc.).";
+    }
+    return null;
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -44,10 +63,11 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
       return;
     }
 
-    if (password.length < 6) {
+    const passwordError = validatePassword(password);
+    if (passwordError) {
       toast({
         title: "Weak Password",
-        description: "Password must be at least 6 characters.",
+        description: passwordError,
         variant: "destructive",
       });
       return;
@@ -149,7 +169,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Password (min 6 chars)"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
