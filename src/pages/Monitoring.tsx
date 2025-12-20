@@ -97,51 +97,43 @@ const Monitoring = () => {
       const today = new Date();
       const dailyData: { name: string; value: number }[] = [];
       
+      // Initialize daily data for last 7 days
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dayName = days[date.getDay()];
-        
-        // Get start and end of day for comparison
-        const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
-        
-        // Count posts for this day - parse timestamp correctly
-        const count = activities.filter(a => {
-          if (a.type !== 'post') return false;
-          // Parse timestamp - format: "2024-12-15 10:30:00 UTC" or similar
-          const timestampStr = a.timestamp.replace(' UTC', '').replace('T', ' ');
-          const activityDate = new Date(timestampStr);
-          return activityDate >= dayStart && activityDate < dayEnd;
-        }).length;
-        
-        dailyData.push({ name: dayName, value: count });
+        dailyData.push({ name: dayName, value: 0 });
       }
       
-      // If all values are 0, distribute scraped posts across days for visualization
-      const totalPosts = activities.filter(a => a.type === 'post').length;
-      const hasData = dailyData.some(d => d.value > 0);
+      // Count posts for each day by parsing timestamps
+      const posts = activities.filter(a => a.type === 'post');
       
-      if (!hasData && totalPosts > 0) {
-        // Distribute posts by parsing their actual timestamps
-        activities.filter(a => a.type === 'post').forEach(activity => {
-          const timestampStr = activity.timestamp.replace(' UTC', '').replace('T', ' ');
-          const activityDate = new Date(timestampStr);
-          const dayIndex = dailyData.findIndex((_, idx) => {
-            const targetDate = new Date(today);
-            targetDate.setDate(targetDate.getDate() - (6 - idx));
-            return activityDate.toDateString() === targetDate.toDateString();
-          });
-          if (dayIndex >= 0) {
-            dailyData[dayIndex].value++;
-          }
-        });
+      posts.forEach(activity => {
+        // Parse timestamp - format: "Dec 15, 2024, 10:30 AM PKT" or "2024-12-15 10:30:00 UTC"
+        let activityDate: Date;
+        const timestamp = activity.timestamp;
         
-        // If still no data distributed (posts are older than 7 days), show recent as today
-        if (dailyData.every(d => d.value === 0) && totalPosts > 0) {
-          dailyData[6].value = totalPosts; // Show all on today
+        if (timestamp.includes('PKT') || timestamp.includes('AM') || timestamp.includes('PM')) {
+          // Parse formatted date like "Dec 15, 2024, 10:30 AM PKT"
+          const cleanTimestamp = timestamp.replace(' PKT', '').replace(' PST', '').trim();
+          activityDate = new Date(cleanTimestamp);
+        } else {
+          // Parse ISO-like format
+          const timestampStr = timestamp.replace(' UTC', '').replace('T', ' ');
+          activityDate = new Date(timestampStr);
         }
-      }
+        
+        // Find which day index this post belongs to
+        for (let i = 6; i >= 0; i--) {
+          const targetDate = new Date(today);
+          targetDate.setDate(targetDate.getDate() - (6 - i));
+          
+          if (activityDate.toDateString() === targetDate.toDateString()) {
+            dailyData[i].value++;
+            break;
+          }
+        }
+      });
       
       return dailyData;
     } else {
@@ -157,23 +149,26 @@ const Monitoring = () => {
   
   const activityBreakdownData = getActivityBreakdownData();
 
-  // Generate word cloud with proper category distribution
+  // Generate word cloud with proper category distribution - always ensures all 3 colors
   const generateWordCloudWithCategories = (words: { word: string; frequency: number }[]) => {
     if (words.length === 0) return [];
     
-    const maxFreq = Math.max(...words.map(w => w.frequency));
-    const minFreq = Math.min(...words.map(w => w.frequency));
-    const range = maxFreq - minFreq || 1;
+    // Sort by frequency descending
+    const sorted = [...words].sort((a, b) => b.frequency - a.frequency);
+    const total = sorted.length;
     
-    return words.map(w => {
-      const normalized = (w.frequency - minFreq) / range;
+    // Divide into thirds to ensure all 3 colors are always present
+    const highThreshold = Math.ceil(total / 3);
+    const mediumThreshold = Math.ceil((total * 2) / 3);
+    
+    return sorted.map((w, index) => {
       let category: 'high' | 'medium' | 'low';
-      if (normalized >= 0.66) {
-        category = 'high';
-      } else if (normalized >= 0.33) {
-        category = 'medium';
+      if (index < highThreshold) {
+        category = 'high'; // Red - top third
+      } else if (index < mediumThreshold) {
+        category = 'medium'; // Green - middle third
       } else {
-        category = 'low';
+        category = 'low'; // Blue - bottom third
       }
       return { ...w, category };
     });
