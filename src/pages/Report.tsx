@@ -7,12 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Save, Calendar, User, Gavel, Shield, FileCode, FileCog, Users, TrendingUp, Network, Activity } from 'lucide-react';
+import { FileText, Download, Save, Calendar, User, Gavel, Shield, FileCode, FileCog, Users, TrendingUp, Network, Activity, Loader2 } from 'lucide-react';
 import { useInvestigation } from '@/contexts/InvestigationContext';
 import { useToast } from '@/hooks/use-toast';
+import { generatePDFReport, generateHTMLReport } from '@/lib/reportGenerator';
 
 const Report = () => {
   const { toast } = useToast();
+  const [isGenerating, setIsGenerating] = useState(false);
   const {
     caseNumber,
     setCaseNumber,
@@ -51,7 +53,6 @@ const Report = () => {
     personalizedObservations: ''
   });
 
-  // Auto-generate executive summary based on collected data
   useEffect(() => {
     const usersCount = getTotalUsersAnalyzed();
     const postsCount = getTotalPostsReviewed();
@@ -81,29 +82,51 @@ const Report = () => {
     });
   };
 
-  const generateReport = () => {
-    const reportContent = {
-      type: reportType,
-      format: exportFormat,
-      caseNumber,
-      investigator,
-      data: reportData,
-      collectedData: {
-        userProfiles: selectedModules.userProfiling ? userProfiles : [],
-        keywordAnalyses: selectedModules.keywordTrends ? keywordAnalyses : [],
-        communityAnalyses: selectedModules.communityAnalysis ? communityAnalyses : [],
-        linkAnalyses: selectedModules.linkAnalysis ? linkAnalyses : [],
-        monitoringSessions: selectedModules.monitoring ? monitoringSessions : [],
-      },
-      ...(reportType === 'customized' && { modules: selectedModules })
-    };
+  const generateReport = async () => {
+    setIsGenerating(true);
     
-    console.log('Generating report...', reportContent);
-    
-    toast({
-      title: "Report Generated",
-      description: `${exportFormat.toUpperCase()} report generated with ${getTotalUsersAnalyzed()} users, ${getTotalPostsReviewed()} posts analyzed.`,
-    });
+    try {
+      const options = {
+        reportType,
+        exportFormat,
+        selectedModules,
+        reportData: {
+          caseNumber,
+          investigator,
+          department: reportData.department,
+          dateGenerated: reportData.dateGenerated,
+          subject: reportData.subject,
+          executiveSummary: reportData.executiveSummary,
+          findings: reportData.findings,
+          conclusions: reportData.conclusions,
+        },
+        userProfiles: reportType === 'automated' || selectedModules.userProfiling ? userProfiles : [],
+        monitoringSessions: reportType === 'automated' || selectedModules.monitoring ? monitoringSessions : [],
+        keywordAnalyses: reportType === 'automated' || selectedModules.keywordTrends ? keywordAnalyses : [],
+        communityAnalyses: reportType === 'automated' || selectedModules.communityAnalysis ? communityAnalyses : [],
+        linkAnalyses: reportType === 'automated' || selectedModules.linkAnalysis ? linkAnalyses : [],
+      };
+
+      if (exportFormat === 'pdf') {
+        generatePDFReport(options);
+      } else {
+        generateHTMLReport(options);
+      }
+      
+      toast({
+        title: "Report Generated",
+        description: `Your ${exportFormat.toUpperCase()} report has been downloaded with ${getTotalUsersAnalyzed()} users, ${getTotalPostsReviewed()} posts analyzed.`,
+      });
+    } catch (error) {
+      console.error('Report generation error:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const saveReportDraft = () => {
@@ -305,7 +328,10 @@ const Report = () => {
         <CardContent className="pt-6">
           <div className="flex justify-end space-x-4">
             <Button variant="outline" onClick={saveReportDraft}><Save className="h-4 w-4 mr-2" />Save Draft</Button>
-            <Button variant="forensic" onClick={generateReport} disabled={!hasData}><Download className="h-4 w-4 mr-2" />Generate {exportFormat.toUpperCase()} Report</Button>
+            <Button variant="forensic" onClick={generateReport} disabled={!hasData || isGenerating}>
+              {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              {isGenerating ? 'Generating...' : `Generate ${exportFormat.toUpperCase()} Report`}
+            </Button>
           </div>
         </CardContent>
       </Card>
