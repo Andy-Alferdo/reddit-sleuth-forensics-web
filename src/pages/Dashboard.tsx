@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderOpen, Eye, TrendingUp, Users, Loader2 } from 'lucide-react';
+import { Plus, FolderOpen, Eye, TrendingUp, Users, Loader2, Lock, Unlock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardStats {
   totalCases: number;
@@ -13,8 +14,10 @@ interface DashboardStats {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats>({ totalCases: 0, activeCases: 0, closedCases: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
   // Check if a case is selected
   const [selectedCase, setSelectedCase] = useState<any>(null);
@@ -90,6 +93,44 @@ const Dashboard = () => {
 
   const hasSelectedCase = selectedCase !== null;
 
+  const handleToggleCaseStatus = async () => {
+    if (!selectedCase?.id) return;
+    
+    setIsUpdatingStatus(true);
+    const newStatus = selectedCase.status?.toLowerCase() === 'closed' ? 'active' : 'closed';
+    
+    try {
+      const { error } = await supabase
+        .from('investigation_cases')
+        .update({ status: newStatus })
+        .eq('id', selectedCase.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedCase = { ...selectedCase, status: newStatus };
+      setSelectedCase(updatedCase);
+      localStorage.setItem('selectedCase', JSON.stringify(updatedCase));
+      window.dispatchEvent(new Event('storage'));
+
+      toast({
+        title: newStatus === 'closed' ? 'Case Closed' : 'Case Reopened',
+        description: newStatus === 'closed' 
+          ? 'The case has been closed. You can reopen it anytime.'
+          : 'The case has been reopened and is now active.',
+      });
+    } catch (error) {
+      console.error('Error updating case status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update case status. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'active': return 'text-forensic-success';
@@ -153,6 +194,25 @@ const Dashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Case Actions */}
+          <div className="flex justify-center">
+            <Button
+              variant={selectedCase.status?.toLowerCase() === 'closed' ? 'default' : 'destructive'}
+              onClick={handleToggleCaseStatus}
+              disabled={isUpdatingStatus}
+              className="min-w-[200px]"
+            >
+              {isUpdatingStatus ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : selectedCase.status?.toLowerCase() === 'closed' ? (
+                <Unlock className="h-4 w-4 mr-2" />
+              ) : (
+                <Lock className="h-4 w-4 mr-2" />
+              )}
+              {selectedCase.status?.toLowerCase() === 'closed' ? 'Reopen Case' : 'Close Case'}
+            </Button>
           </div>
         </>
       ) : (
