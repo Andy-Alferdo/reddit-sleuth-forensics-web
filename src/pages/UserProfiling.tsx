@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toZonedTime } from 'date-fns-tz';
+import { useInvestigation } from '@/contexts/InvestigationContext';
 
 const UserProfiling = () => {
   const [username, setUsername] = useState('');
@@ -17,6 +18,7 @@ const UserProfiling = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { addUserProfile } = useInvestigation();
 
   // Sample data for visualizations
   const userWordCloud = [
@@ -153,7 +155,7 @@ const UserProfiling = () => {
           category: freq > 30 ? 'high' as const : freq > 15 ? 'medium' as const : 'low' as const
         }));
 
-      setProfileData({
+      const profileResult = {
         username: cleanUsername,
         accountAge,
         totalKarma: redditData.user.link_karma + redditData.user.comment_karma,
@@ -175,6 +177,25 @@ const UserProfiling = () => {
         wordCloud: wordCloudData,
         stats: analysisData?.stats || {},
         emotions: analysisData?.emotions || {}
+      };
+
+      setProfileData(profileResult);
+      
+      // Save to investigation context for report generation
+      addUserProfile({
+        username: cleanUsername,
+        accountAge,
+        totalKarma: profileResult.totalKarma,
+        postKarma: profileResult.postKarma,
+        commentKarma: profileResult.commentKarma,
+        activeSubreddits: profileResult.activeSubreddits,
+        activityPattern: profileResult.activityPattern,
+        sentimentAnalysis: profileResult.sentimentAnalysis,
+        postSentiments: profileResult.postSentiments,
+        commentSentiments: profileResult.commentSentiments,
+        locationIndicators: profileResult.locationIndicators,
+        behaviorPatterns: profileResult.behaviorPatterns,
+        wordCloud: profileResult.wordCloud,
       });
 
       toast({
