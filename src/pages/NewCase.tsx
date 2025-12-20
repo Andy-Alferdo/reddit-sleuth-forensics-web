@@ -4,18 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useInvestigation } from '@/contexts/InvestigationContext';
 
 const NewCase = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { createCase } = useInvestigation();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    caseNumber: '',
+    caseNumber: `CASE-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
     caseName: '',
     description: '',
-    investigator: '',
+    leadInvestigator: '',
     priority: 'medium',
     department: '',
     startDate: new Date().toISOString().split('T')[0],
@@ -28,14 +31,49 @@ const NewCase = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically save to a database
-    toast({
-      title: "Case Created Successfully",
-      description: `Case ${formData.caseNumber} has been created and is ready for investigation.`,
-    });
-    navigate('/dashboard');
+    
+    if (!formData.caseNumber || !formData.caseName) {
+      toast({
+        title: "Validation Error",
+        description: "Case number and case name are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const newCase = await createCase({
+        caseNumber: formData.caseNumber,
+        caseName: formData.caseName,
+        description: formData.description,
+        leadInvestigator: formData.leadInvestigator,
+        department: formData.department,
+        priority: formData.priority,
+      });
+      
+      if (newCase) {
+        toast({
+          title: "Case Created Successfully",
+          description: `Case ${formData.caseNumber} has been created and is ready for investigation.`,
+        });
+        navigate('/dashboard');
+      } else {
+        throw new Error('Failed to create case');
+      }
+    } catch (err: any) {
+      console.error('Failed to create case:', err);
+      toast({
+        title: "Error Creating Case",
+        description: err.message || "Failed to create case. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -88,7 +126,7 @@ const NewCase = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Case Description *</Label>
+              <Label htmlFor="description">Case Description</Label>
               <Textarea
                 id="description"
                 name="description"
@@ -96,20 +134,18 @@ const NewCase = () => {
                 value={formData.description}
                 onChange={handleInputChange}
                 className="min-h-[120px]"
-                required
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="investigator">Lead Investigator *</Label>
+                <Label htmlFor="leadInvestigator">Lead Investigator</Label>
                 <Input
-                  id="investigator"
-                  name="investigator"
+                  id="leadInvestigator"
+                  name="leadInvestigator"
                   placeholder="Enter investigator name"
-                  value={formData.investigator}
+                  value={formData.leadInvestigator}
                   onChange={handleInputChange}
-                  required
                 />
               </div>
               
@@ -159,12 +195,27 @@ const NewCase = () => {
                 type="button" 
                 variant="outline" 
                 onClick={() => navigate('/dashboard')}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="forensic" className="flex items-center space-x-2">
-                <Save className="h-4 w-4" />
-                <span>Create Case</span>
+              <Button 
+                type="submit" 
+                variant="forensic" 
+                className="flex items-center space-x-2"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>Create Case</span>
+                  </>
+                )}
               </Button>
             </div>
           </form>

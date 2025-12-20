@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 // Types for the investigation data
 interface SentimentItem {
@@ -76,8 +77,29 @@ interface LinkAnalysisData {
   analyzedAt: string;
 }
 
+interface CaseData {
+  id: string;
+  case_number: string;
+  case_name: string;
+  description?: string;
+  lead_investigator?: string;
+  department?: string;
+  priority: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface InvestigationContextType {
-  // Investigation metadata
+  // Case management
+  currentCase: CaseData | null;
+  setCurrentCase: (caseData: CaseData | null) => void;
+  cases: CaseData[];
+  loadCases: () => Promise<void>;
+  createCase: (caseData: any) => Promise<CaseData | null>;
+  isLoadingCases: boolean;
+  
+  // Investigation metadata (backward compatibility)
   caseNumber: string;
   setCaseNumber: (num: string) => void;
   investigator: string;
@@ -86,32 +108,40 @@ interface InvestigationContextType {
   // User profiling data
   userProfiles: UserProfileData[];
   addUserProfile: (profile: UserProfileData) => void;
+  saveUserProfileToDb: (profile: UserProfileData) => Promise<void>;
   clearUserProfiles: () => void;
   
   // Monitoring data
   monitoringSessions: MonitoringData[];
   addMonitoringSession: (session: MonitoringData) => void;
+  saveMonitoringSessionToDb: (session: MonitoringData) => Promise<void>;
   clearMonitoringSessions: () => void;
   
   // Keyword analysis data
   keywordAnalyses: KeywordAnalysisData[];
   addKeywordAnalysis: (analysis: KeywordAnalysisData) => void;
+  saveKeywordAnalysisToDb: (analysis: KeywordAnalysisData) => Promise<void>;
   clearKeywordAnalyses: () => void;
   
   // Community analysis data
   communityAnalyses: CommunityAnalysisData[];
   addCommunityAnalysis: (analysis: CommunityAnalysisData) => void;
+  saveCommunityAnalysisToDb: (analysis: CommunityAnalysisData) => Promise<void>;
   clearCommunityAnalyses: () => void;
   
   // Link analysis data
   linkAnalyses: LinkAnalysisData[];
   addLinkAnalysis: (analysis: LinkAnalysisData) => void;
+  saveLinkAnalysisToDb: (analysis: LinkAnalysisData) => Promise<void>;
   clearLinkAnalyses: () => void;
   
   // Summary stats
   getTotalUsersAnalyzed: () => number;
   getTotalPostsReviewed: () => number;
   getTotalCommunitiesAnalyzed: () => number;
+  
+  // Load case data from DB
+  loadCaseData: (caseId: string) => Promise<void>;
   
   // Clear all data
   clearAllData: () => void;
@@ -120,6 +150,10 @@ interface InvestigationContextType {
 const InvestigationContext = createContext<InvestigationContextType | undefined>(undefined);
 
 export const InvestigationProvider = ({ children }: { children: ReactNode }) => {
+  const [currentCase, setCurrentCase] = useState<CaseData | null>(null);
+  const [cases, setCases] = useState<CaseData[]>([]);
+  const [isLoadingCases, setIsLoadingCases] = useState(false);
+  
   const [caseNumber, setCaseNumber] = useState(`CASE-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`);
   const [investigator, setInvestigator] = useState('');
   const [userProfiles, setUserProfiles] = useState<UserProfileData[]>([]);
@@ -128,9 +162,123 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
   const [communityAnalyses, setCommunityAnalyses] = useState<CommunityAnalysisData[]>([]);
   const [linkAnalyses, setLinkAnalyses] = useState<LinkAnalysisData[]>([]);
 
+  // Helper to call data-store edge function
+  const callDataStore = useCallback(async (operation: string, data?: any, caseId?: string) => {
+    const { data: session } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (session?.session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.session.access_token}`;
+    }
+    
+    const { data: result, error } = await supabase.functions.invoke('data-store', {
+      body: { operation, data, caseId },
+      headers,
+    });
+    
+    if (error) throw error;
+    if (!result.success) throw new Error(result.error);
+    return result.data;
+  }, []);
+
+  // Load all cases for current user
+  const loadCases = useCallback(async () => {
+    setIsLoadingCases(true);
+    try {
+      const casesData = await callDataStore('getCases');
+      setCases(casesData || []);
+    } catch (err) {
+      console.error('Failed to load cases:', err);
+    } finally {
+      setIsLoadingCases(false);
+    }
+  }, [callDataStore]);
+
+  // Create a new case
+  const createCase = useCallback(async (caseData: any): Promise<CaseData | null> => {
+    try {
+      const newCase = await callDataStore('createCase', caseData);
+      setCases(prev => [newCase, ...prev]);
+      setCurrentCase(newCase);
+      setCaseNumber(newCase.case_number);
+      setInvestigator(newCase.lead_investigator || '');
+      return newCase;
+    } catch (err) {
+      console.error('Failed to create case:', err);
+      return null;
+    }
+  }, [callDataStore]);
+
+  // Load full case data from DB
+  const loadCaseData = useCallback(async (caseId: string) => {
+    try {
+      const fullData = await callDataStore('getCaseFullData', undefined, caseId);
+      
+      if (fullData.case) {
+        setCurrentCase(fullData.case);
+        setCaseNumber(fullData.case.case_number);
+        setInvestigator(fullData.case.lead_investigator || '');
+      }
+      
+      // Transform DB data back to local state format
+      if (fullData.profiles) {
+        setUserProfiles(fullData.profiles.map((p: any) => ({
+          username: p.username,
+          accountAge: p.account_age,
+          totalKarma: p.total_karma,
+          postKarma: p.post_karma,
+          commentKarma: p.comment_karma,
+          activeSubreddits: p.active_subreddits || [],
+          activityPattern: p.activity_pattern || {},
+          sentimentAnalysis: p.sentiment_analysis || {},
+          postSentiments: p.post_sentiments || [],
+          commentSentiments: p.comment_sentiments || [],
+          locationIndicators: p.location_indicators || [],
+          behaviorPatterns: p.behavior_patterns || [],
+          wordCloud: p.word_cloud || [],
+          analyzedAt: p.analyzed_at,
+        })));
+      }
+      
+      if (fullData.sessions) {
+        setMonitoringSessions(fullData.sessions.map((s: any) => ({
+          searchType: s.search_type,
+          targetName: s.target_name,
+          profileData: s.profile_data,
+          activities: s.activities || [],
+          wordCloudData: s.word_cloud_data || [],
+          startedAt: s.started_at,
+          newActivityCount: s.new_activity_count,
+        })));
+      }
+      
+      if (fullData.analyses) {
+        const keyword = fullData.analyses.filter((a: any) => a.analysis_type === 'keyword');
+        const community = fullData.analyses.filter((a: any) => a.analysis_type === 'community');
+        const link = fullData.analyses.filter((a: any) => a.analysis_type === 'link');
+        
+        setKeywordAnalyses(keyword.map((k: any) => ({
+          ...k.result_data,
+          analyzedAt: k.analyzed_at,
+        })));
+        
+        setCommunityAnalyses(community.map((c: any) => ({
+          ...c.result_data,
+          analyzedAt: c.analyzed_at,
+        })));
+        
+        setLinkAnalyses(link.map((l: any) => ({
+          ...l.result_data,
+          analyzedAt: l.analyzed_at,
+        })));
+      }
+    } catch (err) {
+      console.error('Failed to load case data:', err);
+    }
+  }, [callDataStore]);
+
+  // Local state management (for in-memory tracking)
   const addUserProfile = (profile: UserProfileData) => {
     setUserProfiles(prev => {
-      // Replace if same user exists, otherwise add
       const existing = prev.findIndex(p => p.username === profile.username);
       if (existing >= 0) {
         const updated = [...prev];
@@ -141,9 +289,20 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
     });
   };
 
+  // Save to database
+  const saveUserProfileToDb = useCallback(async (profile: UserProfileData) => {
+    if (!currentCase?.id) return;
+    await callDataStore('saveUserProfile', profile, currentCase.id);
+  }, [currentCase, callDataStore]);
+
   const addMonitoringSession = (session: MonitoringData) => {
     setMonitoringSessions(prev => [...prev, session]);
   };
+
+  const saveMonitoringSessionToDb = useCallback(async (session: MonitoringData) => {
+    if (!currentCase?.id) return;
+    await callDataStore('saveMonitoringSession', session, currentCase.id);
+  }, [currentCase, callDataStore]);
 
   const addKeywordAnalysis = (analysis: KeywordAnalysisData) => {
     setKeywordAnalyses(prev => {
@@ -157,6 +316,16 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
     });
   };
 
+  const saveKeywordAnalysisToDb = useCallback(async (analysis: KeywordAnalysisData) => {
+    if (!currentCase?.id) return;
+    await callDataStore('saveAnalysis', {
+      analysisType: 'keyword',
+      target: analysis.keyword,
+      resultData: analysis,
+      sentimentData: analysis.sentimentChartData,
+    }, currentCase.id);
+  }, [currentCase, callDataStore]);
+
   const addCommunityAnalysis = (analysis: CommunityAnalysisData) => {
     setCommunityAnalyses(prev => {
       const existing = prev.findIndex(a => a.name === analysis.name);
@@ -169,6 +338,16 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
     });
   };
 
+  const saveCommunityAnalysisToDb = useCallback(async (analysis: CommunityAnalysisData) => {
+    if (!currentCase?.id) return;
+    await callDataStore('saveAnalysis', {
+      analysisType: 'community',
+      target: analysis.name,
+      resultData: analysis,
+      sentimentData: analysis.sentimentChartData,
+    }, currentCase.id);
+  }, [currentCase, callDataStore]);
+
   const addLinkAnalysis = (analysis: LinkAnalysisData) => {
     setLinkAnalyses(prev => {
       const existing = prev.findIndex(a => a.primaryUser === analysis.primaryUser);
@@ -180,6 +359,15 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
       return [...prev, { ...analysis, analyzedAt: new Date().toISOString() }];
     });
   };
+
+  const saveLinkAnalysisToDb = useCallback(async (analysis: LinkAnalysisData) => {
+    if (!currentCase?.id) return;
+    await callDataStore('saveAnalysis', {
+      analysisType: 'link',
+      target: analysis.primaryUser,
+      resultData: analysis,
+    }, currentCase.id);
+  }, [currentCase, callDataStore]);
 
   const clearUserProfiles = () => setUserProfiles([]);
   const clearMonitoringSessions = () => setMonitoringSessions([]);
@@ -213,6 +401,7 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
   };
 
   const clearAllData = () => {
+    setCurrentCase(null);
     setUserProfiles([]);
     setMonitoringSessions([]);
     setKeywordAnalyses([]);
@@ -222,28 +411,40 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
 
   return (
     <InvestigationContext.Provider value={{
+      currentCase,
+      setCurrentCase,
+      cases,
+      loadCases,
+      createCase,
+      isLoadingCases,
       caseNumber,
       setCaseNumber,
       investigator,
       setInvestigator,
       userProfiles,
       addUserProfile,
+      saveUserProfileToDb,
       clearUserProfiles,
       monitoringSessions,
       addMonitoringSession,
+      saveMonitoringSessionToDb,
       clearMonitoringSessions,
       keywordAnalyses,
       addKeywordAnalysis,
+      saveKeywordAnalysisToDb,
       clearKeywordAnalyses,
       communityAnalyses,
       addCommunityAnalysis,
+      saveCommunityAnalysisToDb,
       clearCommunityAnalyses,
       linkAnalyses,
       addLinkAnalysis,
+      saveLinkAnalysisToDb,
       clearLinkAnalyses,
       getTotalUsersAnalyzed,
       getTotalPostsReviewed,
       getTotalCommunitiesAnalyzed,
+      loadCaseData,
       clearAllData,
     }}>
       {children}

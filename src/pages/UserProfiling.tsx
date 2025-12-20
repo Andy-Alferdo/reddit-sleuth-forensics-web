@@ -18,7 +18,7 @@ const UserProfiling = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { addUserProfile } = useInvestigation();
+  const { addUserProfile, saveUserProfileToDb, currentCase } = useInvestigation();
 
   // Sample data for visualizations
   const userWordCloud = [
@@ -182,7 +182,7 @@ const UserProfiling = () => {
       setProfileData(profileResult);
       
       // Save to investigation context for report generation
-      addUserProfile({
+      const profileToSave = {
         username: cleanUsername,
         accountAge,
         totalKarma: profileResult.totalKarma,
@@ -196,7 +196,18 @@ const UserProfiling = () => {
         locationIndicators: profileResult.locationIndicators,
         behaviorPatterns: profileResult.behaviorPatterns,
         wordCloud: profileResult.wordCloud,
-      });
+      };
+      
+      addUserProfile(profileToSave);
+      
+      // Also save to database if there's an active case
+      if (currentCase?.id) {
+        try {
+          await saveUserProfileToDb(profileToSave);
+        } catch (dbErr) {
+          console.error('Failed to save profile to database:', dbErr);
+        }
+      }
 
       toast({
         title: "Analysis Complete",

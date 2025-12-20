@@ -14,6 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
+      analysis_results: {
+        Row: {
+          analysis_type: string
+          analyzed_at: string | null
+          case_id: string | null
+          id: string
+          result_data: Json | null
+          sentiment_data: Json | null
+          target: string
+        }
+        Insert: {
+          analysis_type: string
+          analyzed_at?: string | null
+          case_id?: string | null
+          id?: string
+          result_data?: Json | null
+          sentiment_data?: Json | null
+          target: string
+        }
+        Update: {
+          analysis_type?: string
+          analyzed_at?: string | null
+          case_id?: string | null
+          id?: string
+          result_data?: Json | null
+          sentiment_data?: Json | null
+          target?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_results_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "investigation_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investigation_cases: {
+        Row: {
+          case_name: string
+          case_number: string
+          created_at: string | null
+          created_by: string | null
+          department: string | null
+          description: string | null
+          id: string
+          lead_investigator: string | null
+          priority: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          case_name: string
+          case_number: string
+          created_at?: string | null
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          id?: string
+          lead_investigator?: string | null
+          priority?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          case_name?: string
+          case_number?: string
+          created_at?: string | null
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          id?: string
+          lead_investigator?: string | null
+          priority?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investigation_cases_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investigation_reports: {
+        Row: {
+          case_id: string | null
+          export_format: string | null
+          generated_at: string | null
+          generated_by: string | null
+          id: string
+          report_data: Json | null
+          report_type: string
+          selected_modules: Json | null
+        }
+        Insert: {
+          case_id?: string | null
+          export_format?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          report_data?: Json | null
+          report_type: string
+          selected_modules?: Json | null
+        }
+        Update: {
+          case_id?: string | null
+          export_format?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          report_data?: Json | null
+          report_type?: string
+          selected_modules?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investigation_reports_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "investigation_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investigation_reports_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monitoring_sessions: {
+        Row: {
+          activities: Json | null
+          case_id: string | null
+          ended_at: string | null
+          id: string
+          new_activity_count: number | null
+          profile_data: Json | null
+          search_type: string
+          started_at: string | null
+          target_name: string
+          word_cloud_data: Json | null
+        }
+        Insert: {
+          activities?: Json | null
+          case_id?: string | null
+          ended_at?: string | null
+          id?: string
+          new_activity_count?: number | null
+          profile_data?: Json | null
+          search_type: string
+          started_at?: string | null
+          target_name: string
+          word_cloud_data?: Json | null
+        }
+        Update: {
+          activities?: Json | null
+          case_id?: string | null
+          ended_at?: string | null
+          id?: string
+          new_activity_count?: number | null
+          profile_data?: Json | null
+          search_type?: string
+          started_at?: string | null
+          target_name?: string
+          word_cloud_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoring_sessions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "investigation_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -37,6 +220,192 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      reddit_comments: {
+        Row: {
+          author: string | null
+          body: string | null
+          case_id: string | null
+          collected_at: string | null
+          comment_id: string | null
+          created_utc: string | null
+          id: string
+          link_title: string | null
+          metadata: Json | null
+          permalink: string | null
+          score: number | null
+          sentiment: string | null
+          sentiment_explanation: string | null
+          subreddit: string | null
+        }
+        Insert: {
+          author?: string | null
+          body?: string | null
+          case_id?: string | null
+          collected_at?: string | null
+          comment_id?: string | null
+          created_utc?: string | null
+          id?: string
+          link_title?: string | null
+          metadata?: Json | null
+          permalink?: string | null
+          score?: number | null
+          sentiment?: string | null
+          sentiment_explanation?: string | null
+          subreddit?: string | null
+        }
+        Update: {
+          author?: string | null
+          body?: string | null
+          case_id?: string | null
+          collected_at?: string | null
+          comment_id?: string | null
+          created_utc?: string | null
+          id?: string
+          link_title?: string | null
+          metadata?: Json | null
+          permalink?: string | null
+          score?: number | null
+          sentiment?: string | null
+          sentiment_explanation?: string | null
+          subreddit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reddit_comments_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "investigation_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reddit_posts: {
+        Row: {
+          author: string | null
+          case_id: string | null
+          collected_at: string | null
+          content: string | null
+          created_utc: string | null
+          id: string
+          metadata: Json | null
+          num_comments: number | null
+          permalink: string | null
+          post_id: string | null
+          score: number | null
+          sentiment: string | null
+          sentiment_explanation: string | null
+          subreddit: string | null
+          title: string | null
+        }
+        Insert: {
+          author?: string | null
+          case_id?: string | null
+          collected_at?: string | null
+          content?: string | null
+          created_utc?: string | null
+          id?: string
+          metadata?: Json | null
+          num_comments?: number | null
+          permalink?: string | null
+          post_id?: string | null
+          score?: number | null
+          sentiment?: string | null
+          sentiment_explanation?: string | null
+          subreddit?: string | null
+          title?: string | null
+        }
+        Update: {
+          author?: string | null
+          case_id?: string | null
+          collected_at?: string | null
+          content?: string | null
+          created_utc?: string | null
+          id?: string
+          metadata?: Json | null
+          num_comments?: number | null
+          permalink?: string | null
+          post_id?: string | null
+          score?: number | null
+          sentiment?: string | null
+          sentiment_explanation?: string | null
+          subreddit?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reddit_posts_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "investigation_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_profiles_analyzed: {
+        Row: {
+          account_age: string | null
+          active_subreddits: Json | null
+          activity_pattern: Json | null
+          analyzed_at: string | null
+          behavior_patterns: Json | null
+          case_id: string | null
+          comment_karma: number | null
+          comment_sentiments: Json | null
+          id: string
+          location_indicators: Json | null
+          post_karma: number | null
+          post_sentiments: Json | null
+          sentiment_analysis: Json | null
+          total_karma: number | null
+          username: string
+          word_cloud: Json | null
+        }
+        Insert: {
+          account_age?: string | null
+          active_subreddits?: Json | null
+          activity_pattern?: Json | null
+          analyzed_at?: string | null
+          behavior_patterns?: Json | null
+          case_id?: string | null
+          comment_karma?: number | null
+          comment_sentiments?: Json | null
+          id?: string
+          location_indicators?: Json | null
+          post_karma?: number | null
+          post_sentiments?: Json | null
+          sentiment_analysis?: Json | null
+          total_karma?: number | null
+          username: string
+          word_cloud?: Json | null
+        }
+        Update: {
+          account_age?: string | null
+          active_subreddits?: Json | null
+          activity_pattern?: Json | null
+          analyzed_at?: string | null
+          behavior_patterns?: Json | null
+          case_id?: string | null
+          comment_karma?: number | null
+          comment_sentiments?: Json | null
+          id?: string
+          location_indicators?: Json | null
+          post_karma?: number | null
+          post_sentiments?: Json | null
+          sentiment_analysis?: Json | null
+          total_karma?: number | null
+          username?: string
+          word_cloud?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_analyzed_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "investigation_cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
