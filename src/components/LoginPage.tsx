@@ -112,145 +112,147 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
       <MovingBackground />
       
       <div className="relative z-10 w-full max-w-sm p-6">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <img 
-            src={logo} 
-            alt="Intel Reddit Logo" 
-            className="w-24 h-24 animate-glow-pulse"
-          />
-        </div>
-
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          {/* Email Input */}
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-              className="pl-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full backdrop-blur-sm"
+        <div className="backdrop-blur-sm bg-card/90 border border-primary/20 shadow-2xl rounded-2xl p-8">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <img 
+              src={logo} 
+              alt="Intel Reddit Logo" 
+              className="w-20 h-20 animate-glow-pulse"
             />
           </div>
-          
-          {/* Password Input */}
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={isLoading}
-              className="pl-12 pr-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full backdrop-blur-sm"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
-          </div>
 
-          {/* Remember Me & Forgot Password */}
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="remember"
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                className="border-primary/50 data-[state=checked]:bg-primary"
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            {/* Email Input */}
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isLoading}
+                className="pl-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full"
               />
-              <label htmlFor="remember" className="text-muted-foreground cursor-pointer">
-                Remember me
-              </label>
             </div>
             
-            <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-              <DialogTrigger asChild>
-                <button type="button" className="text-primary hover:text-primary/80 transition-colors">
-                  Forgot Password?
-                </button>
-              </DialogTrigger>
-              <DialogContent className="bg-card z-50">
-                <DialogHeader>
-                  <DialogTitle>Reset Your Password</DialogTitle>
-                  <DialogDescription>
-                    Enter your email address and we'll send you a secure reset link.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleForgotPassword} className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-email">Email Address</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="reset-email"
-                        type="email"
-                        placeholder="your.email@example.com"
-                        value={resetEmail}
-                        onChange={(e) => setResetEmail(e.target.value)}
-                        className="pl-10"
-                        disabled={isResetLoading}
-                      />
-                    </div>
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isResetLoading}
-                  >
-                    {isResetLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4 mr-2" />
-                        Send Reset Link
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-          
-          {/* Sign In Button - Gradient Style */}
-          <Button 
-            type="submit" 
-            className="w-full h-12 mt-6 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-400 text-white font-semibold shadow-lg shadow-blue-500/25 transition-all duration-300"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Signing In...
-              </>
-            ) : (
-              'Sign In'
-            )}
-          </Button>
-        </form>
+            {/* Password Input */}
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isLoading}
+                className="pl-12 pr-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
 
-        {/* Register Link */}
-        <p className="text-center mt-6 text-sm text-muted-foreground">
-          Don't have an account?{' '}
-          <button
-            type="button"
-            onClick={() => navigate('/register')}
-            className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 font-semibold hover:from-cyan-300 hover:to-purple-300 transition-all"
-          >
-            Register Now
-          </button>
-        </p>
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  className="border-primary/50 data-[state=checked]:bg-primary"
+                />
+                <label htmlFor="remember" className="text-muted-foreground cursor-pointer">
+                  Remember me
+                </label>
+              </div>
+              
+              <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                <DialogTrigger asChild>
+                  <button type="button" className="text-primary hover:text-primary/80 transition-colors">
+                    Forgot Password?
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="bg-card z-50">
+                  <DialogHeader>
+                    <DialogTitle>Reset Your Password</DialogTitle>
+                    <DialogDescription>
+                      Enter your email address and we'll send you a secure reset link.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleForgotPassword} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email">Email Address</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="reset-email"
+                          type="email"
+                          placeholder="your.email@example.com"
+                          value={resetEmail}
+                          onChange={(e) => setResetEmail(e.target.value)}
+                          className="pl-10"
+                          disabled={isResetLoading}
+                        />
+                      </div>
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isResetLoading}
+                    >
+                      {isResetLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Send Reset Link
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            
+            {/* Sign In Button - Gradient Style */}
+            <Button 
+              type="submit" 
+              className="w-full h-12 mt-6 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-400 text-white font-semibold shadow-lg shadow-blue-500/25 transition-all duration-300"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+          </form>
+
+          {/* Register Link */}
+          <p className="text-center mt-6 text-sm text-muted-foreground">
+            Don't have an account?{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 font-semibold hover:from-cyan-300 hover:to-purple-300 transition-all"
+            >
+              Register Now
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
