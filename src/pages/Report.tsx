@@ -86,6 +86,10 @@ const Report = () => {
     setIsGenerating(true);
     
     try {
+      // For customized reports, only include selected modules
+      // For automated reports, include everything
+      const isAutomated = reportType === 'automated';
+      
       const options = {
         reportType,
         exportFormat,
@@ -100,11 +104,11 @@ const Report = () => {
           findings: reportData.findings,
           conclusions: reportData.conclusions,
         },
-        userProfiles: reportType === 'automated' || selectedModules.userProfiling ? userProfiles : [],
-        monitoringSessions: reportType === 'automated' || selectedModules.monitoring ? monitoringSessions : [],
-        keywordAnalyses: reportType === 'automated' || selectedModules.keywordTrends ? keywordAnalyses : [],
-        communityAnalyses: reportType === 'automated' || selectedModules.communityAnalysis ? communityAnalyses : [],
-        linkAnalyses: reportType === 'automated' || selectedModules.linkAnalysis ? linkAnalyses : [],
+        userProfiles: isAutomated ? userProfiles : (selectedModules.userProfiling ? userProfiles : []),
+        monitoringSessions: isAutomated ? monitoringSessions : (selectedModules.monitoring ? monitoringSessions : []),
+        keywordAnalyses: isAutomated ? keywordAnalyses : (selectedModules.keywordTrends ? keywordAnalyses : []),
+        communityAnalyses: isAutomated ? communityAnalyses : (selectedModules.communityAnalysis ? communityAnalyses : []),
+        linkAnalyses: isAutomated ? linkAnalyses : (selectedModules.linkAnalysis ? linkAnalyses : []),
       };
 
       if (exportFormat === 'pdf') {
