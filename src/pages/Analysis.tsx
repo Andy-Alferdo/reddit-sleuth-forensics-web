@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
+import { UserCommunityNetworkGraph } from '@/components/UserCommunityNetworkGraph';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatActivityTime } from '@/lib/dateUtils';
@@ -1063,6 +1064,43 @@ const Analysis = () => {
                   height={300}
                 />
               )}
+
+              {/* Beautiful Network Graph Visualization */}
+              <UserCommunityNetworkGraph
+                title="User to Community Network Graph"
+                primaryUserId="user1"
+                nodes={[
+                  { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' },
+                  ...linkData.userToCommunities.slice(0, 6).map((item: any, index: number) => ({
+                    id: `community-${index}`,
+                    label: item.community,
+                    type: 'community' as const
+                  })),
+                  ...linkData.communityCrossover.slice(0, 3).map((item: any, index: number) => ({
+                    id: `interest-${index}`,
+                    label: `${item.strength}% overlap`,
+                    type: 'interest' as const
+                  }))
+                ]}
+                links={[
+                  ...linkData.userToCommunities.slice(0, 6).map((item: any, index: number) => ({
+                    source: 'user1',
+                    target: `community-${index}`,
+                    weight: Math.min(4, Math.ceil(item.totalActivity / 10))
+                  })),
+                  ...linkData.communityCrossover.slice(0, 3).flatMap((item: any, index: number) => {
+                    const fromIdx = linkData.userToCommunities.findIndex((c: any) => c.community === item.from);
+                    const toIdx = linkData.userToCommunities.findIndex((c: any) => c.community === item.to);
+                    if (fromIdx !== -1 && toIdx !== -1) {
+                      return [
+                        { source: `community-${fromIdx}`, target: `interest-${index}`, weight: 2 },
+                        { source: `interest-${index}`, target: `community-${toIdx}`, weight: 2 }
+                      ];
+                    }
+                    return [];
+                  })
+                ]}
+              />
             </div>
           )}
 
