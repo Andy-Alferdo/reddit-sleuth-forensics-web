@@ -1,6 +1,6 @@
 # Reddit Sleuth - Infrastructure Setup Guide
 
-This document provides detailed information on the Supabase infrastructure and features implemented in the Reddit Sleuth application.
+This document provides detailed information on the backend infrastructure and features implemented in the Reddit Sleuth application.
 
 ## Table of Contents
 1. [Overview](#overview)
@@ -9,7 +9,8 @@ This document provides detailed information on the Supabase infrastructure and f
 4. [Reddit API Configuration](#reddit-api-configuration)
 5. [Lovable AI Integration](#lovable-ai-integration)
 6. [Database Schema](#database-schema)
-7. [Deployment](#deployment)
+7. [Report Generation](#report-generation)
+8. [Deployment](#deployment)
 
 ---
 
@@ -20,41 +21,59 @@ Reddit Sleuth uses **Lovable Cloud** (powered by Supabase) to provide backend fu
 - AI-powered content analysis using Lovable AI
 - Secure secrets management
 - Serverless architecture that auto-scales
+- Community relationship detection
 
 ---
 
 ## Edge Functions
 
-The application uses two serverless edge functions that run on Supabase/Lovable Cloud:
+The application uses three serverless edge functions:
 
 ### 1. Reddit Scraper (`reddit-scraper`)
 
 **Location**: `supabase/functions/reddit-scraper/index.ts`
 
-**Purpose**: Authenticates with Reddit API and fetches user/community data
+**Purpose**: Authenticates with Reddit API and fetches user/community data including related communities
 
 **Features**:
 - OAuth2 client credentials authentication
 - Fetches user profiles, posts, and comments
 - Fetches subreddit information and posts
+- **NEW**: Fetches community relations (related subreddits from widgets)
+- Keyword search across Reddit
 - Error handling for non-existent users/communities
 - CORS enabled for web app access
 
 **API Endpoint**:
 ```
-POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/reddit-scraper
+POST https://<your-project>.supabase.co/functions/v1/reddit-scraper
 ```
 
-**Request Body**:
+**Request Body (User)**:
 ```json
 {
-  "username": "string",      // For user profiling
-  "type": "user|community",  // Type of scraping
-  "subreddit": "string"      // For community analysis
+  "username": "string",
+  "type": "user"
 }
 ```
 
-**Response** (User):
+**Request Body (Community)**:
+```json
+{
+  "type": "community",
+  "subreddit": "string"
+}
+```
+
+**Request Body (Search)**:
+```json
+{
+  "type": "search",
+  "keyword": "string"
+}
+```
+
+**Response (User)**:
 ```json
 {
   "user": {
@@ -62,23 +81,30 @@ POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/reddit-scraper
     "created_utc": "number",
     "link_karma": "number",
     "comment_karma": "number"
-    // ... other Reddit user fields
   },
   "posts": [...],
-  "comments": [...]
+  "comments": [...],
+  "communityRelations": [
+    {
+      "subreddit": "technology",
+      "relatedTo": ["programming", "science", "gadgets"]
+    }
+  ]
 }
 ```
 
-**Response** (Community):
+**Response (Community)**:
 ```json
 {
   "subreddit": {
     "display_name": "string",
     "subscribers": "number",
-    "public_description": "string"
-    // ... other subreddit fields
+    "public_description": "string",
+    "accounts_active": "number"
   },
-  "posts": [...]
+  "posts": [...],
+  "weeklyVisitors": "number",
+  "activeUsers": "number"
 }
 ```
 
@@ -95,14 +121,16 @@ POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/reddit-scraper
 **Purpose**: Analyzes Reddit posts and comments using AI to extract sentiment, locations, and behavior patterns
 
 **Features**:
-- Sentiment analysis (positive, negative, neutral)
-- Location detection from text
+- Individual sentiment analysis for each post/comment
+- Explainable AI (XAI) - provides reasoning for each sentiment
+- Location detection from text (cities, states, countries, landmarks)
 - Behavior pattern identification
+- Topic interest detection
 - Powered by Google Gemini 2.5 Flash via Lovable AI
 
 **API Endpoint**:
 ```
-POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/analyze-content
+POST https://<your-project>.supabase.co/functions/v1/analyze-content
 ```
 
 **Request Body**:
@@ -111,12 +139,14 @@ POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/analyze-content
   "posts": [
     {
       "title": "string",
-      "selftext": "string"
+      "selftext": "string",
+      "subreddit": "string"
     }
   ],
   "comments": [
     {
-      "body": "string"
+      "body": "string",
+      "subreddit": "string"
     }
   ]
 }
@@ -125,20 +155,45 @@ POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/analyze-content
 **Response**:
 ```json
 {
+  "postSentiments": [
+    {
+      "text": "First 100 chars of post...",
+      "sentiment": "positive|negative|neutral",
+      "explanation": "XAI reason for this classification"
+    }
+  ],
+  "commentSentiments": [
+    {
+      "text": "First 100 chars of comment...",
+      "sentiment": "positive|negative|neutral",
+      "explanation": "XAI reason for this classification"
+    }
+  ],
   "sentiment": {
-    "overall": "positive|negative|neutral",
-    "score": 0.75,
-    "breakdown": {
+    "postBreakdown": {
       "positive": 0.6,
       "neutral": 0.3,
       "negative": 0.1
+    },
+    "commentBreakdown": {
+      "positive": 0.5,
+      "neutral": 0.35,
+      "negative": 0.15
     }
   },
-  "locations": ["New York", "San Francisco"],
-  "behaviorPatterns": [
-    "Active in technology discussions",
-    "Frequently posts about coding"
-  ]
+  "locations": ["New York", "San Francisco", "California"],
+  "patterns": {
+    "topicInterests": ["technology", "programming", "gaming"]
+  },
+  "topSubreddits": [
+    { "name": "technology", "count": 15 },
+    { "name": "programming", "count": 10 }
+  ],
+  "stats": {
+    "totalPosts": 50,
+    "totalComments": 100,
+    "totalActivity": 150
+  }
 }
 ```
 
@@ -147,37 +202,31 @@ POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/analyze-content
 
 ---
 
+### 3. Data Store (`data-store`)
+
+**Location**: `supabase/functions/data-store/index.ts`
+
+**Purpose**: Persists analysis results and investigation data to the database
+
+---
+
 ## Secrets Management
 
-All sensitive credentials are stored securely in Supabase Secrets and injected as environment variables at runtime.
+All sensitive credentials are stored securely in Supabase Secrets.
 
 ### Current Secrets
 
-1. **REDDIT_CLIENT_ID**
-   - Purpose: Reddit OAuth2 app client ID
-   - Used by: `reddit-scraper` edge function
-   - How to obtain: Reddit app settings at https://www.reddit.com/prefs/apps
-
-2. **REDDIT_CLIENT_SECRET**
-   - Purpose: Reddit OAuth2 app client secret
-   - Used by: `reddit-scraper` edge function
-   - How to obtain: Reddit app settings at https://www.reddit.com/prefs/apps
-
-3. **LOVABLE_API_KEY**
-   - Purpose: Authentication for Lovable AI gateway
-   - Used by: `analyze-content` edge function
-   - Auto-provided: Yes (managed by Lovable Cloud)
-
-4. **SUPABASE_URL**
-   - Auto-managed by Lovable Cloud
-
-5. **SUPABASE_ANON_KEY**
-   - Auto-managed by Lovable Cloud
+| Secret | Purpose | Used By | How to Obtain |
+|--------|---------|---------|---------------|
+| `REDDIT_CLIENT_ID` | Reddit OAuth2 app client ID | `reddit-scraper` | https://www.reddit.com/prefs/apps |
+| `REDDIT_CLIENT_SECRET` | Reddit OAuth2 app client secret | `reddit-scraper` | https://www.reddit.com/prefs/apps |
+| `LOVABLE_API_KEY` | Authentication for Lovable AI | `analyze-content` | Auto-provided |
+| `SUPABASE_URL` | Database URL | All functions | Auto-managed |
+| `SUPABASE_ANON_KEY` | Database anon key | All functions | Auto-managed |
 
 ### How to Update Secrets
 
 **Option 1: Through Lovable Interface**
-- Secrets are managed through the Lovable Cloud backend interface
 - Access via: Settings → Backend → Secrets
 
 **Option 2: Via Supabase CLI** (if connected to custom Supabase)
@@ -196,7 +245,7 @@ supabase secrets set REDDIT_CLIENT_SECRET=your_client_secret
    - Go to https://www.reddit.com/prefs/apps
    - Click "Create App" or "Create Another App"
    - Fill in the details:
-     - **Name**: Reddit Sleuth (or your preferred name)
+     - **Name**: Reddit Sleuth
      - **App Type**: Select **"script"**
      - **Description**: Intelligence analysis tool for Reddit
      - **About URL**: (leave blank or add your site)
@@ -204,12 +253,8 @@ supabase secrets set REDDIT_CLIENT_SECRET=your_client_secret
    - Click "Create app"
 
 2. **Retrieve Credentials**:
-   - **Client ID**: The string under the app name (starts with random characters)
+   - **Client ID**: The string under the app name
    - **Client Secret**: The "secret" field
-
-3. **Configure in Lovable Cloud**:
-   - Update the `REDDIT_CLIENT_ID` secret with your client ID
-   - Update the `REDDIT_CLIENT_SECRET` secret with your client secret
 
 ### Authentication Flow
 
@@ -218,6 +263,12 @@ The application uses the **Client Credentials** OAuth2 flow:
 - Direct server-to-server authentication
 - Access to public Reddit data only
 - Token automatically refreshed by edge function
+
+### Rate Limits
+
+- 60 requests per minute
+- 600 requests per 10 minutes
+- Implement exponential backoff for 429 errors
 
 ---
 
@@ -233,22 +284,25 @@ Lovable AI is a gateway service that provides access to Google Gemini and OpenAI
 - Balanced performance and cost
 - Good at multimodal tasks (text analysis)
 - Fast response times
+- Supports JSON output format
 
 **Features Powered by AI**:
+
 1. **Sentiment Analysis**
-   - Analyzes emotional tone of posts/comments
-   - Provides overall sentiment + breakdown
-   - Confidence scores included
+   - Analyzes emotional tone of posts/comments individually
+   - Provides overall sentiment breakdown
+   - Includes XAI explanations for each classification
 
 2. **Location Detection**
    - Extracts mentioned locations from text
-   - Identifies cities, states, countries
+   - Identifies cities, states, countries, landmarks
+   - Detects timezone and regional references
    - Deduplicates and validates locations
 
 3. **Behavior Pattern Analysis**
-   - Identifies posting patterns
-   - Detects topic interests
+   - Identifies topic interests
    - Recognizes communication style
+   - Detects posting patterns
 
 ### API Endpoint
 
@@ -273,45 +327,107 @@ https://ai.gateway.lovable.dev/v1/chat/completions
 
 ## Database Schema
 
-### Current Tables
+### Tables Overview
 
-The application uses the following Supabase tables:
+| Table | Purpose |
+|-------|---------|
+| `profiles` | User profiles linked to auth |
+| `user_roles` | User role assignments |
+| `investigation_cases` | Investigation case management |
+| `reddit_posts` | Stored Reddit posts |
+| `reddit_comments` | Stored Reddit comments |
+| `user_profiles_analyzed` | Analyzed user profiles |
+| `analysis_results` | Analysis results storage |
+| `monitoring_sessions` | Real-time monitoring sessions |
+| `investigation_reports` | Generated reports |
 
-#### 1. **profiles**
+### Key Tables
+
+#### investigation_cases
 ```sql
-CREATE TABLE public.profiles (
-  id UUID REFERENCES auth.users PRIMARY KEY,
-  email TEXT,
-  full_name TEXT,
+CREATE TABLE public.investigation_cases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_number TEXT NOT NULL UNIQUE,
+  case_name TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'active',
+  priority TEXT DEFAULT 'medium',
+  department TEXT,
+  lead_investigator TEXT,
+  created_by UUID REFERENCES public.profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
-#### 2. **user_roles**
+#### user_profiles_analyzed
 ```sql
-CREATE TYPE app_role AS ENUM ('user', 'admin');
-
-CREATE TABLE public.user_roles (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users,
-  role app_role NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE public.user_profiles_analyzed (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id UUID REFERENCES investigation_cases(id),
+  username TEXT NOT NULL,
+  account_age TEXT,
+  total_karma INTEGER,
+  post_karma INTEGER,
+  comment_karma INTEGER,
+  active_subreddits JSONB,
+  activity_pattern JSONB,
+  sentiment_analysis JSONB,
+  post_sentiments JSONB,
+  comment_sentiments JSONB,
+  location_indicators JSONB,
+  behavior_patterns JSONB,
+  word_cloud JSONB,
+  analyzed_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
 ### Row Level Security (RLS)
 
-RLS policies ensure users can only access their own data:
+All tables have RLS enabled with policies for:
+- Users can view their own data
+- Users can CRUD their own investigation data
+- Admins can view all data
 
-**profiles table**:
-- Users can view their own profile
-- Users can update their own profile
-- Admins can view all profiles
+---
 
-**user_roles table**:
-- Only accessible by authenticated users
-- Admins can manage all roles
+## Report Generation
+
+### Supported Formats
+
+- **PDF**: Full-featured reports with charts and network graphs
+- **HTML**: Web-viewable reports with styling
+
+### Report Sections
+
+1. **Cover Page**
+2. **Executive Summary**
+3. **User Profiling Analysis**
+   - Sentiment breakdown charts
+   - Activity patterns
+   - Word cloud
+4. **Community Analysis**
+   - Subreddit statistics
+   - Member analysis
+5. **Link Analysis** (NEW)
+   - Network graph visualization
+   - Community crossover connections
+   - Relationship strength indicators
+6. **Monitoring Data**
+   - Activity timeline
+   - Alert history
+
+### Network Graph in Reports
+
+The Link Analysis section includes:
+- Visual network graph showing community connections
+- Nodes represent subreddits
+- Edges represent relationships (sidebar links, co-activity)
+- Community crossover table with:
+  - Source community
+  - Related communities
+  - Relationship type
+  - Connection strength
 
 ---
 
@@ -322,18 +438,17 @@ RLS policies ensure users can only access their own data:
 **File**: `supabase/config.toml`
 
 ```toml
-project_id = "djcdnudwnyhajnzwykoq"
+project_id = "your-project-id"
 
 [functions.reddit-scraper]
 verify_jwt = false
 
 [functions.analyze-content]
 verify_jwt = false
-```
 
-**Key Settings**:
-- `verify_jwt = false`: Makes functions publicly accessible (no auth required)
-- Enables CORS for web app integration
+[functions.data-store]
+verify_jwt = false
+```
 
 ### Automatic Deployment
 
@@ -342,23 +457,12 @@ Edge functions are **automatically deployed** when you:
 2. Save/commit changes in Lovable
 3. Lovable Cloud handles deployment
 
-**No manual deployment steps required!**
-
 ### Monitoring
 
 **View Edge Function Logs**:
 1. Access Lovable Cloud backend
 2. Navigate to Edge Functions section
 3. Select function to view logs
-4. Monitor errors, performance, invocations
-
-**Common Log Patterns**:
-```
-Reddit scraper called for: username, type: user
-Reddit token obtained successfully
-Fetched X posts
-Fetched X comments
-```
 
 ---
 
@@ -369,7 +473,7 @@ Fetched X comments
 ```typescript
 import { supabase } from "@/integrations/supabase/client";
 
-// Reddit scraper
+// Reddit scraper - User
 const { data, error } = await supabase.functions.invoke('reddit-scraper', {
   body: { 
     username: 'someuser',
@@ -377,13 +481,24 @@ const { data, error } = await supabase.functions.invoke('reddit-scraper', {
   }
 });
 
+// Reddit scraper - Community
+const { data: communityData } = await supabase.functions.invoke('reddit-scraper', {
+  body: { 
+    subreddit: 'technology',
+    type: 'community'
+  }
+});
+
 // Content analyzer
-const { data: analysis, error: analysisError } = await supabase.functions.invoke('analyze-content', {
+const { data: analysis } = await supabase.functions.invoke('analyze-content', {
   body: {
     posts: userData.posts,
     comments: userData.comments
   }
 });
+
+// Access community relations (from user data)
+const communityRelations = data.communityRelations;
 ```
 
 ### Error Handling
@@ -391,9 +506,11 @@ const { data: analysis, error: analysisError } = await supabase.functions.invoke
 ```typescript
 if (error) {
   if (error.message.includes('not_found')) {
-    // User/community not found
+    toast.error('User/community not found');
+  } else if (error.message.includes('rate_limit')) {
+    toast.error('Rate limit exceeded. Please wait.');
   } else {
-    // Other errors
+    toast.error('An error occurred');
   }
 }
 ```
@@ -405,18 +522,24 @@ if (error) {
 ### Test Reddit Scraper
 
 ```bash
-curl -X POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/reddit-scraper \
+# User lookup
+curl -X POST https://<your-project>.supabase.co/functions/v1/reddit-scraper \
   -H "Content-Type: application/json" \
   -d '{"username": "spez", "type": "user"}'
+
+# Community lookup
+curl -X POST https://<your-project>.supabase.co/functions/v1/reddit-scraper \
+  -H "Content-Type: application/json" \
+  -d '{"subreddit": "technology", "type": "community"}'
 ```
 
 ### Test Content Analyzer
 
 ```bash
-curl -X POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/analyze-content \
+curl -X POST https://<your-project>.supabase.co/functions/v1/analyze-content \
   -H "Content-Type: application/json" \
   -d '{
-    "posts": [{"title": "Hello", "selftext": "This is a test"}],
+    "posts": [{"title": "Hello World", "selftext": "This is a test post"}],
     "comments": [{"body": "Great post!"}]
   }'
 ```
@@ -427,57 +550,36 @@ curl -X POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/analyze-conte
 
 ### Reddit API Issues
 
-**Error**: "Failed to authenticate with Reddit API"
-- **Cause**: Invalid or missing Reddit credentials
-- **Solution**: Verify `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` are set correctly
-
-**Error**: "User not found"
-- **Cause**: Username doesn't exist on Reddit
-- **Solution**: Verify username spelling (case-sensitive)
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Failed to authenticate" | Invalid credentials | Verify REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET |
+| "User not found" | Username doesn't exist | Verify spelling (case-sensitive) |
+| 429 Rate Limited | Too many requests | Implement backoff, wait 60s |
 
 ### AI Analysis Issues
 
-**Error**: Rate limit (429)
-- **Cause**: Too many AI requests
-- **Solution**: Add delays between requests or upgrade plan
+| Error | Cause | Solution |
+|-------|-------|----------|
+| 429 Rate Limit | Too many AI requests | Add delays, reduce batch size |
+| 402 Payment Required | Insufficient credits | Add credits in Settings |
+| Parse Error | Invalid JSON response | Check AI prompt formatting |
 
-**Error**: Payment required (402)
-- **Cause**: Insufficient Lovable AI credits
-- **Solution**: Add credits in Settings → Workspace → Usage
+### Community Relations Not Showing
 
-### Edge Function Issues
-
-**Error**: Function not found
-- **Cause**: Function not deployed or incorrect name
-- **Solution**: Check `supabase/config.toml` and redeploy
-
-**Error**: CORS error
-- **Cause**: Missing CORS headers
-- **Solution**: Verify corsHeaders are included in function response
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Empty communityRelations | Subreddit has no widgets | This is normal for some subreddits |
+| Only some relations found | Not all subreddits have related communities | Expected behavior |
 
 ---
 
 ## Security Best Practices
 
-1. **Never commit secrets to code**
-   - Always use Supabase Secrets
-   - Keep `.env` in `.gitignore`
-
-2. **Use RLS policies**
-   - Protect sensitive data
-   - Limit user access appropriately
-
-3. **Validate input**
-   - Sanitize user input in edge functions
-   - Prevent injection attacks
-
-4. **Monitor logs**
-   - Regularly check edge function logs
-   - Watch for unusual patterns
-
-5. **Rate limiting**
-   - Implement client-side rate limiting
-   - Prevent abuse of edge functions
+1. **Never commit secrets to code** - Use Supabase Secrets
+2. **Use RLS policies** - Protect sensitive data
+3. **Validate input** - Sanitize user input in edge functions
+4. **Monitor logs** - Check for unusual patterns
+5. **Rate limiting** - Implement client-side rate limiting
 
 ---
 
@@ -488,17 +590,3 @@ curl -X POST https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/analyze-conte
 - [Lovable AI Docs](https://docs.lovable.dev/features/ai)
 - [Reddit API Documentation](https://www.reddit.com/dev/api)
 - [Google Gemini Models](https://ai.google.dev/models/gemini)
-
----
-
-## Support
-
-For issues or questions:
-- **Lovable Support**: support@lovable.dev
-- **Lovable Discord**: [Join Community](https://discord.gg/lovable)
-- **Documentation**: https://docs.lovable.dev
-
----
-
-*Last Updated: 2025-10-21*
-*Project ID: djcdnudwnyhajnzwykoq*
