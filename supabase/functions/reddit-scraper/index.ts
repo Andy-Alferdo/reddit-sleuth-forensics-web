@@ -140,10 +140,62 @@ serve(async (req) => {
       const comments: RedditComment[] = commentsData.data?.children?.map((child: any) => child.data) || [];
       console.log(`Fetched ${comments.length} comments`);
 
+      // Get unique subreddits the user is active in
+      const activeSubreddits = new Set<string>();
+      posts.forEach((p: any) => activeSubreddits.add(p.subreddit));
+      comments.forEach((c: any) => activeSubreddits.add(c.subreddit));
+      
+      // Fetch related communities for top subreddits
+      const topSubreddits = Array.from(activeSubreddits).slice(0, 5);
+      const communityRelations: { subreddit: string; relatedTo: string[] }[] = [];
+      
+      for (const sub of topSubreddits) {
+        try {
+          // Fetch subreddit sidebar/widgets which may contain related subreddits
+          const widgetsResponse = await fetch(`https://oauth.reddit.com/r/${sub}/api/widgets`, {
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'User-Agent': 'IntelReddit/1.0',
+            },
+          });
+          
+          if (widgetsResponse.ok) {
+            const widgetsData = await widgetsResponse.json();
+            const relatedSubs: string[] = [];
+            
+            // Parse widgets to find community list widgets (related subreddits)
+            if (widgetsData.items) {
+              for (const key of Object.keys(widgetsData.items)) {
+                const widget = widgetsData.items[key];
+                // Community list widget contains related subreddits
+                if (widget.kind === 'community-list' && widget.data) {
+                  widget.data.forEach((item: any) => {
+                    if (item.name && item.name !== sub) {
+                      relatedSubs.push(item.name.replace(/^r\//, ''));
+                    }
+                  });
+                }
+              }
+            }
+            
+            if (relatedSubs.length > 0) {
+              communityRelations.push({
+                subreddit: sub,
+                relatedTo: relatedSubs.slice(0, 5)
+              });
+            }
+            console.log(`Found ${relatedSubs.length} related subs for r/${sub}`);
+          }
+        } catch (e) {
+          console.log(`Could not fetch widgets for r/${sub}:`, e);
+        }
+      }
+
       responseData = {
         user: userData.data,
         posts,
         comments,
+        communityRelations,
       };
 
     } else if (type === 'community') {
