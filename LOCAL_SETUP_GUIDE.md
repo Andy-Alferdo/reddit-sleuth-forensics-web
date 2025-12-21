@@ -12,10 +12,11 @@ This guide explains how to run the Reddit Sleuth project entirely on your local 
 5. [Environment Configuration](#environment-configuration)
 6. [API Keys Setup](#api-keys-setup)
 7. [Backend Options](#backend-options)
-8. [Using Custom Trained Models](#using-custom-trained-models-alternative-to-gemini-ai)
-9. [Adding Explainable AI (XAI)](#adding-explainable-ai-xai)
-10. [Running the Application](#running-the-application-locally)
-11. [Troubleshooting](#troubleshooting)
+8. [Edge Functions (Local)](#edge-functions-local)
+9. [Using Custom Trained Models](#using-custom-trained-models)
+10. [Adding Explainable AI (XAI)](#adding-explainable-ai-xai)
+11. [Running the Application](#running-the-application-locally)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -123,7 +124,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Create app_role enum
 DO $$ BEGIN
-    CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user');
+    CREATE TYPE public.app_role AS ENUM ('admin', 'user');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -347,38 +348,6 @@ WHERE email = 'admin@reddit-sleuth.local'
 ON CONFLICT (user_id, role) DO NOTHING;
 ```
 
-### Authentication Options
-
-Since `auth.users` is Supabase-specific, you have these options:
-
-**Option A: Use Supabase Local Development (Recommended)**
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Initialize and start local Supabase
-supabase init
-supabase start
-```
-This provides local Supabase Auth with all features.
-
-**Option B: Implement Custom Authentication**
-Create a simple authentication system with bcrypt:
-
-```sql
--- Add password column to profiles
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
-
--- Create session tokens table
-CREATE TABLE IF NOT EXISTS public.sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    token TEXT NOT NULL UNIQUE,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
 ---
 
 ## Environment Configuration
@@ -407,13 +376,10 @@ REDDIT_CLIENT_ID=your_reddit_client_id
 REDDIT_CLIENT_SECRET=your_reddit_client_secret
 REDDIT_USER_AGENT=RedditSleuth/1.0.0
 
-# For frontend (if needed)
-VITE_REDDIT_CLIENT_ID=your_reddit_client_id
-
 # ===========================================
-# AI/ML API KEYS (Choose one or use custom model)
+# AI/ML API KEYS
 # ===========================================
-# Google Gemini API (Direct)
+# Google Gemini API (Direct - for local development)
 GEMINI_API_KEY=your_gemini_api_key
 
 # OR OpenAI API (Alternative)
@@ -436,45 +402,6 @@ SUPABASE_SERVICE_ROLE_KEY=your_local_service_role_key
 VITE_API_URL=http://localhost:3000
 NODE_ENV=development
 PORT=3000
-```
-
-### Create Database Client
-
-If not using Supabase, create a PostgreSQL client. Install the package:
-
-```bash
-npm install pg
-```
-
-Create `src/lib/database.ts`:
-
-```typescript
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  host: process.env.DATABASE_HOST || 'localhost',
-  port: parseInt(process.env.DATABASE_PORT || '5432'),
-  database: process.env.DATABASE_NAME || 'reddit_sleuth',
-  user: process.env.DATABASE_USER || 'reddit_admin',
-  password: process.env.DATABASE_PASSWORD,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
-
-export const query = async (text: string, params?: any[]) => {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(text, params);
-    return { data: result.rows, error: null };
-  } catch (error) {
-    return { data: null, error };
-  } finally {
-    client.release();
-  }
-};
-
-export const getClient = () => pool;
-
-export default pool;
 ```
 
 ---
@@ -510,8 +437,8 @@ export default pool;
 5. Add to `.env.local` as `GEMINI_API_KEY`
 
 **Pricing (as of 2024):**
-- Gemini 1.5 Flash: $0.075 per 1M input tokens, $0.30 per 1M output tokens
-- Free tier: 15 requests per minute, 1M tokens per day
+- Gemini 1.5 Flash: Free tier with 15 RPM, 1M tokens/day
+- Gemini 2.5 Flash: Similar pricing
 
 ### 3. OpenAI API Setup (Alternative)
 
@@ -519,24 +446,20 @@ export default pool;
 2. Create a new API key
 3. Add to `.env.local` as `OPENAI_API_KEY`
 
-**Pricing:**
-- GPT-4o-mini: $0.15 per 1M input tokens, $0.60 per 1M output tokens
-- GPT-4o: $5 per 1M input tokens, $15 per 1M output tokens
-
 ---
 
 ## Backend Options
 
 ### Option 1: Express.js Backend (Recommended for Local)
 
-Create a complete Express.js backend server.
+Create a complete Express.js backend server that replicates edge function behavior.
 
 **Install dependencies:**
 ```bash
 npm install express cors dotenv node-fetch
 ```
 
-Create `server/index.js`:
+**Create `server/index.js`:**
 
 ```javascript
 import express from 'express';
@@ -575,13 +498,13 @@ async function getRedditToken() {
 
   const data = await response.json();
   redditToken = data.access_token;
-  tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // Refresh 1 min early
+  tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000;
   return redditToken;
 }
 
 // Reddit Scraper Endpoint
 app.post('/api/reddit-scraper', async (req, res) => {
-  const { username, type, subreddit } = req.body;
+  const { username, type, subreddit, keyword } = req.body;
   
   try {
     const token = await getRedditToken();
@@ -590,7 +513,18 @@ app.post('/api/reddit-scraper', async (req, res) => {
       'User-Agent': process.env.REDDIT_USER_AGENT || 'RedditSleuth/1.0.0'
     };
 
-    if (type === 'user') {
+    if (type === 'search') {
+      // Search for keyword
+      const searchResponse = await fetch(
+        `https://oauth.reddit.com/search?q=${encodeURIComponent(keyword)}&limit=100&sort=relevance&t=week`,
+        { headers }
+      );
+      const searchData = await searchResponse.json();
+      const posts = searchData.data?.children?.map(c => c.data) || [];
+      
+      res.json({ posts, keyword });
+      
+    } else if (type === 'user') {
       // Fetch user data
       const [aboutRes, postsRes, commentsRes] = await Promise.all([
         fetch(`https://oauth.reddit.com/user/${username}/about`, { headers }),
@@ -602,16 +536,65 @@ app.post('/api/reddit-scraper', async (req, res) => {
         return res.json({ error: 'not_found', message: `User ${username} not found` });
       }
 
-      const [about, posts, comments] = await Promise.all([
+      const [about, postsData, commentsData] = await Promise.all([
         aboutRes.json(),
         postsRes.json(),
         commentsRes.json()
       ]);
 
+      const posts = postsData.data?.children?.map(c => c.data) || [];
+      const comments = commentsData.data?.children?.map(c => c.data) || [];
+
+      // Get active subreddits
+      const activeSubreddits = new Set();
+      posts.forEach(p => activeSubreddits.add(p.subreddit));
+      comments.forEach(c => activeSubreddits.add(c.subreddit));
+      
+      // Fetch related communities for top subreddits
+      const topSubreddits = Array.from(activeSubreddits).slice(0, 5);
+      const communityRelations = [];
+      
+      for (const sub of topSubreddits) {
+        try {
+          const widgetsResponse = await fetch(
+            `https://oauth.reddit.com/r/${sub}/api/widgets`,
+            { headers }
+          );
+          
+          if (widgetsResponse.ok) {
+            const widgetsData = await widgetsResponse.json();
+            const relatedSubs = [];
+            
+            if (widgetsData.items) {
+              for (const key of Object.keys(widgetsData.items)) {
+                const widget = widgetsData.items[key];
+                if (widget.kind === 'community-list' && widget.data) {
+                  widget.data.forEach(item => {
+                    if (item.name && item.name !== sub) {
+                      relatedSubs.push(item.name.replace(/^r\//, ''));
+                    }
+                  });
+                }
+              }
+            }
+            
+            if (relatedSubs.length > 0) {
+              communityRelations.push({
+                subreddit: sub,
+                relatedTo: relatedSubs.slice(0, 5)
+              });
+            }
+          }
+        } catch (e) {
+          console.log(`Could not fetch widgets for r/${sub}`);
+        }
+      }
+
       res.json({
         user: about.data,
-        posts: posts.data?.children?.map(c => c.data) || [],
-        comments: comments.data?.children?.map(c => c.data) || []
+        posts,
+        comments,
+        communityRelations
       });
 
     } else if (type === 'community') {
@@ -625,14 +608,16 @@ app.post('/api/reddit-scraper', async (req, res) => {
         return res.json({ error: 'not_found', message: `Subreddit r/${subreddit} not found` });
       }
 
-      const [about, posts] = await Promise.all([
+      const [about, postsData] = await Promise.all([
         aboutRes.json(),
         postsRes.json()
       ]);
 
       res.json({
         subreddit: about.data,
-        posts: posts.data?.children?.map(c => c.data) || []
+        posts: postsData.data?.children?.map(c => c.data) || [],
+        weeklyVisitors: about.data.accounts_active || 0,
+        activeUsers: about.data.active_user_count || 0
       });
     }
 
@@ -656,12 +641,14 @@ app.post('/api/analyze-content', async (req, res) => {
 
     const prompt = `Analyze sentiment for each post and comment. Return ONLY valid JSON.
 
+CRITICAL: You must analyze EVERY post and comment individually.
+
 LOCATION EXTRACTION: Scan ALL text for location mentions including cities, states, countries, regions, neighborhoods, landmarks, timezone references, and location-related phrases.
 
 Required format:
 {
-  "postSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "reason"}],
-  "commentSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "reason"}],
+  "postSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "XAI reason"}],
+  "commentSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "XAI reason"}],
   "sentiment": {
     "postBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0},
     "commentBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0}
@@ -703,8 +690,9 @@ ${formattedComments.join('\n\n')}`;
     const content = data.candidates[0].content.parts[0].text;
     
     // Parse JSON from response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
+    const jsonStr = Array.isArray(jsonMatch) && jsonMatch[1] ? jsonMatch[1] : content;
+    const analysis = JSON.parse(jsonStr.match(/\{[\s\S]*\}/)?.[0] || '{}');
 
     // Calculate subreddit activity
     const subredditActivity = [...posts, ...comments].reduce((acc, item) => {
@@ -747,7 +735,7 @@ app.listen(PORT, () => {
 });
 ```
 
-Add to `package.json` scripts:
+**Add to `package.json` scripts:**
 ```json
 {
   "scripts": {
@@ -756,6 +744,13 @@ Add to `package.json` scripts:
   }
 }
 ```
+
+**Install concurrently:**
+```bash
+npm install concurrently --save-dev
+```
+
+---
 
 ### Option 2: Use Supabase CLI Locally
 
@@ -776,74 +771,7 @@ supabase start
 # - Storage server
 ```
 
-Update edge functions to use direct Gemini API:
-
-**`supabase/functions/analyze-content/index.ts`:**
-
-```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const { posts, comments } = await req.json();
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY not configured');
-    }
-
-    const formattedPosts = posts.slice(0, 10).map((p: any, idx: number) => 
-      `POST${idx + 1}: ${p.title} ${p.selftext || ''}`.slice(0, 500)
-    );
-    const formattedComments = comments.slice(0, 15).map((c: any, idx: number) => 
-      `COMMENT${idx + 1}: ${c.body}`.slice(0, 300)
-    );
-
-    const prompt = `Analyze sentiment and extract locations. Return ONLY valid JSON...`; // Full prompt here
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
-        })
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Gemini API Error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.candidates[0].content.parts[0].text;
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-
-    return new Response(JSON.stringify(analysis), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-});
-```
-
-Set secrets for local Supabase:
+**Set secrets for local Supabase:**
 ```bash
 supabase secrets set GEMINI_API_KEY=your_api_key
 supabase secrets set REDDIT_CLIENT_ID=your_client_id
@@ -852,7 +780,35 @@ supabase secrets set REDDIT_CLIENT_SECRET=your_client_secret
 
 ---
 
-## Using Custom Trained Models (Alternative to Gemini AI)
+## Edge Functions (Local)
+
+The project includes edge functions that work with Supabase CLI:
+
+### Reddit Scraper (`supabase/functions/reddit-scraper/index.ts`)
+
+This function:
+- Authenticates with Reddit OAuth2
+- Fetches user profiles, posts, comments
+- Fetches community data
+- **NEW**: Fetches related subreddits from community widgets
+- Returns `communityRelations` for link analysis
+
+### Content Analyzer (`supabase/functions/analyze-content/index.ts`)
+
+This function:
+- Analyzes posts/comments with AI
+- Returns individual sentiments with XAI explanations
+- Extracts locations
+- Identifies behavior patterns
+
+**To run edge functions locally:**
+```bash
+supabase functions serve
+```
+
+---
+
+## Using Custom Trained Models
 
 If you have trained your own ML model for Reddit analysis:
 
@@ -881,7 +837,7 @@ CORS(app)
 
 # Configuration
 MODEL_PATH = "./models/reddit_classifier.safetensors"
-MODEL_TYPE = "transformer"  # or "sklearn"
+MODEL_TYPE = "transformer"
 
 # Initialize model
 if MODEL_TYPE == "transformer":
@@ -999,7 +955,7 @@ def explain_shap():
 
 ### Full Stack Startup
 
-**Terminal 1 - Database (if not running as service):**
+**Terminal 1 - Database:**
 ```bash
 # Linux/macOS
 sudo systemctl start postgresql
@@ -1031,15 +987,19 @@ npm run dev
 # App runs on http://localhost:8080
 ```
 
-### Update Frontend API Calls
+### Update Frontend API Calls (for Express backend)
 
-If using Express backend instead of Supabase functions, update API calls:
+If using Express backend instead of Supabase functions, create `src/lib/api.ts`:
 
 ```typescript
-// Create src/lib/api.ts
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-export const redditScraper = async (params: { username?: string; type: string; subreddit?: string }) => {
+export const redditScraper = async (params: { 
+  username?: string; 
+  type: string; 
+  subreddit?: string;
+  keyword?: string;
+}) => {
   const response = await fetch(`${API_URL}/api/reddit-scraper`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1084,7 +1044,7 @@ ALTER USER reddit_admin PASSWORD 'new_password';
 |-------|-------|----------|
 | 401 Unauthorized | Invalid credentials | Check CLIENT_ID and CLIENT_SECRET |
 | 403 Forbidden | Invalid User-Agent | Use format: `AppName/1.0.0` |
-| 429 Too Many Requests | Rate limited | Wait and retry, implement backoff |
+| 429 Too Many Requests | Rate limited | Wait 60s and retry |
 | 404 Not Found | User/subreddit doesn't exist | Verify name spelling |
 
 ### Gemini API Issues
@@ -1096,27 +1056,27 @@ ALTER USER reddit_admin PASSWORD 'new_password';
 | 429 Rate Limited | Too many requests | Free tier: 15 RPM, wait and retry |
 | 500 Server Error | Gemini service issue | Retry or use fallback |
 
-### CORS Issues
+### CORS Errors
 
-If getting CORS errors in browser:
-
+If you see CORS errors in the browser:
 ```javascript
-// In Express server
+// In server/index.js, ensure CORS is properly configured:
 app.use(cors({
   origin: ['http://localhost:8080', 'http://localhost:5173'],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 ```
 
 ### Module Not Found
 
 ```bash
-# Reinstall dependencies
-rm -rf node_modules package-lock.json
+# Ensure all dependencies are installed
 npm install
 
-# For Python
-pip install -r requirements.txt --force-reinstall
+# Clear node_modules and reinstall
+rm -rf node_modules
+npm install
 ```
 
 ---
@@ -1125,38 +1085,27 @@ pip install -r requirements.txt --force-reinstall
 
 | Service | Lovable Cloud | Local Setup |
 |---------|--------------|-------------|
-| Database | Usage-based | Free (self-hosted) |
+| Database | Included | Free (PostgreSQL) |
 | Reddit API | Free | Free |
-| AI Analysis | Lovable AI credits | $0-5/month (Gemini free tier) |
-| Hosting | Included | Self-managed |
-| Total | Usage-based | ~$0-10/month |
+| AI Analysis | Usage-based | Pay per API call |
+| Hosting | Included | Self-hosted |
 
 ---
 
 ## Summary
 
-Your local setup includes:
+To run Reddit Sleuth locally:
 
-1. ✅ Local PostgreSQL database with full schema
-2. ✅ Direct Reddit API access
-3. ✅ Direct Gemini/OpenAI API access (or custom models)
-4. ✅ Express backend or local Supabase
-5. ✅ Full React frontend
+1. ✅ Install PostgreSQL and create database
+2. ✅ Run the complete schema SQL
+3. ✅ Get Reddit API credentials
+4. ✅ Get Gemini API key
+5. ✅ Create `.env.local` file
+6. ✅ Choose backend (Express.js or Supabase CLI)
+7. ✅ Start all services
+8. ✅ Open http://localhost:8080
 
-**Next Steps:**
-- Set up proper authentication (JWT or Supabase Auth)
-- Add rate limiting to API endpoints
-- Configure logging and monitoring
-- Consider Docker for easier deployment
-- Set up CI/CD pipeline
-
----
-
-## Additional Resources
-
+For questions or issues, refer to:
+- [Lovable Documentation](https://docs.lovable.dev)
 - [Reddit API Docs](https://www.reddit.com/dev/api/)
 - [Google AI Studio](https://aistudio.google.com/)
-- [Supabase CLI Docs](https://supabase.com/docs/guides/cli)
-- [PostgreSQL Docs](https://www.postgresql.org/docs/)
-- [LIME Documentation](https://lime-ml.readthedocs.io/)
-- [SHAP Documentation](https://shap.readthedocs.io/)
