@@ -75,10 +75,6 @@ const Home = () => {
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-6">
       <div className="w-full max-w-2xl space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-primary">Reddit Sleuth</h1>
-          <p className="text-muted-foreground">Reddit Intelligence Investigation Platform</p>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Create New Case */}

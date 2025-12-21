@@ -68,7 +68,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
           description: "Welcome back to Intel Reddit!",
         });
         onLogin();
-        navigate('/dashboard');
+        navigate('/');
       }
     } catch (error: any) {
       toast({
@@ -251,7 +251,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               </Dialog>
             </div>
             
-            {/* Sign In Button - Gradient Style */}
+            {/* Login Button - Gradient Style */}
             <Button 
               type="submit" 
               className="w-full h-12 mt-6 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-400 text-white font-semibold shadow-lg shadow-blue-500/25 transition-all duration-300"
@@ -260,10 +260,10 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               {isLoading ? (
                 <>
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Signing In...
+                  Logging In...
                 </>
               ) : (
-                'Sign In'
+                'Login'
               )}
             </Button>
           </form>
