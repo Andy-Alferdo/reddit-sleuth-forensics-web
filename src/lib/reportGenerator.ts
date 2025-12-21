@@ -77,6 +77,7 @@ interface LinkAnalysisData {
   userToCommunities: any[];
   communityCrossover: any[];
   communityDistribution: any[];
+  communityRelations?: any[];
   networkMetrics: any;
   analyzedAt: string;
 }
@@ -395,6 +396,125 @@ const drawWordCloud = (
 
     doc.text(wordData.word, wordX, wordY);
   });
+};
+
+// Helper to draw network graph visualization in PDF
+const drawNetworkGraph = (
+  doc: jsPDF,
+  userLabel: string,
+  communities: { community: string; totalActivity: number }[],
+  crossover: { from: string; to: string; strength: number; relationType?: string }[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  title: string
+) => {
+  // Title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...COLORS.text as [number, number, number]);
+  doc.text(title, x + width / 2, y, { align: 'center' });
+
+  const chartY = y + 12;
+  const chartHeight = height - 20;
+  const centerX = x + width / 2;
+  const centerY = chartY + chartHeight / 2;
+  
+  // Background
+  doc.setFillColor(15, 23, 42); // Dark blue background
+  doc.roundedRect(x, chartY, width, chartHeight, 4, 4, 'F');
+
+  // Draw user node in center (green)
+  const userRadius = 12;
+  doc.setFillColor(16, 185, 129); // Emerald green
+  doc.circle(centerX, centerY, userRadius, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6);
+  doc.setTextColor(255, 255, 255);
+  const userShort = userLabel.length > 8 ? userLabel.substring(0, 8) + '...' : userLabel;
+  doc.text(userShort, centerX, centerY + 2, { align: 'center' });
+
+  // Draw community nodes around the user (blue)
+  const communityRadius = 9;
+  const orbitRadius = Math.min(width, chartHeight) / 2 - 25;
+  const communityPositions: { [key: string]: { x: number; y: number } } = {};
+  
+  communities.slice(0, 6).forEach((comm, index) => {
+    const angle = (2 * Math.PI * index) / Math.min(communities.length, 6) - Math.PI / 2;
+    const nodeX = centerX + orbitRadius * Math.cos(angle);
+    const nodeY = centerY + orbitRadius * Math.sin(angle);
+    
+    communityPositions[comm.community] = { x: nodeX, y: nodeY };
+    
+    // Draw connection line from user to community
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.5 + Math.min(comm.totalActivity / 20, 1.5));
+    doc.line(centerX, centerY, nodeX, nodeY);
+    
+    // Draw community node
+    doc.setFillColor(59, 130, 246); // Blue
+    doc.circle(nodeX, nodeY, communityRadius, 'F');
+    
+    // Community label
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(5);
+    doc.setTextColor(255, 255, 255);
+    const commShort = comm.community.replace('r/', '').substring(0, 7);
+    doc.text(commShort, nodeX, nodeY + 1.5, { align: 'center' });
+  });
+
+  // Draw related communities (crossover) in orange/amber
+  const relatedRadius = 7;
+  const relatedCommunities = crossover
+    .filter(c => c.relationType === 'sidebar')
+    .slice(0, 4);
+  
+  relatedCommunities.forEach((rel, index) => {
+    const sourcePos = communityPositions[rel.from];
+    if (sourcePos) {
+      const offsetAngle = (Math.PI / 4) * (index % 2 === 0 ? 1 : -1);
+      const angle = Math.atan2(sourcePos.y - centerY, sourcePos.x - centerX) + offsetAngle;
+      const nodeX = sourcePos.x + 25 * Math.cos(angle);
+      const nodeY = sourcePos.y + 25 * Math.sin(angle);
+      
+      // Draw connection line
+      doc.setDrawColor(245, 158, 11);
+      doc.setLineWidth(0.4);
+      doc.line(sourcePos.x, sourcePos.y, nodeX, nodeY);
+      
+      // Draw related node
+      doc.setFillColor(245, 158, 11); // Amber
+      doc.circle(nodeX, nodeY, relatedRadius, 'F');
+      
+      // Label
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(4);
+      doc.setTextColor(255, 255, 255);
+      const relShort = rel.to.replace('r/', '').substring(0, 6);
+      doc.text(relShort, nodeX, nodeY + 1, { align: 'center' });
+    }
+  });
+
+  // Legend at bottom
+  const legendY = chartY + chartHeight + 6;
+  doc.setFontSize(6);
+  
+  // User legend
+  doc.setFillColor(16, 185, 129);
+  doc.circle(x + 10, legendY, 3, 'F');
+  doc.setTextColor(...COLORS.muted as [number, number, number]);
+  doc.text('User', x + 16, legendY + 2);
+  
+  // Community legend
+  doc.setFillColor(59, 130, 246);
+  doc.circle(x + 45, legendY, 3, 'F');
+  doc.text('Communities', x + 51, legendY + 2);
+  
+  // Related legend
+  doc.setFillColor(245, 158, 11);
+  doc.circle(x + 95, legendY, 3, 'F');
+  doc.text('Related Subs', x + 101, legendY + 2);
 };
 
 export const generatePDFReport = (options: ReportOptions): void => {
@@ -1205,16 +1325,18 @@ export const generatePDFReport = (options: ReportOptions): void => {
       if (link.communityCrossover && link.communityCrossover.length > 0) {
         checkPageBreak(40);
         addSubsectionTitle('Community Crossover Patterns');
+        addParagraph('Shows which communities are connected to other related communities (from subreddit sidebars).');
         
         const crossoverRows = link.communityCrossover.map((cross: any) => [
           cross.from,
           cross.to,
-          `${cross.strength}%`
+          `${cross.strength}%`,
+          cross.relationType === 'sidebar' ? 'Related' : 'Co-activity'
         ]);
 
         autoTable(doc, {
           startY: yPos,
-          head: [['From', 'To', 'Connection Strength']],
+          head: [['From Community', 'Connected To', 'Strength', 'Type']],
           body: crossoverRows,
           margin: { left: margin },
           styles: { fontSize: 9, cellPadding: 2 },
@@ -1222,6 +1344,24 @@ export const generatePDFReport = (options: ReportOptions): void => {
         });
         
         yPos = (doc as any).lastAutoTable.finalY + 5;
+      }
+
+      // Network Graph Visualization
+      if (link.userToCommunities && link.userToCommunities.length > 0) {
+        checkPageBreak(100);
+        yPos += 5;
+        drawNetworkGraph(
+          doc,
+          `u/${link.primaryUser}`,
+          link.userToCommunities,
+          link.communityCrossover || [],
+          margin,
+          yPos,
+          contentWidth,
+          80,
+          'User to Community Network Graph'
+        );
+        yPos += 95;
       }
 
       yPos += 15;
@@ -1708,17 +1848,85 @@ export const generateHTMLReport = (options: ReportOptions): void => {
 `;
       if (link.networkMetrics) {
         html += `
-        <div class="key-value"><span class="key">Total Communities</span><span class="value">${link.networkMetrics.totalCommunities}</span></div>
-        <div class="key-value"><span class="key">Total Posts</span><span class="value">${link.networkMetrics.totalPosts}</span></div>
-        <div class="key-value"><span class="key">Total Comments</span><span class="value">${link.networkMetrics.totalComments}</span></div>
+        <div class="stat-grid" style="grid-template-columns: repeat(5, 1fr);">
+          <div class="stat-box"><div class="value">${link.networkMetrics.totalCommunities || 0}</div><div class="label">Communities</div></div>
+          <div class="stat-box"><div class="value">${link.networkMetrics.crossCommunityLinks || 0}</div><div class="label">Cross-Links</div></div>
+          <div class="stat-box"><div class="value">${link.networkMetrics.totalPosts || 0}</div><div class="label">Posts</div></div>
+          <div class="stat-box"><div class="value">${link.networkMetrics.totalComments || 0}</div><div class="label">Comments</div></div>
+          <div class="stat-box"><div class="value">${link.totalKarma?.toLocaleString() || 0}</div><div class="label">Karma</div></div>
+        </div>
 `;
       }
       if (link.userToCommunities && link.userToCommunities.length > 0) {
-        html += `<table><thead><tr><th>Community</th><th>Posts</th><th>Comments</th><th>Engagement</th></tr></thead><tbody>`;
+        html += `<h4 style="margin-top:15px;color:#475569;">Community Connections</h4>
+        <table><thead><tr><th>Community</th><th>Posts</th><th>Comments</th><th>Engagement</th><th>Activity %</th></tr></thead><tbody>`;
         link.userToCommunities.forEach((comm: any) => {
-          html += `<tr><td>${comm.community}</td><td>${comm.posts || 0}</td><td>${comm.comments || 0}</td><td>${comm.engagement?.toLocaleString() || 'N/A'}</td></tr>`;
+          html += `<tr><td>${comm.community}</td><td>${comm.posts || 0}</td><td>${comm.comments || 0}</td><td>${comm.engagement?.toLocaleString() || 'N/A'}</td><td>
+            <div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;background:#e2e8f0;border-radius:4px;height:8px;overflow:hidden;"><div style="height:100%;background:#6366f1;width:${comm.activity || 0}%;"></div></div><span>${comm.activity || 0}%</span></div>
+          </td></tr>`;
         });
         html += `</tbody></table>`;
+      }
+      if (link.communityCrossover && link.communityCrossover.length > 0) {
+        html += `<h4 style="margin-top:15px;color:#475569;">Community Crossover (Related Communities)</h4>
+        <p style="font-size:12px;color:#64748b;margin-bottom:10px;">Shows which communities are connected to other communities based on subreddit sidebar relationships.</p>
+        <table><thead><tr><th>From Community</th><th>Connected To</th><th>Strength</th><th>Type</th></tr></thead><tbody>`;
+        link.communityCrossover.forEach((cross: any) => {
+          const typeLabel = cross.relationType === 'sidebar' ? '<span class="badge" style="background:#dcfce7;color:#166534;">Related</span>' : '<span class="badge" style="background:#e0e7ff;color:#3730a3;">Co-activity</span>';
+          html += `<tr><td>${cross.from}</td><td>${cross.to}</td><td>
+            <div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;background:#e2e8f0;border-radius:4px;height:8px;overflow:hidden;"><div style="height:100%;background:#22c55e;width:${cross.strength}%;"></div></div><span>${cross.strength}%</span></div>
+          </td><td>${typeLabel}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+      }
+      
+      // Network Graph Visualization (SVG)
+      if (link.userToCommunities && link.userToCommunities.length > 0) {
+        const communities = link.userToCommunities.slice(0, 6);
+        const crossover = (link.communityCrossover || []).filter((c: any) => c.relationType === 'sidebar').slice(0, 4);
+        
+        html += `<h4 style="margin-top:20px;color:#475569;">Network Graph Visualization</h4>
+        <div style="background:#0f172a;border-radius:12px;padding:20px;margin:15px 0;">
+          <svg viewBox="0 0 400 250" style="width:100%;max-width:600px;margin:0 auto;display:block;">
+            <!-- Connection Lines -->`;
+        
+        const centerX = 200;
+        const centerY = 125;
+        const orbitRadius = 80;
+        
+        // Draw connection lines from user to communities
+        communities.forEach((comm: any, i: number) => {
+          const angle = (2 * Math.PI * i) / communities.length - Math.PI / 2;
+          const nodeX = centerX + orbitRadius * Math.cos(angle);
+          const nodeY = centerY + orbitRadius * Math.sin(angle);
+          html += `<line x1="${centerX}" y1="${centerY}" x2="${nodeX}" y2="${nodeY}" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.6"/>`;
+        });
+        
+        // Draw community nodes
+        communities.forEach((comm: any, i: number) => {
+          const angle = (2 * Math.PI * i) / communities.length - Math.PI / 2;
+          const nodeX = centerX + orbitRadius * Math.cos(angle);
+          const nodeY = centerY + orbitRadius * Math.sin(angle);
+          const label = comm.community.replace('r/', '').substring(0, 8);
+          html += `
+            <circle cx="${nodeX}" cy="${nodeY}" r="22" fill="#3b82f6"/>
+            <text x="${nodeX}" y="${nodeY + 4}" text-anchor="middle" fill="white" font-size="8" font-weight="600">${label}</text>`;
+        });
+        
+        // Draw user node in center
+        html += `
+            <circle cx="${centerX}" cy="${centerY}" r="28" fill="#10b981"/>
+            <text x="${centerX}" y="${centerY + 4}" text-anchor="middle" fill="white" font-size="10" font-weight="700">u/${link.primaryUser.substring(0, 6)}</text>
+            
+            <!-- Legend -->
+            <circle cx="30" cy="230" r="8" fill="#10b981"/>
+            <text x="45" y="234" fill="#94a3b8" font-size="10">User</text>
+            <circle cx="100" cy="230" r="8" fill="#3b82f6"/>
+            <text x="115" y="234" fill="#94a3b8" font-size="10">Communities</text>
+            <circle cx="200" cy="230" r="8" fill="#f59e0b"/>
+            <text x="215" y="234" fill="#94a3b8" font-size="10">Related Subs</text>
+          </svg>
+        </div>`;
       }
     });
     html += `</div>`;
