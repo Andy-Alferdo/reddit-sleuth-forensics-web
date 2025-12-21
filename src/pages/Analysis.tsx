@@ -413,21 +413,40 @@ const Analysis = () => {
         }))
         .sort((a, b) => b.totalActivity - a.totalActivity);
 
-      // Calculate community crossover
-      const communityCrossover = [];
-      const topCommunities = sortedSubreddits.slice(0, 5);
+      // Build community crossover from actual Reddit related communities data
+      const communityCrossover: { from: string; to: string; strength: number; relationType: string }[] = [];
+      const communityRelations = redditData.communityRelations || [];
       
-      for (let i = 0; i < Math.min(3, topCommunities.length); i++) {
-        for (let j = i + 1; j < Math.min(4, topCommunities.length); j++) {
-          const strength = Math.round(
-            ((topCommunities[i].totalActivity + topCommunities[j].totalActivity) / 
-            (allContent.length || 1)) * 100
-          );
+      // Use real community relations from Reddit API (sidebar related subreddits)
+      communityRelations.forEach((relation: { subreddit: string; relatedTo: string[] }) => {
+        relation.relatedTo.forEach((relatedSub: string, index: number) => {
+          // Calculate strength based on position (higher position = stronger connection)
+          const strength = Math.max(20, 100 - (index * 15));
           communityCrossover.push({
-            from: topCommunities[i].community,
-            to: topCommunities[j].community,
-            strength: Math.min(100, strength)
+            from: `r/${relation.subreddit}`,
+            to: `r/${relatedSub}`,
+            strength,
+            relationType: 'sidebar'
           });
+        });
+      });
+
+      // If no sidebar relations found, calculate based on user's co-activity patterns
+      if (communityCrossover.length === 0) {
+        const topCommunities = sortedSubreddits.slice(0, 5);
+        for (let i = 0; i < Math.min(3, topCommunities.length); i++) {
+          for (let j = i + 1; j < Math.min(4, topCommunities.length); j++) {
+            const strength = Math.round(
+              ((topCommunities[i].totalActivity + topCommunities[j].totalActivity) / 
+              (allContent.length || 1)) * 100
+            );
+            communityCrossover.push({
+              from: topCommunities[i].community,
+              to: topCommunities[j].community,
+              strength: Math.min(100, strength),
+              relationType: 'user-activity'
+            });
+          }
         }
       }
 
@@ -441,8 +460,9 @@ const Analysis = () => {
         primaryUser: cleanUsername,
         totalKarma: (redditData.user?.link_karma || 0) + (redditData.user?.comment_karma || 0),
         userToCommunities: sortedSubreddits.slice(0, 5),
-        communityCrossover: communityCrossover.slice(0, 5),
+        communityCrossover: communityCrossover.slice(0, 8),
         communityDistribution,
+        communityRelations,
         networkMetrics: {
           totalCommunities: Object.keys(subredditActivity).length,
           avgActivityScore: allContent.length > 0 
@@ -1025,6 +1045,7 @@ const Analysis = () => {
                       <Network className="h-5 w-5 text-primary" />
                       <span>Community Crossover</span>
                     </CardTitle>
+                    <CardDescription>Communities connected to other communities (from subreddit sidebars)</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -1033,11 +1054,16 @@ const Analysis = () => {
                           <div key={index} className="p-3 rounded-lg border border-border">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <Badge variant="outline">{item.from}</Badge>
-                                <span className="text-muted-foreground">↔</span>
-                                <Badge variant="outline">{item.to}</Badge>
+                                <Badge variant="outline" className="bg-primary/10">{item.from}</Badge>
+                                <span className="text-muted-foreground">→</span>
+                                <Badge variant="outline" className="bg-forensic-accent/10">{item.to}</Badge>
                               </div>
-                              <span className="text-sm font-medium">{item.strength}%</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {item.relationType === 'sidebar' ? 'Related' : 'Co-activity'}
+                                </span>
+                                <span className="text-sm font-medium">{item.strength}%</span>
+                              </div>
                             </div>
                             <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
                               <div 
@@ -1048,7 +1074,7 @@ const Analysis = () => {
                           </div>
                         ))
                       ) : (
-                        <p className="text-muted-foreground text-center py-4">No cross-community activity detected</p>
+                        <p className="text-muted-foreground text-center py-4">No related communities found in subreddit sidebars</p>
                       )}
                     </div>
                   </CardContent>
@@ -1069,37 +1095,65 @@ const Analysis = () => {
               <UserCommunityNetworkGraph
                 title="User to Community Network Graph"
                 primaryUserId="user1"
-                nodes={[
-                  { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' },
-                  ...linkData.userToCommunities.slice(0, 6).map((item: any, index: number) => ({
+                nodes={(() => {
+                  // Build nodes: user + their communities + related communities
+                  const userNode = { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' as const };
+                  
+                  const communityNodes = linkData.userToCommunities.slice(0, 6).map((item: any, index: number) => ({
                     id: `community-${index}`,
                     label: item.community,
                     type: 'community' as const
-                  })),
-                  ...linkData.communityCrossover.slice(0, 3).map((item: any, index: number) => ({
-                    id: `interest-${index}`,
-                    label: `${item.strength}% overlap`,
+                  }));
+                  
+                  // Add related communities from crossover data
+                  const relatedCommunities = new Set<string>();
+                  linkData.communityCrossover.forEach((item: any) => {
+                    // Only add if it's a real related subreddit (not already in user's communities)
+                    const existsInUser = linkData.userToCommunities.some((c: any) => c.community === item.to);
+                    if (!existsInUser) {
+                      relatedCommunities.add(item.to);
+                    }
+                  });
+                  
+                  const relatedNodes = Array.from(relatedCommunities).slice(0, 5).map((name: string, index: number) => ({
+                    id: `related-${index}`,
+                    label: name,
                     type: 'interest' as const
-                  }))
-                ]}
-                links={[
-                  ...linkData.userToCommunities.slice(0, 6).map((item: any, index: number) => ({
+                  }));
+                  
+                  return [userNode, ...communityNodes, ...relatedNodes];
+                })()}
+                links={(() => {
+                  // User to their communities
+                  const userLinks = linkData.userToCommunities.slice(0, 6).map((item: any, index: number) => ({
                     source: 'user1',
                     target: `community-${index}`,
                     weight: Math.min(4, Math.ceil(item.totalActivity / 10))
-                  })),
-                  ...linkData.communityCrossover.slice(0, 3).flatMap((item: any, index: number) => {
+                  }));
+                  
+                  // Community to related community links
+                  const crossoverLinks: { source: string; target: string; weight: number }[] = [];
+                  const relatedCommunityList = Array.from(new Set(
+                    linkData.communityCrossover
+                      .filter((item: any) => !linkData.userToCommunities.some((c: any) => c.community === item.to))
+                      .map((item: any) => item.to)
+                  )).slice(0, 5);
+                  
+                  linkData.communityCrossover.forEach((item: any) => {
                     const fromIdx = linkData.userToCommunities.findIndex((c: any) => c.community === item.from);
-                    const toIdx = linkData.userToCommunities.findIndex((c: any) => c.community === item.to);
+                    const toIdx = relatedCommunityList.indexOf(item.to);
+                    
                     if (fromIdx !== -1 && toIdx !== -1) {
-                      return [
-                        { source: `community-${fromIdx}`, target: `interest-${index}`, weight: 2 },
-                        { source: `interest-${index}`, target: `community-${toIdx}`, weight: 2 }
-                      ];
+                      crossoverLinks.push({
+                        source: `community-${fromIdx}`,
+                        target: `related-${toIdx}`,
+                        weight: Math.ceil(item.strength / 30)
+                      });
                     }
-                    return [];
-                  })
-                ]}
+                  });
+                  
+                  return [...userLinks, ...crossoverLinks];
+                })()}
               />
             </div>
           )}
