@@ -185,14 +185,54 @@ const Monitoring = () => {
     { word: "insights", frequency: 22, category: "low" as const },
   ];
 
-  const activityTimelineData = [
-    { name: '6h ago', value: 7 },
-    { name: '5h ago', value: 7 },
-    { name: '4h ago', value: 7 },
-    { name: '3h ago', value: 7 },
-    { name: '2h ago', value: 9 },
-    { name: '1h ago', value: 8 },
-  ];
+  // Calculate real activity timeline from actual activities
+  const getActivityTimelineData = () => {
+    if (activities.length === 0) {
+      return [
+        { name: '6h ago', value: 0 },
+        { name: '5h ago', value: 0 },
+        { name: '4h ago', value: 0 },
+        { name: '3h ago', value: 0 },
+        { name: '2h ago', value: 0 },
+        { name: '1h ago', value: 0 },
+      ];
+    }
+
+    const now = new Date();
+    const hourBuckets: { [key: number]: number } = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    
+    activities.forEach(activity => {
+      let activityDate: Date;
+      const timestamp = activity.timestamp;
+      
+      if (timestamp.includes('PKT') || timestamp.includes('AM') || timestamp.includes('PM')) {
+        const cleanTimestamp = timestamp.replace(' PKT', '').replace(' PST', '').trim();
+        activityDate = new Date(cleanTimestamp);
+      } else {
+        const timestampStr = timestamp.replace(' UTC', '').replace('T', ' ');
+        activityDate = new Date(timestampStr);
+      }
+      
+      const hoursAgo = Math.floor((now.getTime() - activityDate.getTime()) / (1000 * 60 * 60));
+      
+      if (hoursAgo >= 0 && hoursAgo < 6) {
+        hourBuckets[hoursAgo + 1]++;
+      } else if (hoursAgo >= 6) {
+        hourBuckets[6]++;
+      }
+    });
+    
+    return [
+      { name: '6h ago', value: hourBuckets[6] },
+      { name: '5h ago', value: hourBuckets[5] },
+      { name: '4h ago', value: hourBuckets[4] },
+      { name: '3h ago', value: hourBuckets[3] },
+      { name: '2h ago', value: hourBuckets[2] },
+      { name: '1h ago', value: hourBuckets[1] },
+    ];
+  };
+
+  const activityTimelineData = getActivityTimelineData();
 
   const weeklyVisitorsData = [
     { name: 'Mon', value: 3200 },
