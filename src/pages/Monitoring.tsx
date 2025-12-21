@@ -35,6 +35,8 @@ interface ProfileData {
   createdDate?: string;
   weeklyVisitors?: number;
   weeklyContributors?: number;
+  bannerImg?: string;
+  iconImg?: string;
 }
 
 const Monitoring = () => {
@@ -547,6 +549,8 @@ const Monitoring = () => {
           createdDate,
           weeklyVisitors: redditData.weeklyVisitors || 0,
           weeklyContributors: uniqueAuthors.size,
+          bannerImg: subreddit.banner_img || subreddit.banner_background_image?.split('?')[0] || '',
+          iconImg: subreddit.icon_img || subreddit.community_icon?.split('?')[0] || '',
         });
       }
 
@@ -663,17 +667,45 @@ const Monitoring = () => {
 
         {/* Profile/Info Card */}
         {profileData && (
-          <Card className="border-2 animate-fade-in">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="border-2 animate-fade-in overflow-hidden">
+            {/* Banner Image for Communities */}
+            {profileData.communityName && profileData.bannerImg && (
+              <div className="relative h-32 w-full bg-muted">
+                <img 
+                  src={profileData.bannerImg} 
+                  alt={`${profileData.communityName} banner`}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <CardHeader className={profileData.communityName && profileData.iconImg ? 'relative' : ''}>
+              {/* Community Icon */}
+              {profileData.communityName && profileData.iconImg && (
+                <div className={`absolute ${profileData.bannerImg ? '-top-8' : 'top-4'} left-6`}>
+                  <div className="w-16 h-16 rounded-full border-4 border-background bg-background overflow-hidden shadow-lg">
+                    <img 
+                      src={profileData.iconImg} 
+                      alt={`${profileData.communityName} icon`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="w-full h-full bg-primary/20 flex items-center justify-center"><span class="text-primary font-bold text-xl">r/</span></div>';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              <CardTitle className={`flex items-center gap-2 ${profileData.communityName && profileData.iconImg ? 'ml-20' : ''}`}>
                 {profileData.username ? (
                   <User className="h-5 w-5" />
-                ) : (
+                ) : !profileData.iconImg ? (
                   <Users className="h-5 w-5" />
-                )}
+                ) : null}
                 {profileData.username || profileData.communityName}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className={profileData.communityName && profileData.iconImg ? 'ml-20' : ''}>
                 {profileData.username ? 'User Profile' : 'Community Information'}
               </CardDescription>
             </CardHeader>
