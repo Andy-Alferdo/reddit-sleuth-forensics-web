@@ -398,7 +398,7 @@ const drawWordCloud = (
   });
 };
 
-// Helper to draw network graph visualization in PDF
+// Helper to draw network graph visualization in PDF - matching app's UserCommunityNetworkGraph style
 const drawNetworkGraph = (
   doc: jsPDF,
   userLabel: string,
@@ -417,104 +417,246 @@ const drawNetworkGraph = (
   doc.text(title, x + width / 2, y, { align: 'center' });
 
   const chartY = y + 12;
-  const chartHeight = height - 20;
+  const chartHeight = height - 28;
   const centerX = x + width / 2;
   const centerY = chartY + chartHeight / 2;
   
-  // Background
-  doc.setFillColor(15, 23, 42); // Dark blue background
-  doc.roundedRect(x, chartY, width, chartHeight, 4, 4, 'F');
-
-  // Draw user node in center (green)
-  const userRadius = 12;
-  doc.setFillColor(16, 185, 129); // Emerald green
-  doc.circle(centerX, centerY, userRadius, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6);
-  doc.setTextColor(255, 255, 255);
-  const userShort = userLabel.length > 8 ? userLabel.substring(0, 8) + '...' : userLabel;
-  doc.text(userShort, centerX, centerY + 2, { align: 'center' });
-
-  // Draw community nodes around the user (blue)
-  const communityRadius = 9;
-  const orbitRadius = Math.min(width, chartHeight) / 2 - 25;
-  const communityPositions: { [key: string]: { x: number; y: number } } = {};
+  // Dark background (matching app's dark theme)
+  doc.setFillColor(15, 23, 42); // Slate-900
+  doc.roundedRect(x, chartY, width, chartHeight, 6, 6, 'F');
   
-  communities.slice(0, 6).forEach((comm, index) => {
-    const angle = (2 * Math.PI * index) / Math.min(communities.length, 6) - Math.PI / 2;
+  // Inner darker area for depth
+  doc.setFillColor(2, 6, 23); // Darker center
+  doc.roundedRect(x + 4, chartY + 4, width - 8, chartHeight - 8, 4, 4, 'F');
+
+  // Draw subtle ambient particles (no opacity, just lighter color)
+  for (let i = 0; i < 20; i++) {
+    const px = x + 15 + Math.random() * (width - 30);
+    const py = chartY + 15 + Math.random() * (chartHeight - 30);
+    const size = 0.4 + Math.random() * 0.4;
+    doc.setFillColor(30, 58, 95); // Very dark blue particles
+    doc.circle(px, py, size, 'F');
+  }
+
+  // Calculate positions for communities in orbit around user
+  const maxCommunities = Math.min(communities.length, 8);
+  const orbitRadius = Math.min(width, chartHeight) / 2 - 35;
+  const communityPositions: { [key: string]: { x: number; y: number; angle: number } } = {};
+  
+  // Pre-calculate all community positions
+  communities.slice(0, maxCommunities).forEach((comm, index) => {
+    const angle = (2 * Math.PI * index) / maxCommunities - Math.PI / 2;
     const nodeX = centerX + orbitRadius * Math.cos(angle);
     const nodeY = centerY + orbitRadius * Math.sin(angle);
-    
-    communityPositions[comm.community] = { x: nodeX, y: nodeY };
-    
-    // Draw connection line from user to community
-    doc.setDrawColor(59, 130, 246);
-    doc.setLineWidth(0.5 + Math.min(comm.totalActivity / 20, 1.5));
-    doc.line(centerX, centerY, nodeX, nodeY);
-    
-    // Draw community node
-    doc.setFillColor(59, 130, 246); // Blue
-    doc.circle(nodeX, nodeY, communityRadius, 'F');
-    
-    // Community label
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(5);
-    doc.setTextColor(255, 255, 255);
-    const commShort = comm.community.replace('r/', '').substring(0, 7);
-    doc.text(commShort, nodeX, nodeY + 1.5, { align: 'center' });
+    communityPositions[comm.community] = { x: nodeX, y: nodeY, angle };
   });
 
-  // Draw related communities (crossover) in orange/amber
-  const relatedRadius = 7;
-  const relatedCommunities = crossover
-    .filter(c => c.relationType === 'sidebar')
-    .slice(0, 4);
+  // Draw links with gradient effect (user to communities)
+  communities.slice(0, maxCommunities).forEach((comm) => {
+    const pos = communityPositions[comm.community];
+    if (!pos) return;
+    
+    // Gradient line effect - draw multiple lines with color blend
+    const segments = 8;
+    for (let i = 0; i < segments; i++) {
+      const t1 = i / segments;
+      const t2 = (i + 1) / segments;
+      const x1 = centerX + (pos.x - centerX) * t1;
+      const y1 = centerY + (pos.y - centerY) * t1;
+      const x2 = centerX + (pos.x - centerX) * t2;
+      const y2 = centerY + (pos.y - centerY) * t2;
+      
+      // Blend from green (user) to blue (community)
+      const r = Math.round(16 + (59 - 16) * t1);
+      const g = Math.round(185 + (130 - 185) * t1);
+      const b = Math.round(129 + (246 - 129) * t1);
+      
+      doc.setDrawColor(r, g, b);
+      doc.setLineWidth(1.2 + Math.min(comm.totalActivity / 30, 0.8));
+      doc.line(x1, y1, x2, y2);
+    }
+  });
+
+  // Draw related community links (crossover - community to related)
+  const relatedCommunities = crossover.filter(c => c.relationType === 'sidebar').slice(0, 6);
+  const relatedPositions: { x: number; y: number; label: string }[] = [];
   
   relatedCommunities.forEach((rel, index) => {
     const sourcePos = communityPositions[rel.from];
     if (sourcePos) {
-      const offsetAngle = (Math.PI / 4) * (index % 2 === 0 ? 1 : -1);
-      const angle = Math.atan2(sourcePos.y - centerY, sourcePos.x - centerX) + offsetAngle;
-      const nodeX = sourcePos.x + 25 * Math.cos(angle);
-      const nodeY = sourcePos.y + 25 * Math.sin(angle);
+      const offsetAngle = (Math.PI / 4) * (index % 2 === 0 ? 1 : -1) * (1 + (index % 3) * 0.3);
+      const extendRadius = 22 + (index % 2) * 5;
+      const nodeX = sourcePos.x + extendRadius * Math.cos(sourcePos.angle + offsetAngle * 0.7);
+      const nodeY = sourcePos.y + extendRadius * Math.sin(sourcePos.angle + offsetAngle * 0.7);
       
-      // Draw connection line
-      doc.setDrawColor(245, 158, 11);
-      doc.setLineWidth(0.4);
+      relatedPositions.push({ x: nodeX, y: nodeY, label: rel.to });
+      
+      // Draw connection line with amber color
+      doc.setDrawColor(200, 130, 10); // Slightly muted amber
+      doc.setLineWidth(0.6);
       doc.line(sourcePos.x, sourcePos.y, nodeX, nodeY);
-      
-      // Draw related node
-      doc.setFillColor(245, 158, 11); // Amber
-      doc.circle(nodeX, nodeY, relatedRadius, 'F');
-      
-      // Label
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(4);
-      doc.setTextColor(255, 255, 255);
-      const relShort = rel.to.replace('r/', '').substring(0, 6);
-      doc.text(relShort, nodeX, nodeY + 1, { align: 'center' });
     }
   });
 
-  // Legend at bottom
-  const legendY = chartY + chartHeight + 6;
-  doc.setFontSize(6);
+  // Draw user node with glow effect (center - emerald green)
+  const userRadius = 14;
+  
+  // Outer glow rings (simulated with decreasing color intensity)
+  const glowColors = [
+    [8, 80, 60],   // Darkest
+    [10, 120, 85],
+    [14, 150, 105],
+    [16, 170, 120]
+  ];
+  for (let i = 4; i >= 1; i--) {
+    doc.setFillColor(glowColors[4 - i][0], glowColors[4 - i][1], glowColors[4 - i][2]);
+    doc.circle(centerX, centerY, userRadius + i * 2.5, 'F');
+  }
+  
+  // Main node with gradient effect (simulated with overlapping circles)
+  doc.setFillColor(5, 150, 105); // Darker base
+  doc.circle(centerX, centerY, userRadius, 'F');
+  doc.setFillColor(16, 185, 129); // Lighter overlay (top-left highlight)
+  doc.circle(centerX - 2, centerY - 2, userRadius - 4, 'F');
+  
+  // Border
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(1.5);
+  doc.circle(centerX, centerY, userRadius, 'S');
+  
+  // User icon (simplified person icon)
+  doc.setFillColor(255, 255, 255);
+  doc.circle(centerX, centerY - 2, 3, 'F'); // Head
+  doc.ellipse(centerX, centerY + 5, 5, 3, 'F'); // Body
+  
+  // User label below node
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  const userShort = userLabel.length > 10 ? userLabel.substring(0, 10) + '...' : userLabel;
+  
+  // Label background
+  const labelWidth = doc.getTextWidth(userShort) + 6;
+  doc.setFillColor(20, 20, 30);
+  doc.roundedRect(centerX - labelWidth / 2, centerY + userRadius + 3, labelWidth, 9, 2, 2, 'F');
+  doc.text(userShort, centerX, centerY + userRadius + 9, { align: 'center' });
+
+  // Draw community nodes with glow (blue)
+  const communityRadius = 11;
+  const commGlowColors = [
+    [20, 50, 120],
+    [30, 80, 180],
+    [45, 105, 220],
+  ];
+  
+  communities.slice(0, maxCommunities).forEach((comm) => {
+    const pos = communityPositions[comm.community];
+    if (!pos) return;
+    
+    // Outer glow
+    for (let i = 3; i >= 1; i--) {
+      doc.setFillColor(commGlowColors[3 - i][0], commGlowColors[3 - i][1], commGlowColors[3 - i][2]);
+      doc.circle(pos.x, pos.y, communityRadius + i * 2, 'F');
+    }
+    
+    // Main node
+    doc.setFillColor(37, 99, 235); // Darker base
+    doc.circle(pos.x, pos.y, communityRadius, 'F');
+    doc.setFillColor(59, 130, 246); // Lighter overlay
+    doc.circle(pos.x - 1.5, pos.y - 1.5, communityRadius - 2, 'F');
+    
+    // Border (subtle)
+    doc.setDrawColor(100, 150, 255);
+    doc.setLineWidth(0.5);
+    doc.circle(pos.x, pos.y, communityRadius, 'S');
+    
+    // Community icon (two people)
+    doc.setFillColor(255, 255, 255);
+    doc.circle(pos.x - 2, pos.y - 1, 2, 'F');
+    doc.circle(pos.x + 2, pos.y - 1, 2, 'F');
+    doc.ellipse(pos.x, pos.y + 3, 5, 2, 'F');
+    
+    // Community label
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(5.5);
+    const commShort = comm.community.replace('r/', '').substring(0, 9);
+    const commLabelWidth = doc.getTextWidth(commShort) + 4;
+    
+    // Label background
+    doc.setFillColor(20, 20, 30);
+    doc.roundedRect(pos.x - commLabelWidth / 2, pos.y + communityRadius + 2, commLabelWidth, 7, 1.5, 1.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text(commShort, pos.x, pos.y + communityRadius + 7, { align: 'center' });
+  });
+
+  // Draw related community nodes (amber/interest)
+  const relatedRadius = 8;
+  const relGlowColors = [
+    [100, 70, 5],
+    [150, 100, 8],
+  ];
+  
+  relatedPositions.forEach((pos) => {
+    // Outer glow
+    for (let i = 2; i >= 1; i--) {
+      doc.setFillColor(relGlowColors[2 - i][0], relGlowColors[2 - i][1], relGlowColors[2 - i][2]);
+      doc.circle(pos.x, pos.y, relatedRadius + i * 1.5, 'F');
+    }
+    
+    // Main node
+    doc.setFillColor(217, 119, 6); // Darker base
+    doc.circle(pos.x, pos.y, relatedRadius, 'F');
+    doc.setFillColor(245, 158, 11); // Lighter overlay
+    doc.circle(pos.x - 1, pos.y - 1, relatedRadius - 1.5, 'F');
+    
+    // Star icon (simple dot)
+    doc.setFillColor(255, 255, 255);
+    doc.circle(pos.x, pos.y, 1.5, 'F');
+    
+    // Label
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(4.5);
+    const relShort = pos.label.replace('r/', '').substring(0, 7);
+    doc.setTextColor(255, 255, 255);
+    const relLabelWidth = doc.getTextWidth(relShort) + 3;
+    doc.setFillColor(20, 20, 30);
+    doc.roundedRect(pos.x - relLabelWidth / 2, pos.y + relatedRadius + 1, relLabelWidth, 5.5, 1, 1, 'F');
+    doc.text(relShort, pos.x, pos.y + relatedRadius + 5, { align: 'center' });
+  });
+
+  // Legend at bottom with gradient circles (matching app legend)
+  const legendY = chartY + chartHeight + 8;
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
   
   // User legend
+  doc.setFillColor(5, 150, 105);
+  doc.circle(x + 12, legendY, 4, 'F');
   doc.setFillColor(16, 185, 129);
-  doc.circle(x + 10, legendY, 3, 'F');
+  doc.circle(x + 11, legendY - 1, 3, 'F');
   doc.setTextColor(...COLORS.muted as [number, number, number]);
-  doc.text('User', x + 16, legendY + 2);
+  doc.text('Users', x + 20, legendY + 2);
   
   // Community legend
+  doc.setFillColor(37, 99, 235);
+  doc.circle(x + 55, legendY, 4, 'F');
   doc.setFillColor(59, 130, 246);
-  doc.circle(x + 45, legendY, 3, 'F');
-  doc.text('Communities', x + 51, legendY + 2);
+  doc.circle(x + 54, legendY - 1, 3, 'F');
+  doc.text('Communities', x + 63, legendY + 2);
   
-  // Related legend
+  // Platform legend
+  doc.setFillColor(124, 58, 237);
+  doc.circle(x + 115, legendY, 4, 'F');
+  doc.setFillColor(139, 92, 246);
+  doc.circle(x + 114, legendY - 1, 3, 'F');
+  doc.text('Platforms', x + 123, legendY + 2);
+  
+  // Related/Interest legend
+  doc.setFillColor(217, 119, 6);
+  doc.circle(x + 165, legendY, 4, 'F');
   doc.setFillColor(245, 158, 11);
-  doc.circle(x + 95, legendY, 3, 'F');
-  doc.text('Related Subs', x + 101, legendY + 2);
+  doc.circle(x + 164, legendY - 1, 3, 'F');
+  doc.text('Related Subs', x + 173, legendY + 2);
 };
 
 export const generatePDFReport = (options: ReportOptions): void => {
@@ -1880,51 +2022,144 @@ export const generateHTMLReport = (options: ReportOptions): void => {
         html += `</tbody></table>`;
       }
       
-      // Network Graph Visualization (SVG)
+      // Network Graph Visualization (SVG) - matching app's UserCommunityNetworkGraph style
       if (link.userToCommunities && link.userToCommunities.length > 0) {
-        const communities = link.userToCommunities.slice(0, 6);
-        const crossover = (link.communityCrossover || []).filter((c: any) => c.relationType === 'sidebar').slice(0, 4);
+        const communities = link.userToCommunities.slice(0, 8);
+        const crossover = (link.communityCrossover || []).filter((c: any) => c.relationType === 'sidebar').slice(0, 6);
         
-        html += `<h4 style="margin-top:20px;color:#475569;">Network Graph Visualization</h4>
-        <div style="background:#0f172a;border-radius:12px;padding:20px;margin:15px 0;">
-          <svg viewBox="0 0 400 250" style="width:100%;max-width:600px;margin:0 auto;display:block;">
-            <!-- Connection Lines -->`;
+        const centerX = 250;
+        const centerY = 150;
+        const orbitRadius = 100;
         
-        const centerX = 200;
-        const centerY = 125;
-        const orbitRadius = 80;
-        
-        // Draw connection lines from user to communities
-        communities.forEach((comm: any, i: number) => {
+        // Pre-calculate positions
+        const communityPositions: { x: number; y: number; angle: number; label: string }[] = communities.map((comm: any, i: number) => {
           const angle = (2 * Math.PI * i) / communities.length - Math.PI / 2;
-          const nodeX = centerX + orbitRadius * Math.cos(angle);
-          const nodeY = centerY + orbitRadius * Math.sin(angle);
-          html += `<line x1="${centerX}" y1="${centerY}" x2="${nodeX}" y2="${nodeY}" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.6"/>`;
+          return {
+            x: centerX + orbitRadius * Math.cos(angle),
+            y: centerY + orbitRadius * Math.sin(angle),
+            angle,
+            label: comm.community
+          };
         });
         
-        // Draw community nodes
-        communities.forEach((comm: any, i: number) => {
-          const angle = (2 * Math.PI * i) / communities.length - Math.PI / 2;
-          const nodeX = centerX + orbitRadius * Math.cos(angle);
-          const nodeY = centerY + orbitRadius * Math.sin(angle);
-          const label = comm.community.replace('r/', '').substring(0, 8);
-          html += `
-            <circle cx="${nodeX}" cy="${nodeY}" r="22" fill="#3b82f6"/>
-            <text x="${nodeX}" y="${nodeY + 4}" text-anchor="middle" fill="white" font-size="8" font-weight="600">${label}</text>`;
+        // Calculate related community positions
+        const relatedPositions: { x: number; y: number; label: string; sourceX: number; sourceY: number }[] = [];
+        crossover.forEach((rel: any, idx: number) => {
+          const sourceComm = communityPositions.find(c => c.label === rel.from);
+          if (sourceComm) {
+            const offsetAngle = (Math.PI / 4) * (idx % 2 === 0 ? 1 : -1) * (1 + (idx % 3) * 0.3);
+            const extendRadius = 35 + (idx % 2) * 8;
+            relatedPositions.push({
+              x: sourceComm.x + extendRadius * Math.cos(sourceComm.angle + offsetAngle * 0.7),
+              y: sourceComm.y + extendRadius * Math.sin(sourceComm.angle + offsetAngle * 0.7),
+              label: rel.to,
+              sourceX: sourceComm.x,
+              sourceY: sourceComm.y
+            });
+          }
         });
         
-        // Draw user node in center
-        html += `
-            <circle cx="${centerX}" cy="${centerY}" r="28" fill="#10b981"/>
-            <text x="${centerX}" y="${centerY + 4}" text-anchor="middle" fill="white" font-size="10" font-weight="700">u/${link.primaryUser.substring(0, 6)}</text>
+        html += `<h4 style="margin-top:20px;color:#475569;">User-Community Network Graph</h4>
+        <div style="background:linear-gradient(135deg, #0f172a 0%, #020617 100%);border-radius:16px;padding:24px;margin:15px 0;box-shadow:0 10px 40px -10px rgba(0,0,0,0.5);">
+          <svg viewBox="0 0 500 320" style="width:100%;max-width:700px;margin:0 auto;display:block;">
+            <defs>
+              <!-- Gradients for nodes -->
+              <radialGradient id="userGlow" cx="50%" cy="50%" r="100%">
+                <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.4"/>
+                <stop offset="100%" style="stop-color:#10b981;stop-opacity:0"/>
+              </radialGradient>
+              <radialGradient id="userGradient" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" style="stop-color:#10b981"/>
+                <stop offset="100%" style="stop-color:#059669"/>
+              </radialGradient>
+              <radialGradient id="communityGlow" cx="50%" cy="50%" r="100%">
+                <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.4"/>
+                <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0"/>
+              </radialGradient>
+              <radialGradient id="communityGradient" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" style="stop-color:#3b82f6"/>
+                <stop offset="100%" style="stop-color:#2563eb"/>
+              </radialGradient>
+              <radialGradient id="relatedGlow" cx="50%" cy="50%" r="100%">
+                <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.3"/>
+                <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0"/>
+              </radialGradient>
+              <radialGradient id="relatedGradient" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" style="stop-color:#f59e0b"/>
+                <stop offset="100%" style="stop-color:#d97706"/>
+              </radialGradient>
+              <linearGradient id="linkGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.6"/>
+                <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.6"/>
+              </linearGradient>
+            </defs>
+            
+            <!-- Ambient particles -->
+            ${Array.from({length: 30}, (_, i) => {
+              const px = 20 + Math.random() * 460;
+              const py = 20 + Math.random() * 260;
+              const size = 1 + Math.random() * 1.5;
+              const opacity = 0.1 + Math.random() * 0.15;
+              return `<circle cx="${px}" cy="${py}" r="${size}" fill="#3b82f6" fill-opacity="${opacity}"/>`;
+            }).join('')}
+            
+            <!-- Connection lines from user to communities -->
+            ${communityPositions.map((pos) => `
+              <line x1="${centerX}" y1="${centerY}" x2="${pos.x}" y2="${pos.y}" stroke="url(#linkGradient)" stroke-width="2.5"/>
+            `).join('')}
+            
+            <!-- Connection lines from communities to related -->
+            ${relatedPositions.map((pos) => `
+              <line x1="${pos.sourceX}" y1="${pos.sourceY}" x2="${pos.x}" y2="${pos.y}" stroke="#f59e0b" stroke-width="1.5" stroke-opacity="0.5"/>
+            `).join('')}
+            
+            <!-- Related community nodes (drawn first, behind) -->
+            ${relatedPositions.map((pos) => {
+              const label = pos.label.replace('r/', '').substring(0, 7);
+              return `
+                <circle cx="${pos.x}" cy="${pos.y}" r="24" fill="url(#relatedGlow)"/>
+                <circle cx="${pos.x}" cy="${pos.y}" r="12" fill="url(#relatedGradient)"/>
+                <text x="${pos.x}" y="${pos.y + 1}" text-anchor="middle" fill="white" font-size="5" font-weight="400">⭐</text>
+                <rect x="${pos.x - 20}" y="${pos.y + 14}" width="40" height="10" rx="3" fill="black" fill-opacity="0.7"/>
+                <text x="${pos.x}" y="${pos.y + 21}" text-anchor="middle" fill="white" font-size="6" font-weight="500">${label}</text>
+              `;
+            }).join('')}
+            
+            <!-- Community nodes -->
+            ${communityPositions.map((pos) => {
+              const label = pos.label.replace('r/', '').substring(0, 9);
+              return `
+                <circle cx="${pos.x}" cy="${pos.y}" r="40" fill="url(#communityGlow)"/>
+                <circle cx="${pos.x}" cy="${pos.y}" r="20" fill="url(#communityGradient)"/>
+                <circle cx="${pos.x}" cy="${pos.y}" r="20" stroke="white" stroke-width="1" stroke-opacity="0.3" fill="none"/>
+                <text x="${pos.x}" y="${pos.y + 2}" text-anchor="middle" fill="white" font-size="8">👥</text>
+                <rect x="${pos.x - 25}" y="${pos.y + 22}" width="50" height="12" rx="4" fill="black" fill-opacity="0.7"/>
+                <text x="${pos.x}" y="${pos.y + 31}" text-anchor="middle" fill="white" font-size="7" font-weight="600">${label}</text>
+              `;
+            }).join('')}
+            
+            <!-- User node (center) -->
+            <circle cx="${centerX}" cy="${centerY}" r="55" fill="url(#userGlow)"/>
+            <circle cx="${centerX}" cy="${centerY}" r="28" fill="url(#userGradient)"/>
+            <circle cx="${centerX}" cy="${centerY}" r="28" stroke="white" stroke-width="2" fill="none"/>
+            <text x="${centerX}" y="${centerY + 2}" text-anchor="middle" fill="white" font-size="14">👤</text>
+            <rect x="${centerX - 30}" y="${centerY + 32}" width="60" height="14" rx="4" fill="black" fill-opacity="0.7"/>
+            <text x="${centerX}" y="${centerY + 43}" text-anchor="middle" fill="white" font-size="9" font-weight="700">${link.primaryUser.substring(0, 10)}</text>
             
             <!-- Legend -->
-            <circle cx="30" cy="230" r="8" fill="#10b981"/>
-            <text x="45" y="234" fill="#94a3b8" font-size="10">User</text>
-            <circle cx="100" cy="230" r="8" fill="#3b82f6"/>
-            <text x="115" y="234" fill="#94a3b8" font-size="10">Communities</text>
-            <circle cx="200" cy="230" r="8" fill="#f59e0b"/>
-            <text x="215" y="234" fill="#94a3b8" font-size="10">Related Subs</text>
+            <g transform="translate(0, 290)">
+              <circle cx="40" cy="10" r="7" fill="url(#userGradient)"/>
+              <text x="55" y="14" fill="#94a3b8" font-size="9">Users</text>
+              
+              <circle cx="130" cy="10" r="7" fill="url(#communityGradient)"/>
+              <text x="145" y="14" fill="#94a3b8" font-size="9">Communities</text>
+              
+              <circle cx="250" cy="10" r="6" fill="#8b5cf6"/>
+              <text x="263" y="14" fill="#94a3b8" font-size="9">Platforms</text>
+              
+              <circle cx="355" cy="10" r="6" fill="url(#relatedGradient)"/>
+              <text x="368" y="14" fill="#94a3b8" font-size="9">Related Subs</text>
+            </g>
           </svg>
         </div>`;
       }
