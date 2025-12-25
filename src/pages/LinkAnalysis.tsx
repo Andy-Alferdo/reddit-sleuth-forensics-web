@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,11 +7,62 @@ import { Label } from '@/components/ui/label';
 import { Network, Users, Share2, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { UserCommunityNetworkGraph } from '@/components/UserCommunityNetworkGraph';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const LinkAnalysis = () => {
+  const location = useLocation();
+  const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [linkData, setLinkData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Load saved link analysis when navigating from Dashboard
+  useEffect(() => {
+    const loadAnalysisId = (location.state as any)?.loadAnalysisId as string | undefined;
+    if (!loadAnalysisId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('analysis_results')
+          .select('*')
+          .eq('id', loadAnalysisId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) throw new Error('Analysis not found');
+
+        if (cancelled) return;
+
+        const resultData = data.result_data as any;
+        setUsername(data.target || '');
+        setLinkData(resultData);
+
+        toast({
+          title: 'Loaded saved analysis',
+          description: `Showing saved link analysis for "${data.target}"`,
+        });
+      } catch (e: any) {
+        if (!cancelled) {
+          toast({
+            title: 'Failed to load analysis',
+            description: e?.message || 'Could not load saved analysis',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.state, toast]);
 
   // Sample data for visualizations
   const connectionTimelineData = [
