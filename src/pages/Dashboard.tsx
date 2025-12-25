@@ -315,19 +315,19 @@ const Dashboard = () => {
   };
 
   const handleResultClick = (result: PastResult) => {
-    // Navigate to the appropriate page based on result type
+    // Navigate to the appropriate page with full result data
     switch (selectedResultType) {
       case 'userProfiles':
-        navigate('/user-profiling', { state: { loadProfile: result.target } });
+        navigate('/user-profiling', { state: { loadProfileId: result.id } });
         break;
       case 'keywordAnalyses':
-        navigate('/analysis', { state: { loadKeyword: result.target } });
+        navigate('/analysis', { state: { loadAnalysisId: result.id, analysisType: 'keyword' } });
         break;
       case 'communityAnalyses':
-        navigate('/community-analysis', { state: { loadCommunity: result.target } });
+        navigate('/analysis', { state: { loadAnalysisId: result.id, analysisType: 'community' } });
         break;
       case 'linkAnalyses':
-        navigate('/link-analysis', { state: { loadLink: result.target } });
+        navigate('/link-analysis', { state: { loadAnalysisId: result.id } });
         break;
       case 'monitoringSessions':
         navigate('/monitoring', { state: { loadSession: result.id } });

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,12 +14,73 @@ import { toZonedTime } from 'date-fns-tz';
 import { useInvestigation } from '@/contexts/InvestigationContext';
 
 const UserProfiling = () => {
+  const location = useLocation();
   const [username, setUsername] = useState('');
   const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { addUserProfile, saveUserProfileToDb, currentCase } = useInvestigation();
+
+  // Load saved profile when navigating from Dashboard
+  useEffect(() => {
+    const loadProfileId = (location.state as any)?.loadProfileId as string | undefined;
+    if (!loadProfileId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles_analyzed')
+          .select('*')
+          .eq('id', loadProfileId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) throw new Error('Profile not found');
+
+        if (cancelled) return;
+
+        setUsername(data.username || '');
+        setProfileData({
+          username: data.username,
+          accountAge: data.account_age,
+          totalKarma: data.total_karma,
+          postKarma: data.post_karma,
+          commentKarma: data.comment_karma,
+          activeSubreddits: data.active_subreddits || [],
+          activityPattern: data.activity_pattern || {},
+          sentimentAnalysis: data.sentiment_analysis || {},
+          postSentiments: data.post_sentiments || [],
+          commentSentiments: data.comment_sentiments || [],
+          locationIndicators: data.location_indicators || [],
+          behaviorPatterns: data.behavior_patterns || [],
+          wordCloud: data.word_cloud || [],
+        });
+
+        toast({
+          title: 'Loaded saved profile',
+          description: `Showing saved results for u/${data.username}`,
+        });
+      } catch (e: any) {
+        if (!cancelled) {
+          toast({
+            title: 'Failed to load profile',
+            description: e?.message || 'Could not load saved profile',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.state, toast]);
 
   // Sample data for visualizations
   const userWordCloud = [

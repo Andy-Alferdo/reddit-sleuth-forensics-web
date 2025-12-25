@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ interface SentimentItem {
 }
 
 const Analysis = () => {
+  const location = useLocation();
   const [keyword, setKeyword] = useState('');
   const [username, setUsername] = useState('');
   const [subreddit, setSubreddit] = useState('');
@@ -29,8 +31,65 @@ const Analysis = () => {
   const [communityData, setCommunityData] = useState<any>(null);
   const [linkData, setLinkData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('keyword');
   const { toast } = useToast();
   const { addKeywordAnalysis, addCommunityAnalysis, addLinkAnalysis, saveKeywordAnalysisToDb, saveCommunityAnalysisToDb, saveLinkAnalysisToDb, currentCase } = useInvestigation();
+
+  // Load saved analysis when navigating from Dashboard
+  useEffect(() => {
+    const loadAnalysisId = (location.state as any)?.loadAnalysisId as string | undefined;
+    const analysisType = (location.state as any)?.analysisType as string | undefined;
+    if (!loadAnalysisId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('analysis_results')
+          .select('*')
+          .eq('id', loadAnalysisId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) throw new Error('Analysis not found');
+
+        if (cancelled) return;
+
+        const resultData = data.result_data as any;
+
+        if (analysisType === 'keyword' || data.analysis_type === 'keyword') {
+          setActiveTab('keyword');
+          setKeyword(data.target || '');
+          setKeywordData(resultData);
+        } else if (analysisType === 'community' || data.analysis_type === 'community') {
+          setActiveTab('community');
+          setSubreddit(data.target || '');
+          setCommunityData(resultData);
+        }
+
+        toast({
+          title: 'Loaded saved analysis',
+          description: `Showing saved ${data.analysis_type} analysis for "${data.target}"`,
+        });
+      } catch (e: any) {
+        if (!cancelled) {
+          toast({
+            title: 'Failed to load analysis',
+            description: e?.message || 'Could not load saved analysis',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.state, toast]);
 
   const getSentimentBadge = (sentiment: string) => {
     switch (sentiment?.toLowerCase()) {
@@ -509,7 +568,7 @@ const Analysis = () => {
         <p className="text-muted-foreground">Comprehensive analysis across different dimensions</p>
       </div>
 
-      <Tabs defaultValue="keyword" className="w-full" onValueChange={() => { setKeywordData(null); setCommunityData(null); setLinkData(null); }}>
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setKeywordData(null); setCommunityData(null); setLinkData(null); }} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-6">
           <TabsTrigger value="keyword" className="data-[state=active]:bg-forensic-accent/20 data-[state=active]:text-forensic-accent">
             <TrendingUp className="h-4 w-4 mr-2" />
