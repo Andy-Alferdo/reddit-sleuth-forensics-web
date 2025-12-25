@@ -139,7 +139,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
             <img 
               src={mascotLogo} 
               alt="Reddit Sleuth Logo" 
-              className="w-24 h-24 drop-shadow-[0_0_15px_rgba(255,85,0,0.5)]"
+              className="w-20 h-20 drop-shadow-[0_0_15px_rgba(255,85,0,0.5)]"
             />
           </div>
 
