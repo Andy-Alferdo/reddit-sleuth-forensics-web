@@ -216,7 +216,7 @@ const AdminDashboard = () => {
 
       // Send invite email
       const inviteLink = `${window.location.origin}/register?token=${tokenData}`;
-      const { error: emailError } = await supabase.functions.invoke('send-invite-email', {
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-invite-email', {
         body: {
           email: newUserEmail,
           inviteLink,
