@@ -39,20 +39,8 @@ const LinkAnalysis = () => {
         if (cancelled) return;
 
         const resultData = data.result_data as any;
-        
-        // Validate that resultData has the expected structure
-        if (!resultData || !resultData.primaryUser) {
-          throw new Error('Invalid analysis data structure');
-        }
-        
-        setUsername(data.target || resultData.primaryUser || '');
-        setLinkData({
-          primaryUser: resultData.primaryUser || data.target || 'Unknown',
-          linkedAccounts: Array.isArray(resultData.linkedAccounts) ? resultData.linkedAccounts : [],
-          connectionStrength: Array.isArray(resultData.connectionStrength) ? resultData.connectionStrength : [],
-          riskFactors: Array.isArray(resultData.riskFactors) ? resultData.riskFactors : [],
-          networkGraph: resultData.networkGraph || { nodes: 0, connections: 0, clusters: 0 },
-        });
+        setUsername(data.target || '');
+        setLinkData(resultData);
 
         toast({
           title: 'Loaded saved analysis',
