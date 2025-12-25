@@ -199,99 +199,86 @@ const LinkAnalysis = () => {
 
       {linkData && (
         <div className="space-y-6">
-          {/* Network Overview */}
-          {linkData.networkGraph && (
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle>Network Overview - u/{linkData.primaryUser}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 rounded-lg bg-primary/10">
-                    <Share2 className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <div className="font-bold text-primary">{linkData.networkGraph.nodes}</div>
-                    <p className="text-sm text-muted-foreground">Connected Nodes</p>
-                  </div>
-                  <div className="text-center p-4 rounded-lg bg-forensic-accent/10">
-                    <Network className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
-                    <div className="font-bold text-forensic-accent">{linkData.networkGraph.connections}</div>
-                    <p className="text-sm text-muted-foreground">Total Connections</p>
-                  </div>
-                  <div className="text-center p-4 rounded-lg bg-card border">
-                    <Users className="h-6 w-6 text-foreground mx-auto mb-2" />
-                    <div className="font-bold text-foreground">{linkData.networkGraph.clusters}</div>
-                    <p className="text-sm text-muted-foreground">Platform Clusters</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Linked Accounts */}
+          {/* Network Overview - supports both saved and live data formats */}
           <Card className="border-primary/20">
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <ExternalLink className="h-5 w-5 text-primary" />
-                <span>Potential Linked Accounts</span>
-              </CardTitle>
+              <CardTitle>Network Overview - u/{linkData.primaryUser}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {(linkData.linkedAccounts || []).map((account: any, index: number) => (
-                  <div key={index} className="p-4 rounded-lg bg-card border border-border">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold text-lg">{account.platform}</h3>
-                          {account.verified && <CheckCircle className="h-4 w-4 text-forensic-accent" />}
-                        </div>
-                        <p className="text-muted-foreground">{account.username}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-lg font-bold ${getConfidenceColor(account.confidence)}`}>
-                          {account.confidence}%
-                        </div>
-                        <p className="text-xs text-muted-foreground">Confidence</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-muted-foreground">Common Indicators:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {account.commonIndicators.map((indicator: string, idx: number) => (
-                          <span 
-                            key={idx} 
-                            className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-md"
-                          >
-                            {indicator}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-4 rounded-lg bg-primary/10">
+                  <Share2 className="h-6 w-6 text-primary mx-auto mb-2" />
+                  <div className="font-bold text-primary">
+                    {linkData.networkGraph?.nodes ?? linkData.networkMetrics?.totalCommunities ?? 0}
                   </div>
-                ))}
+                  <p className="text-sm text-muted-foreground">Connected Nodes</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-forensic-accent/10">
+                  <Network className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
+                  <div className="font-bold text-forensic-accent">
+                    {linkData.networkGraph?.connections ?? linkData.networkMetrics?.crossCommunityLinks ?? 0}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Total Connections</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-card border">
+                  <Users className="h-6 w-6 text-foreground mx-auto mb-2" />
+                  <div className="font-bold text-foreground">
+                    {linkData.networkGraph?.clusters ?? linkData.networkMetrics?.totalPosts ?? 0}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {linkData.networkGraph ? 'Platform Clusters' : 'Total Posts'}
+                  </p>
+                </div>
               </div>
+              {/* Show additional metrics if from saved analysis */}
+              {linkData.totalKarma && (
+                <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 rounded-lg bg-muted">
+                    <div className="font-bold text-lg text-primary">{linkData.totalKarma.toLocaleString()}</div>
+                    <p className="text-sm text-muted-foreground">Total Karma</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted">
+                    <div className="font-bold text-lg text-foreground">
+                      {linkData.networkMetrics?.totalComments ?? 0}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Total Comments</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Connection Strength */}
+          {/* User to Communities - for saved analysis data */}
+          {linkData.userToCommunities && linkData.userToCommunities.length > 0 && (
             <Card className="border-primary/20">
               <CardHeader>
-                <CardTitle>Connection Strength Analysis</CardTitle>
+                <CardTitle className="flex items-center space-x-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <span>Community Activity</span>
+                </CardTitle>
               </CardHeader>
               <CardContent>
-              <div className="space-y-3">
-                  {(linkData.connectionStrength || []).map((connection: any, index: number) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">{connection.type}</span>
-                        <span className="text-sm font-bold text-primary">{connection.score}%</span>
+                <div className="space-y-4">
+                  {linkData.userToCommunities.map((comm: any, index: number) => (
+                    <div key={index} className="p-4 rounded-lg bg-card border border-border">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold text-lg">{comm.community}</h3>
+                          <p className="text-muted-foreground text-sm">
+                            {comm.posts} posts • {comm.comments} comments
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-primary">
+                            {comm.engagement?.toLocaleString() || comm.activity}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Engagement</p>
+                        </div>
                       </div>
                       <div className="w-full bg-muted rounded-full h-2">
                         <div 
                           className="bg-primary h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${connection.score}%` }}
+                          style={{ width: `${Math.min(100, comm.activity || 0)}%` }}
                         />
                       </div>
                     </div>
@@ -299,28 +286,156 @@ const LinkAnalysis = () => {
                 </div>
               </CardContent>
             </Card>
+          )}
 
-            {/* Risk Assessment */}
+          {/* Community Crossover - for saved analysis data */}
+          {linkData.communityCrossover && linkData.communityCrossover.length > 0 && (
             <Card className="border-primary/20">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
-                  <AlertTriangle className="h-5 w-5 text-forensic-warning" />
-                  <span>Risk Assessment</span>
+                  <Share2 className="h-5 w-5 text-primary" />
+                  <span>Community Crossover</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-              <div className="space-y-3">
-                  {(linkData.riskFactors || []).map((risk: any, index: number) => (
-                    <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border">
-                      <span className="text-sm">{risk.risk}</span>
-                      <span className={`text-sm font-bold ${getRiskColor(risk.level)}`}>
-                        {risk.level}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {linkData.communityCrossover.slice(0, 8).map((cross: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-card border">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{cross.from}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="text-sm">{cross.to}</span>
+                      </div>
+                      <span className={`text-sm font-bold ${
+                        cross.strength >= 80 ? 'text-forensic-accent' : 
+                        cross.strength >= 50 ? 'text-forensic-warning' : 'text-muted-foreground'
+                      }`}>
+                        {cross.strength}%
                       </span>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Linked Accounts - for live analysis data */}
+          {linkData.linkedAccounts && linkData.linkedAccounts.length > 0 && (
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <ExternalLink className="h-5 w-5 text-primary" />
+                  <span>Potential Linked Accounts</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {linkData.linkedAccounts.map((account: any, index: number) => (
+                    <div key={index} className="p-4 rounded-lg bg-card border border-border">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <h3 className="font-semibold text-lg">{account.platform}</h3>
+                            {account.verified && <CheckCircle className="h-4 w-4 text-forensic-accent" />}
+                          </div>
+                          <p className="text-muted-foreground">{account.username}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-lg font-bold ${getConfidenceColor(account.confidence)}`}>
+                            {account.confidence}%
+                          </div>
+                          <p className="text-xs text-muted-foreground">Confidence</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">Common Indicators:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {account.commonIndicators.map((indicator: string, idx: number) => (
+                            <span 
+                              key={idx} 
+                              className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-md"
+                            >
+                              {indicator}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Connection Strength - for live analysis */}
+            {linkData.connectionStrength && linkData.connectionStrength.length > 0 && (
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle>Connection Strength Analysis</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {linkData.connectionStrength.map((connection: any, index: number) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">{connection.type}</span>
+                          <span className="text-sm font-bold text-primary">{connection.score}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${connection.score}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Risk Assessment - for live analysis */}
+            {linkData.riskFactors && linkData.riskFactors.length > 0 && (
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <AlertTriangle className="h-5 w-5 text-forensic-warning" />
+                    <span>Risk Assessment</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {linkData.riskFactors.map((risk: any, index: number) => (
+                      <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border">
+                        <span className="text-sm">{risk.risk}</span>
+                        <span className={`text-sm font-bold ${getRiskColor(risk.level)}`}>
+                          {risk.level}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Community Distribution - for saved analysis */}
+            {linkData.communityDistribution && linkData.communityDistribution.length > 0 && (
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle>Community Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AnalyticsChart 
+                    data={linkData.communityDistribution} 
+                    title="" 
+                    type="pie" 
+                    height={250}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Beautiful User-Community Network Graph */}
@@ -329,67 +444,59 @@ const LinkAnalysis = () => {
             primaryUserId="user1"
             nodes={[
               { id: 'user1', label: linkData.primaryUser, type: 'user' },
-              { id: 'tech', label: 'r/technology', type: 'community' },
-              { id: 'prog', label: 'r/programming', type: 'community' },
-              { id: 'data', label: 'r/datascience', type: 'community' },
-              { id: 'ml', label: 'r/MachineLearning', type: 'community' },
-              { id: 'python', label: 'r/Python', type: 'community' },
-              { id: 'linux', label: 'r/linux', type: 'community' },
-              { id: 'twitter', label: 'Twitter', type: 'platform' },
-              { id: 'github', label: 'GitHub', type: 'platform' },
-              { id: 'linkedin', label: 'LinkedIn', type: 'platform' },
-              { id: 'coding', label: 'Coding', type: 'interest' },
-              { id: 'ai', label: 'AI/ML', type: 'interest' },
-              { id: 'opensource', label: 'Open Source', type: 'interest' },
+              ...(linkData.userToCommunities || []).slice(0, 6).map((c: any, i: number) => ({
+                id: `comm${i}`,
+                label: c.community || `Community ${i + 1}`,
+                type: 'community' as const,
+              })),
+              ...(linkData.linkedAccounts || []).map((a: any, i: number) => ({
+                id: `platform${i}`,
+                label: a.platform,
+                type: 'platform' as const,
+              })),
             ]}
             links={[
-              { source: 'user1', target: 'tech', weight: 3 },
-              { source: 'user1', target: 'prog', weight: 4 },
-              { source: 'user1', target: 'data', weight: 2 },
-              { source: 'user1', target: 'ml', weight: 3 },
-              { source: 'user1', target: 'python', weight: 2 },
-              { source: 'user1', target: 'linux', weight: 1 },
-              { source: 'user1', target: 'twitter', weight: 2 },
-              { source: 'user1', target: 'github', weight: 3 },
-              { source: 'user1', target: 'linkedin', weight: 1 },
-              { source: 'tech', target: 'coding', weight: 2 },
-              { source: 'prog', target: 'coding', weight: 3 },
-              { source: 'data', target: 'ai', weight: 2 },
-              { source: 'ml', target: 'ai', weight: 3 },
-              { source: 'python', target: 'opensource', weight: 2 },
-              { source: 'linux', target: 'opensource', weight: 2 },
-              { source: 'github', target: 'opensource', weight: 3 },
-              { source: 'tech', target: 'prog', weight: 2 },
-              { source: 'data', target: 'ml', weight: 2 },
+              ...(linkData.userToCommunities || []).slice(0, 6).map((_: any, i: number) => ({
+                source: 'user1',
+                target: `comm${i}`,
+                weight: 3,
+              })),
+              ...(linkData.linkedAccounts || []).map((_: any, i: number) => ({
+                source: 'user1',
+                target: `platform${i}`,
+                weight: 2,
+              })),
             ]}
           />
 
-          {/* Link Analysis Visualizations */}
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <AnalyticsChart 
-                data={connectionTimelineData} 
-                title="Connection Discovery Timeline" 
-                type="line" 
-                height={250}
-              />
-              <AnalyticsChart 
-                data={platformDistributionData} 
-                title="Platform Distribution" 
-                type="pie" 
-                height={250}
-              />
+          {/* Link Analysis Visualizations - only for live analysis */}
+          {linkData.networkGraph && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <AnalyticsChart 
+                  data={connectionTimelineData} 
+                  title="Connection Discovery Timeline" 
+                  type="line" 
+                  height={250}
+                />
+                <AnalyticsChart 
+                  data={platformDistributionData} 
+                  title="Platform Distribution" 
+                  type="pie" 
+                  height={250}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 gap-6">
+                <AnalyticsChart 
+                  data={connectionStrengthData} 
+                  title="Connection Strength Over Time" 
+                  type="bar" 
+                  height={250}
+                />
+              </div>
             </div>
-            
-            <div className="grid grid-cols-1 gap-6">
-              <AnalyticsChart 
-                data={connectionStrengthData} 
-                title="Connection Strength Over Time" 
-                type="bar" 
-                height={250}
-              />
-            </div>
-          </div>
+          )}
         </div>
       )}
 
