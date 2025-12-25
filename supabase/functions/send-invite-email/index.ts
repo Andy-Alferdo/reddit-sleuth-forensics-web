@@ -33,8 +33,14 @@ const handler = async (req: Request): Promise<Response> => {
       day: 'numeric',
     });
 
+    // Use RESEND_FROM if valid, otherwise use the default Resend test address
+    const fromEmail = Deno.env.get("RESEND_FROM");
+    const validFrom = fromEmail && fromEmail.includes("@") ? fromEmail : "Reddit Sleuth <onboarding@resend.dev>";
+    
+    console.log(`Using from address: ${validFrom}`);
+
     const emailResponse = await resend.emails.send({
-      from: Deno.env.get("RESEND_FROM") ?? "Reddit Sleuth <onboarding@resend.dev>",
+      from: validFrom,
       to: [email],
       subject: "You've been invited to Reddit Sleuth",
       html: `
