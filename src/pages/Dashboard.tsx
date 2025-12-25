@@ -67,51 +67,67 @@ const Dashboard = () => {
   }, []);
 
   // Fetch case-specific investigation stats
+  const fetchCaseStats = async () => {
+    if (!selectedCase?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Fetch counts for each type of investigation data
+      const [userProfilesRes, analysesRes, monitoringRes] = await Promise.all([
+        supabase
+          .from('user_profiles_analyzed')
+          .select('id', { count: 'exact', head: true })
+          .eq('case_id', selectedCase.id),
+        supabase
+          .from('analysis_results')
+          .select('id, analysis_type')
+          .eq('case_id', selectedCase.id),
+        supabase
+          .from('monitoring_sessions')
+          .select('id', { count: 'exact', head: true })
+          .eq('case_id', selectedCase.id),
+      ]);
+
+      const analyses = analysesRes.data || [];
+      const keywordCount = analyses.filter(a => a.analysis_type === 'keyword').length;
+      const communityCount = analyses.filter(a => a.analysis_type === 'community').length;
+      const linkCount = analyses.filter(a => a.analysis_type === 'link').length;
+
+      setCaseStats({
+        userProfiles: userProfilesRes.count || 0,
+        keywordAnalyses: keywordCount,
+        communityAnalyses: communityCount,
+        linkAnalyses: linkCount,
+        monitoringSessions: monitoringRes.count || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching case stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchCaseStats = async () => {
-      if (!selectedCase?.id) {
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        // Fetch counts for each type of investigation data
-        const [userProfilesRes, analysesRes, monitoringRes] = await Promise.all([
-          supabase
-            .from('user_profiles_analyzed')
-            .select('id', { count: 'exact', head: true })
-            .eq('case_id', selectedCase.id),
-          supabase
-            .from('analysis_results')
-            .select('id, analysis_type')
-            .eq('case_id', selectedCase.id),
-          supabase
-            .from('monitoring_sessions')
-            .select('id', { count: 'exact', head: true })
-            .eq('case_id', selectedCase.id),
-        ]);
-
-        const analyses = analysesRes.data || [];
-        const keywordCount = analyses.filter(a => a.analysis_type === 'keyword').length;
-        const communityCount = analyses.filter(a => a.analysis_type === 'community').length;
-        const linkCount = analyses.filter(a => a.analysis_type === 'link').length;
-
-        setCaseStats({
-          userProfiles: userProfilesRes.count || 0,
-          keywordAnalyses: keywordCount,
-          communityAnalyses: communityCount,
-          linkAnalyses: linkCount,
-          monitoringSessions: monitoringRes.count || 0,
-        });
-      } catch (error) {
-        console.error('Error fetching case stats:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+    setIsLoading(true);
     fetchCaseStats();
+  }, [selectedCase?.id]);
+
+  // Real-time subscription for live updates
+  useEffect(() => {
+    if (!selectedCase?.id) return;
+
+    const channel = supabase
+      .channel(`case-stats-${selectedCase.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_profiles_analyzed' }, () => fetchCaseStats())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'analysis_results' }, () => fetchCaseStats())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'monitoring_sessions' }, () => fetchCaseStats())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedCase?.id]);
 
   const hasSelectedCase = selectedCase !== null;
@@ -249,17 +265,21 @@ const Dashboard = () => {
           title = 'Monitoring Sessions';
           const { data: sessions } = await supabase
             .from('monitoring_sessions')
-            .select('id, target_name, search_type, started_at, ended_at, new_activity_count')
+            .select('id, target_name, search_type, started_at, ended_at, activities')
             .eq('case_id', selectedCase.id)
             .order('started_at', { ascending: false });
           
-          results = (sessions || []).map(s => ({
-            id: s.id,
-            target: s.target_name,
-            date: s.started_at ? format(new Date(s.started_at), 'MMM d, yyyy HH:mm') : 'N/A',
-            type: s.search_type,
-            data: { activityCount: s.new_activity_count, endedAt: s.ended_at },
-          }));
+          results = (sessions || []).map(s => {
+            // Count actual activities from the JSONB array
+            const activitiesArray = Array.isArray(s.activities) ? s.activities : [];
+            return {
+              id: s.id,
+              target: s.target_name,
+              date: s.started_at ? format(new Date(s.started_at), 'MMM d, yyyy HH:mm') : 'N/A',
+              type: s.search_type,
+              data: { activityCount: activitiesArray.length, endedAt: s.ended_at },
+            };
+          });
           break;
       }
 
