@@ -7,7 +7,7 @@ type ActionType =
   | 'analysis_run' | 'analysis_view'
   | 'report_generate' | 'report_view' | 'report_download'
   | 'login' | 'logout'
-  | 'invite_create' | 'invite_use'
+  | 'invite_create' | 'invite_use' | 'invite_revoke'
   | 'password_reset' | 'role_change'
   | 'scrape_reddit';
 
