@@ -34,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const emailResponse = await resend.emails.send({
-      from: "Reddit Sleuth <onboarding@resend.dev>",
+      from: Deno.env.get("RESEND_FROM") ?? "Reddit Sleuth <onboarding@resend.dev>",
       to: [email],
       subject: "You've been invited to Reddit Sleuth",
       html: `
@@ -80,9 +80,23 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    if (emailResponse?.error) {
+      console.error("Resend error:", emailResponse.error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: emailResponse.error,
+        }),
+        {
+          status: Number(emailResponse.error.statusCode) || 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
-    return new Response(JSON.stringify({ success: true, data: emailResponse }), {
+    console.log("Invite email delivered:", emailResponse);
+
+    return new Response(JSON.stringify({ success: true, data: emailResponse.data }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
