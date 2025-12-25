@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MovingBackground from '@/components/MovingBackground';
 import logo from '@/assets/intel-reddit-logo.png';
-import { Mail, Lock, Loader2, Eye, EyeOff, User, Check, X, Info } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff, User, Check, X, Info, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,6 +14,7 @@ interface RegisterPageProps {
 
 const RegisterPage = ({ onLogin }: RegisterPageProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,6 +24,9 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showRequirements, setShowRequirements] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteValid, setInviteValid] = useState<boolean | null>(null);
+  const [inviteChecking, setInviteChecking] = useState(true);
 
   const passwordRequirements = [
     { label: 'At least 8 characters', test: (pwd: string) => pwd.length >= 8 },
@@ -43,9 +47,57 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
 
   const allRequirementsMet = passwordRequirements.every(req => req.test(password));
 
+  // Check invite token on mount
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (!token) {
+      setInviteChecking(false);
+      setInviteValid(false);
+      return;
+    }
+
+    setInviteToken(token);
+    checkInviteToken(token);
+  }, [searchParams]);
+
+  const checkInviteToken = async (token: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_invites')
+        .select('*')
+        .eq('invite_token', token)
+        .is('used_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setInviteValid(true);
+        setEmail(data.email);
+      } else {
+        setInviteValid(false);
+      }
+    } catch (error) {
+      console.error('Error checking invite:', error);
+      setInviteValid(false);
+    } finally {
+      setInviteChecking(false);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!inviteToken || !inviteValid) {
+      toast({
+        title: "Invalid Invite",
+        description: "You need a valid invite link to register.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!email || !password) {
       toast({
         title: "Missing Fields",
@@ -77,6 +129,18 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
     setIsLoading(true);
 
     try {
+      // Get invite details for role assignment
+      const { data: inviteData } = await supabase
+        .from('user_invites')
+        .select('*')
+        .eq('invite_token', inviteToken)
+        .maybeSingle();
+
+      if (!inviteData) {
+        throw new Error('Invite not found or expired');
+      }
+
+      // Create user account
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -91,6 +155,12 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
       if (error) throw error;
 
       if (data.user) {
+        // Mark invite as used
+        await supabase
+          .from('user_invites')
+          .update({ used_at: new Date().toISOString() })
+          .eq('invite_token', inviteToken);
+
         // Sign out immediately to force user to login with credentials
         await supabase.auth.signOut();
         
@@ -111,6 +181,40 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
     }
   };
 
+  // Show loading while checking invite
+  if (inviteChecking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-forensic-dark to-forensic-darker flex items-center justify-center relative">
+        <MovingBackground />
+        <div className="relative z-10 text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Verifying invite...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if no valid invite
+  if (!inviteValid) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-forensic-dark to-forensic-darker flex items-center justify-center relative">
+        <MovingBackground />
+        <div className="relative z-10 w-full max-w-sm p-6">
+          <div className="backdrop-blur-sm bg-card/90 border border-destructive/50 shadow-2xl rounded-2xl p-8 text-center">
+            <ShieldAlert className="w-16 h-16 text-destructive mx-auto mb-4" />
+            <h1 className="text-xl font-bold text-foreground mb-2">Registration Restricted</h1>
+            <p className="text-muted-foreground mb-6">
+              Public registration is disabled. You need a valid invite link from an administrator to create an account.
+            </p>
+            <Button onClick={() => navigate('/login')} variant="outline" className="w-full">
+              Go to Login
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-forensic-dark to-forensic-darker flex items-center justify-center relative">
       <MovingBackground />
@@ -127,7 +231,10 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
           </div>
 
           {/* Title */}
-          <h1 className="text-xl font-bold text-center text-foreground mb-6">Create Account</h1>
+          <h1 className="text-xl font-bold text-center text-foreground mb-2">Create Account</h1>
+          <p className="text-center text-sm text-muted-foreground mb-6">
+            You've been invited to join as an investigator
+          </p>
 
           {/* Register Form */}
           <form onSubmit={handleSignUp} className="space-y-4">
@@ -144,7 +251,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
               />
             </div>
 
-            {/* Email Input */}
+            {/* Email Input - Pre-filled from invite */}
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
@@ -153,8 +260,8 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
-                className="pl-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full"
+                disabled={true} // Email is locked to invite
+                className="pl-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full opacity-75"
               />
             </div>
             
@@ -190,7 +297,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
                 </div>
               </div>
               
-              {/* Password Strength Indicator - Toggle with Info icon */}
+              {/* Password Strength Indicator */}
               {showRequirements && (
                 <div className="px-4 py-3 bg-background/30 rounded-xl border border-primary/20 space-y-1.5">
                   <p className="text-xs font-medium text-foreground mb-2">Password Requirements:</p>
@@ -237,7 +344,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
               </button>
             </div>
             
-            {/* Sign Up Button - Gradient Style */}
+            {/* Sign Up Button */}
             <Button 
               type="submit" 
               className="w-full h-12 mt-6 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-400 text-white font-semibold shadow-lg shadow-blue-500/25 transition-all duration-300"

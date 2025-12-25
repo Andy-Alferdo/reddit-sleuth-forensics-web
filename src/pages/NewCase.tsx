@@ -4,15 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { ArrowLeft, Save, Loader2, Shield, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useInvestigation } from '@/contexts/InvestigationContext';
+import { useAuditLog } from '@/hooks/useAuditLog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const NewCase = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { createCase } = useInvestigation();
+  const { logAction } = useAuditLog();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     caseNumber: `CASE-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
@@ -22,12 +26,25 @@ const NewCase = () => {
     priority: 'medium',
     department: '',
     startDate: new Date().toISOString().split('T')[0],
+    isSensitive: false,
+    casePassword: '',
+    confirmPassword: '',
+    cacheDurationDays: '30',
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSwitchChange = (checked: boolean) => {
+    setFormData({
+      ...formData,
+      isSensitive: checked,
+      casePassword: checked ? formData.casePassword : '',
+      confirmPassword: checked ? formData.confirmPassword : '',
     });
   };
 
@@ -42,6 +59,25 @@ const NewCase = () => {
       });
       return;
     }
+
+    if (formData.isSensitive) {
+      if (!formData.casePassword || formData.casePassword.length < 8) {
+        toast({
+          title: "Validation Error",
+          description: "Sensitive cases require a password (min 8 characters).",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (formData.casePassword !== formData.confirmPassword) {
+        toast({
+          title: "Validation Error",
+          description: "Passwords do not match.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     
     setIsSubmitting(true);
     
@@ -53,9 +89,23 @@ const NewCase = () => {
         leadInvestigator: formData.leadInvestigator,
         department: formData.department,
         priority: formData.priority,
+        isSensitive: formData.isSensitive,
+        casePassword: formData.isSensitive ? formData.casePassword : undefined,
+        cacheDurationDays: parseInt(formData.cacheDurationDays),
       });
       
       if (newCase) {
+        await logAction({
+          actionType: 'case_create',
+          resourceType: 'case',
+          resourceId: newCase.id,
+          details: { 
+            case_number: formData.caseNumber, 
+            is_sensitive: formData.isSensitive,
+            priority: formData.priority,
+          },
+        });
+
         toast({
           title: "Case Created Successfully",
           description: `Case ${formData.caseNumber} has been created and is ready for investigation.`,
@@ -187,6 +237,85 @@ const NewCase = () => {
                   value={formData.startDate}
                   onChange={handleInputChange}
                 />
+              </div>
+            </div>
+
+            {/* Security Section */}
+            <div className="border border-primary/20 rounded-lg p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold">Case Security</h3>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="isSensitive">Mark as Sensitive Case</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Sensitive cases require a password to reopen
+                  </p>
+                </div>
+                <Switch
+                  id="isSensitive"
+                  checked={formData.isSensitive}
+                  onCheckedChange={handleSwitchChange}
+                />
+              </div>
+
+              {formData.isSensitive && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-primary/10">
+                  <div className="space-y-2">
+                    <Label htmlFor="casePassword">Case Password *</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="casePassword"
+                        name="casePassword"
+                        type="password"
+                        placeholder="Min 8 characters"
+                        value={formData.casePassword}
+                        onChange={handleInputChange}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type="password"
+                        placeholder="Confirm password"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2 pt-4 border-t border-primary/10">
+                <Label htmlFor="cacheDurationDays">Analysis Cache Duration</Label>
+                <Select 
+                  value={formData.cacheDurationDays} 
+                  onValueChange={(value) => setFormData({ ...formData, cacheDurationDays: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">7 Days</SelectItem>
+                    <SelectItem value="30">30 Days</SelectItem>
+                    <SelectItem value="90">90 Days</SelectItem>
+                    <SelectItem value="365">1 Year</SelectItem>
+                    <SelectItem value="0">Never Expire</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  How long to cache sentiment and analysis results before re-running
+                </p>
               </div>
             </div>
 

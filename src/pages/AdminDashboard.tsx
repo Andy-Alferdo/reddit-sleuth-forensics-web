@@ -6,18 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-);
-import { Shield, Users, Database, LogOut, Trash2, UserPlus, Edit, KeyRound } from 'lucide-react';
+import { Shield, Users, Database, LogOut, Trash2, UserPlus, Edit, KeyRound, Mail, Copy, Clock, FileText } from 'lucide-react';
 import { formatDateShort } from '@/lib/dateUtils';
+import { useAuditLog } from '@/hooks/useAuditLog';
 
 interface User {
   id: string;
@@ -26,22 +22,50 @@ interface User {
   role?: string;
 }
 
+interface Invite {
+  id: string;
+  email: string;
+  invite_token: string;
+  role: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
+
+interface AuditLog {
+  id: string;
+  user_id: string;
+  action_type: string;
+  resource_type: string;
+  resource_id: string | null;
+  details: any;
+  created_at: string;
+  user_email?: string;
+}
+
 const AdminDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [invites, setInvites] = useState<Invite[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editRoleOpen, setEditRoleOpen] = useState(false);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState('user');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState('user');
+  const [newPassword, setNewPassword] = useState('');
+  const [inviteExpireDays, setInviteExpireDays] = useState('7');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { logAction } = useAuditLog();
 
   useEffect(() => {
     checkAdminAccess();
     fetchUsers();
+    fetchInvites();
+    fetchAuditLogs();
   }, []);
 
   const checkAdminAccess = async () => {
@@ -78,7 +102,6 @@ const AdminDashboard = () => {
 
       if (profilesError) throw profilesError;
 
-      // Fetch roles for each user
       const usersWithRoles = await Promise.all(
         (profiles || []).map(async (profile: any) => {
           const { data: roleData } = await supabase
@@ -108,72 +131,144 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchInvites = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_invites')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setInvites(data || []);
+    } catch (error: any) {
+      console.error('Failed to fetch invites:', error);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    try {
+      const { data: logs, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      // Get user emails for the logs
+      const userIds = [...new Set(logs?.map(l => l.user_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', userIds);
+
+      const emailMap = new Map(profiles?.map(p => [p.id, p.email]) || []);
+
+      setAuditLogs(
+        (logs || []).map(log => ({
+          ...log,
+          user_email: emailMap.get(log.user_id) || 'Unknown',
+        }))
+      );
+    } catch (error: any) {
+      console.error('Failed to fetch audit logs:', error);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/');
   };
 
-  const handleAddUser = async () => {
-    if (!newUserEmail || !newUserPassword) {
+  const handleCreateInvite = async () => {
+    if (!newUserEmail || !newUserEmail.includes('@')) {
       toast({
         title: "Validation Error",
-        description: "Email and password are required.",
+        description: "Please enter a valid email address.",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: newUserEmail,
-        password: newUserPassword,
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Generate token
+      const { data: tokenData, error: tokenError } = await supabase.rpc('generate_invite_token');
+      if (tokenError) throw tokenError;
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + parseInt(inviteExpireDays));
+
+      const { data, error } = await supabase
+        .from('user_invites')
+        .insert({
+          email: newUserEmail,
+          invite_token: tokenData,
+          role: newUserRole as any,
+          created_by: user?.id,
+          expires_at: expiresAt.toISOString(),
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      if (data.user && newUserRole !== 'user') {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({ user_id: data.user.id, role: newUserRole });
-
-        if (roleError) throw roleError;
-      }
+      await logAction({
+        actionType: 'invite_create',
+        resourceType: 'invite',
+        resourceId: data.id,
+        details: { email: newUserEmail, role: newUserRole },
+      });
 
       toast({
-        title: "Success",
-        description: `User ${newUserEmail} created successfully.`,
+        title: "Invite Created",
+        description: `Invite link generated for ${newUserEmail}.`,
       });
 
       setAddUserOpen(false);
       setNewUserEmail('');
-      setNewUserPassword('');
       setNewUserRole('user');
-      fetchUsers();
+      fetchInvites();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to create user.",
+        description: error.message || "Failed to create invite.",
         variant: "destructive",
       });
     }
+  };
+
+  const copyInviteLink = (token: string) => {
+    const link = `${window.location.origin}/register?token=${token}`;
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "Copied!",
+      description: "Invite link copied to clipboard.",
+    });
   };
 
   const handleUpdateRole = async () => {
     if (!selectedUser) return;
 
     try {
-      // First, remove existing role
       await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', selectedUser.id);
 
-      // Then add new role
       const { error } = await supabase
         .from('user_roles')
-        .insert({ user_id: selectedUser.id, role: selectedRole });
+        .insert({ user_id: selectedUser.id, role: selectedRole as any });
 
       if (error) throw error;
+
+      await logAction({
+        actionType: 'role_change',
+        resourceType: 'user',
+        resourceId: selectedUser.id,
+        details: { old_role: selectedUser.role, new_role: selectedRole },
+      });
 
       toast({
         title: "Success",
@@ -198,22 +293,58 @@ const AdminDashboard = () => {
     setEditRoleOpen(true);
   };
 
-  const handleResetPassword = async (user: User) => {
+  const openResetPassword = (user: User) => {
+    setSelectedUser(user);
+    setNewPassword('');
+    setResetPasswordOpen(true);
+  };
+
+  const handleAdminResetPassword = async () => {
+    if (!selectedUser || !newPassword) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a new password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: "Weak Password",
+        description: "Password must be at least 8 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-        redirectTo: `${window.location.origin}/admin/login`,
+      // Use edge function to reset password (requires service role)
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { userId: selectedUser.id, newPassword },
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Password Reset Email Sent",
-        description: `A password reset link has been sent to ${user.email}.`,
+      await logAction({
+        actionType: 'password_reset',
+        resourceType: 'user',
+        resourceId: selectedUser.id,
+        details: { admin_initiated: true },
       });
+
+      toast({
+        title: "Password Reset",
+        description: `Password has been reset for ${selectedUser.email}.`,
+      });
+
+      setResetPasswordOpen(false);
+      setSelectedUser(null);
+      setNewPassword('');
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to send password reset email.",
+        description: error.message || "Failed to reset password.",
         variant: "destructive",
       });
     }
@@ -222,7 +353,7 @@ const AdminDashboard = () => {
   const handleDeleteUser = async (userId: string) => {
     toast({
       title: "Info",
-      description: "User deletion requires service role key. Please delete users directly from your Supabase dashboard.",
+      description: "User deletion requires service role key. Please use the backend console.",
     });
   };
 
@@ -237,6 +368,12 @@ const AdminDashboard = () => {
     }
   };
 
+  const getActionBadgeVariant = (action: string) => {
+    if (action.includes('delete') || action.includes('reset')) return 'destructive';
+    if (action.includes('create') || action.includes('generate')) return 'default';
+    return 'secondary';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-forensic-dark to-forensic-darker p-6">
       <div className="max-w-7xl mx-auto">
@@ -245,7 +382,7 @@ const AdminDashboard = () => {
             <Shield className="w-10 h-10 text-primary" />
             <div>
               <h1 className="text-3xl font-bold text-primary">Admin Dashboard</h1>
-              <p className="text-muted-foreground">Manage your application</p>
+              <p className="text-muted-foreground">Manage users, invites, and security</p>
             </div>
           </div>
           <Button onClick={handleLogout} variant="outline">
@@ -255,14 +392,22 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-lg grid-cols-4">
             <TabsTrigger value="users">
               <Users className="w-4 h-4 mr-2" />
               Users
             </TabsTrigger>
+            <TabsTrigger value="invites">
+              <Mail className="w-4 h-4 mr-2" />
+              Invites
+            </TabsTrigger>
+            <TabsTrigger value="audit">
+              <FileText className="w-4 h-4 mr-2" />
+              Audit
+            </TabsTrigger>
             <TabsTrigger value="database">
               <Database className="w-4 h-4 mr-2" />
-              Database
+              Stats
             </TabsTrigger>
           </TabsList>
 
@@ -272,77 +417,15 @@ const AdminDashboard = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <CardTitle>User Management</CardTitle>
-                    <CardDescription>
-                      View and manage all registered users
-                    </CardDescription>
+                    <CardDescription>View and manage all registered users</CardDescription>
                   </div>
-                  <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Add User
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New User</DialogTitle>
-                        <DialogDescription>
-                          Create a new user account and assign a role.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="email">Email</Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={newUserEmail}
-                            onChange={(e) => setNewUserEmail(e.target.value)}
-                            placeholder="user@example.com"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="password">Password</Label>
-                          <Input
-                            id="password"
-                            type="password"
-                            value={newUserPassword}
-                            onChange={(e) => setNewUserPassword(e.target.value)}
-                            placeholder="••••••••"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="role">Role</Label>
-                          <Select value={newUserRole} onValueChange={setNewUserRole}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setAddUserOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleAddUser}>Create User</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
                 </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Loading users...
-                  </div>
+                  <div className="text-center py-8 text-muted-foreground">Loading users...</div>
                 ) : users.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No users found.
-                  </div>
+                  <div className="text-center py-8 text-muted-foreground">No users found.</div>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -362,33 +445,16 @@ const AdminDashboard = () => {
                               {user.role || 'user'}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            {formatDateShort(user.created_at)}
-                          </TableCell>
+                          <TableCell>{formatDateShort(user.created_at)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEditRole(user)}
-                                title="Edit Role"
-                              >
+                              <Button variant="ghost" size="sm" onClick={() => openEditRole(user)} title="Edit Role">
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleResetPassword(user)}
-                                title="Reset Password"
-                              >
+                              <Button variant="ghost" size="sm" onClick={() => openResetPassword(user)} title="Reset Password">
                                 <KeyRound className="w-4 h-4 text-warning" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteUser(user.id)}
-                                title="Delete User"
-                              >
+                              <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(user.id)} title="Delete User">
                                 <Trash2 className="w-4 h-4 text-destructive" />
                               </Button>
                             </div>
@@ -402,16 +468,173 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="invites">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Invite Management</CardTitle>
+                    <CardDescription>Create and manage user invites</CardDescription>
+                  </div>
+                  <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Create Invite
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create New Invite</DialogTitle>
+                        <DialogDescription>
+                          Generate an invite link for a new investigator.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="email">Email Address</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={newUserEmail}
+                            onChange={(e) => setNewUserEmail(e.target.value)}
+                            placeholder="investigator@example.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="role">Role</Label>
+                          <Select value={newUserRole} onValueChange={setNewUserRole}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">Investigator</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="expires">Expires In</Label>
+                          <Select value={inviteExpireDays} onValueChange={setInviteExpireDays}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">1 Day</SelectItem>
+                              <SelectItem value="7">7 Days</SelectItem>
+                              <SelectItem value="30">30 Days</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setAddUserOpen(false)}>Cancel</Button>
+                        <Button onClick={handleCreateInvite}>Create Invite</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {invites.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No invites found.</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Expires</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {invites.map((invite) => {
+                        const isExpired = new Date(invite.expires_at) < new Date();
+                        const isUsed = !!invite.used_at;
+                        return (
+                          <TableRow key={invite.id}>
+                            <TableCell className="font-medium">{invite.email}</TableCell>
+                            <TableCell>
+                              <Badge variant={getRoleBadgeVariant(invite.role)}>{invite.role}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {isUsed ? (
+                                <Badge variant="outline" className="text-green-500">Used</Badge>
+                              ) : isExpired ? (
+                                <Badge variant="destructive">Expired</Badge>
+                              ) : (
+                                <Badge variant="default">Pending</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{formatDateShort(invite.expires_at)}</TableCell>
+                            <TableCell className="text-right">
+                              {!isUsed && !isExpired && (
+                                <Button variant="ghost" size="sm" onClick={() => copyInviteLink(invite.invite_token)} title="Copy Link">
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audit">
+            <Card>
+              <CardHeader>
+                <CardTitle>Audit Trail</CardTitle>
+                <CardDescription>Recent activity log (last 100 entries)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {auditLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No audit logs found.</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Time</TableHead>
+                        <TableHead>User</TableHead>
+                        <TableHead>Action</TableHead>
+                        <TableHead>Resource</TableHead>
+                        <TableHead>Details</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditLogs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-xs">{formatDateShort(log.created_at)}</TableCell>
+                          <TableCell className="text-sm">{log.user_email}</TableCell>
+                          <TableCell>
+                            <Badge variant={getActionBadgeVariant(log.action_type)}>{log.action_type}</Badge>
+                          </TableCell>
+                          <TableCell>{log.resource_type}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                            {log.details ? JSON.stringify(log.details) : '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="database">
             <Card>
               <CardHeader>
-                <CardTitle>Database Overview</CardTitle>
-                <CardDescription>
-                  View and manage database information
-                </CardDescription>
+                <CardTitle>System Statistics</CardTitle>
+                <CardDescription>Overview of system usage</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 border rounded-lg">
                     <h3 className="font-semibold mb-2">Total Users</h3>
                     <p className="text-3xl font-bold text-primary">{users.length}</p>
@@ -422,27 +645,24 @@ const AdminDashboard = () => {
                       {users.filter(u => u.role === 'admin').length}
                     </p>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => window.open('https://supabase.com/dashboard', '_blank')}
-                  >
-                    <Database className="w-4 h-4 mr-2" />
-                    Open Full Database Console
-                  </Button>
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-semibold mb-2">Pending Invites</h3>
+                    <p className="text-3xl font-bold text-primary">
+                      {invites.filter(i => !i.used_at && new Date(i.expires_at) > new Date()).length}
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
 
+        {/* Edit Role Dialog */}
         <Dialog open={editRoleOpen} onOpenChange={setEditRoleOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit User Role</DialogTitle>
-              <DialogDescription>
-                Change the role for {selectedUser?.email}
-              </DialogDescription>
+              <DialogDescription>Change the role for {selectedUser?.email}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
@@ -452,17 +672,41 @@ const AdminDashboard = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="user">Investigator</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditRoleOpen(false)}>
-                Cancel
-              </Button>
+              <Button variant="outline" onClick={() => setEditRoleOpen(false)}>Cancel</Button>
               <Button onClick={handleUpdateRole}>Update Role</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset Password Dialog */}
+        <Dialog open={resetPasswordOpen} onOpenChange={setResetPasswordOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reset Password</DialogTitle>
+              <DialogDescription>Set a new password for {selectedUser?.email}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password (min 8 chars)"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setResetPasswordOpen(false)}>Cancel</Button>
+              <Button onClick={handleAdminResetPassword} variant="destructive">Reset Password</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

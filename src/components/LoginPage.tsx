@@ -5,9 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import MovingBackground from '@/components/MovingBackground';
 import mascotLogo from '@/assets/reddit-sleuth-mascot.png';
-import { Mail, Lock, Loader2, Eye, EyeOff, Send } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import { Mail, Lock, Loader2, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -24,9 +22,6 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-  const [isResetLoading, setIsResetLoading] = useState(false);
 
   // Show success message when coming from signup
   useEffect(() => {
@@ -35,7 +30,13 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
         title: "Account Created Successfully!",
         description: "Please login with your credentials.",
       });
-      // Clear the state to prevent showing toast on refresh
+      window.history.replaceState({}, document.title);
+    }
+    if (location.state?.passwordReset) {
+      toast({
+        title: "Password Reset",
+        description: "Your password has been reset by an administrator. Please login with your new password.",
+      });
       window.history.replaceState({}, document.title);
     }
   }, [location.state, toast]);
@@ -78,53 +79,6 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Pre-fill reset email when dialog opens
-  const handleOpenResetDialog = () => {
-    setResetEmail(email); // Pre-fill with login email
-    setIsResetDialogOpen(true);
-  };
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!resetEmail || !resetEmail.includes('@')) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsResetLoading(true);
-
-    try {
-      // Send reset link - Supabase handles email validation
-      // Note: For security, Supabase doesn't reveal if email exists
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Reset Link Sent",
-        description: "If an account exists with this email, you'll receive a password reset link.",
-      });
-
-      setResetEmail('');
-      setIsResetDialogOpen(false);
-    } catch (error: any) {
-      toast({
-        title: "Reset Failed",
-        description: error.message || "Failed to send reset email. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsResetLoading(false);
     }
   };
 
@@ -180,7 +134,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               </button>
             </div>
 
-            {/* Remember Me & Forgot Password */}
+            {/* Remember Me */}
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -194,64 +148,14 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 </label>
               </div>
               
-              <Dialog open={isResetDialogOpen} onOpenChange={(open) => {
-                if (open) {
-                  handleOpenResetDialog();
-                } else {
-                  setIsResetDialogOpen(false);
-                }
-              }}>
-                <DialogTrigger asChild>
-                  <button type="button" className="text-primary hover:text-primary/80 transition-colors">
-                    Forgot Password?
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="bg-card z-50">
-                  <DialogHeader>
-                    <DialogTitle>Reset Your Password</DialogTitle>
-                    <DialogDescription>
-                      Enter your email address and we'll send you a secure reset link.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleForgotPassword} className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="reset-email">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="reset-email"
-                          type="email"
-                          placeholder="your.email@example.com"
-                          value={resetEmail}
-                          onChange={(e) => setResetEmail(e.target.value)}
-                          className="pl-10"
-                          disabled={isResetLoading}
-                        />
-                      </div>
-                    </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isResetLoading}
-                    >
-                      {isResetLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4 mr-2" />
-                          Send Reset Link
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              {/* Password Reset Notice */}
+              <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                <ShieldAlert className="w-3 h-3" />
+                <span>Contact admin for reset</span>
+              </div>
             </div>
             
-            {/* Login Button - Gradient Style */}
+            {/* Login Button */}
             <Button 
               type="submit" 
               className="w-full h-12 mt-6 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-400 text-white font-semibold shadow-lg shadow-blue-500/25 transition-all duration-300"
@@ -268,17 +172,13 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
             </Button>
           </form>
 
-          {/* Register Link */}
-          <p className="text-center mt-6 text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <button
-              type="button"
-              onClick={() => navigate('/register')}
-              className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 font-semibold hover:from-cyan-300 hover:to-purple-300 transition-all"
-            >
-              Register Now
-            </button>
-          </p>
+          {/* Info about invite-only */}
+          <div className="mt-6 p-3 bg-muted/30 rounded-lg border border-muted">
+            <p className="text-center text-xs text-muted-foreground">
+              <ShieldAlert className="w-3 h-3 inline mr-1" />
+              Registration is invite-only. Contact your administrator for access.
+            </p>
+          </div>
         </div>
       </div>
     </div>
