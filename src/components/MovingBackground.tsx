@@ -1,51 +1,54 @@
 import { useEffect, useState } from 'react';
-import redditIcon from '@/assets/reddit-icon.png';
+import mascotLogo from '@/assets/reddit-sleuth-mascot.png';
 
-interface FloatingIcon {
+interface FloatingLogo {
   id: number;
   x: number;
   y: number;
   delay: number;
   size: number;
+  rotation: number;
 }
 
 const MovingBackground = () => {
-  const [icons, setIcons] = useState<FloatingIcon[]>([]);
+  const [logos, setLogos] = useState<FloatingLogo[]>([]);
 
   useEffect(() => {
-    const generateIcons = () => {
-      const newIcons: FloatingIcon[] = [];
-      for (let i = 0; i < 15; i++) {
-        newIcons.push({
+    const generateLogos = () => {
+      const newLogos: FloatingLogo[] = [];
+      for (let i = 0; i < 12; i++) {
+        newLogos.push({
           id: i,
           x: Math.random() * window.innerWidth,
           y: Math.random() * window.innerHeight,
-          delay: Math.random() * 15,
-          size: 20 + Math.random() * 40
+          delay: Math.random() * 20,
+          size: 40 + Math.random() * 60,
+          rotation: Math.random() * 30 - 15
         });
       }
-      setIcons(newIcons);
+      setLogos(newLogos);
     };
 
-    generateIcons();
-    window.addEventListener('resize', generateIcons);
-    return () => window.removeEventListener('resize', generateIcons);
+    generateLogos();
+    window.addEventListener('resize', generateLogos);
+    return () => window.removeEventListener('resize', generateLogos);
   }, []);
 
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
-      {icons.map((icon) => (
+      {logos.map((logo) => (
         <img
-          key={icon.id}
-          src={redditIcon}
+          key={logo.id}
+          src={mascotLogo}
           alt=""
-          className="absolute opacity-20 animate-float-diagonal"
+          className="absolute opacity-15 animate-float-diagonal drop-shadow-[0_0_8px_rgba(255,85,0,0.3)]"
           style={{
-            left: `${icon.x}px`,
-            top: `${icon.y}px`,
-            width: `${icon.size}px`,
-            height: `${icon.size}px`,
-            animationDelay: `${icon.delay}s`,
+            left: `${logo.x}px`,
+            top: `${logo.y}px`,
+            width: `${logo.size}px`,
+            height: `${logo.size}px`,
+            animationDelay: `${logo.delay}s`,
+            transform: `rotate(${logo.rotation}deg)`,
           }}
         />
       ))}
