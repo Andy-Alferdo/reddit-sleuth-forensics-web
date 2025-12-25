@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import MovingBackground from '@/components/MovingBackground';
-import logo from '@/assets/intel-reddit-logo.png';
+import mascotLogo from '@/assets/reddit-sleuth-mascot.png';
 import { Mail, Lock, Loader2, Eye, EyeOff, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -137,9 +137,9 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
           {/* Logo */}
           <div className="flex justify-center mb-6">
             <img 
-              src={logo} 
-              alt="Intel Reddit Logo" 
-              className="w-20 h-20 animate-glow-pulse"
+              src={mascotLogo} 
+              alt="Reddit Sleuth Logo" 
+              className="w-24 h-24 drop-shadow-[0_0_15px_rgba(255,85,0,0.5)]"
             />
           </div>
 
