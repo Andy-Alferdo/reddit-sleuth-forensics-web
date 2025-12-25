@@ -54,6 +54,16 @@ Deno.serve(async (req) => {
         if (!userId) {
           throw new Error('Authentication required to create a case');
         }
+        
+        // Hash password if sensitive case
+        let passwordHash = null;
+        if (data.isSensitive && data.casePassword) {
+          const { data: hashResult } = await supabase.rpc('hash_case_password', {
+            p_password: data.casePassword
+          });
+          passwordHash = hashResult;
+        }
+        
         const { data: caseData, error } = await supabase
           .from('investigation_cases')
           .insert({
@@ -65,11 +75,24 @@ Deno.serve(async (req) => {
             priority: data.priority,
             status: 'active',
             created_by: userId,
+            is_sensitive: data.isSensitive || false,
+            case_password_hash: passwordHash,
+            cache_duration_days: data.cacheDurationDays || 30,
           })
           .select()
           .single();
         
         if (error) throw error;
+        
+        // Log audit event
+        await supabase.rpc('log_audit_event', {
+          p_user_id: userId,
+          p_action_type: 'case_create',
+          p_resource_type: 'case',
+          p_resource_id: caseData.id,
+          p_details: { case_number: data.caseNumber, is_sensitive: data.isSensitive }
+        });
+        
         result = caseData;
         console.log(`[data-store] Case created: ${caseData.id}`);
         break;
