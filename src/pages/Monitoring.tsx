@@ -49,6 +49,7 @@ const Monitoring = () => {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [isViewingSavedSession, setIsViewingSavedSession] = useState(false);
 
   const [activities, setActivities] = useState<RedditActivity[]>([]);
   const [wordCloudData, setWordCloudData] = useState<any[]>([]);
@@ -89,6 +90,7 @@ const Monitoring = () => {
         setWordCloudData(Array.isArray(data.word_cloud_data) ? (data.word_cloud_data as any) : []);
         setNewActivityCount(data.new_activity_count || 0);
         monitoringStartTimeRef.current = data.started_at || '';
+        setIsViewingSavedSession(true);
         setIsMonitoring(false);
 
         toast({
@@ -374,10 +376,11 @@ const Monitoring = () => {
 
 
   const handleStartMonitoring = async () => {
+    setIsViewingSavedSession(false);
     setIsMonitoring(true);
     setNewActivityCount(0);
     monitoringStartTimeRef.current = new Date().toISOString();
-    
+
     toast({
       title: "Monitoring Started",
       description: "Real-time tracking active. Checking for new activity every 15 seconds.",
@@ -820,15 +823,42 @@ const Monitoring = () => {
                 )}
               </div>
               
-              {!isMonitoring && (
+              {!isMonitoring && !isViewingSavedSession && (
                 <div className="flex flex-col items-center gap-2 pt-4 border-t">
-                  <Button onClick={handleStartMonitoring} size="lg" className="w-full max-w-md">
+                  <Button
+                    onClick={() => {
+                      setIsViewingSavedSession(false);
+                      handleStartMonitoring();
+                    }}
+                    size="lg"
+                    className="w-full max-w-md"
+                  >
                     <Activity className="mr-2 h-4 w-4" />
                     Start Monitoring
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
                     Click 'Start Monitoring' to begin real-time tracking of activity and trends.
                   </p>
+                </div>
+              )}
+
+              {isViewingSavedSession && !isMonitoring && (
+                <div className="flex flex-col items-center gap-2 pt-4 border-t">
+                  <div className="text-xs text-muted-foreground text-center">
+                    You are viewing a saved session (no re-scrape / no API usage).
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setIsViewingSavedSession(false);
+                      handleStartMonitoring();
+                    }}
+                    size="lg"
+                    variant="default"
+                    className="w-full max-w-md"
+                  >
+                    <Activity className="mr-2 h-4 w-4" />
+                    Resume Live Monitoring
+                  </Button>
                 </div>
               )}
 
@@ -872,8 +902,8 @@ const Monitoring = () => {
           </Card>
         )}
 
-        {/* Main Monitoring Dashboard - Only shown after Start Monitoring */}
-        {isMonitoring && profileData && (
+        {/* Main Monitoring Dashboard - shown for live monitoring OR saved session viewing */}
+        {(isMonitoring || isViewingSavedSession) && profileData && (
           <div className={`grid gap-6 animate-fade-in ${profileData.communityName ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
             {/* Left Column */}
             <div className={profileData.communityName ? 'space-y-6' : 'lg:col-span-2 space-y-6'}>
@@ -883,9 +913,16 @@ const Monitoring = () => {
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5" />
                     Notifications
-                    <Badge variant="default" className="ml-auto animate-pulse">Live</Badge>
+                    <Badge
+                      variant="default"
+                      className={`ml-auto ${isViewingSavedSession ? '' : 'animate-pulse'}`}
+                    >
+                      {isViewingSavedSession ? 'Saved' : 'Live'}
+                    </Badge>
                   </CardTitle>
-                  <CardDescription>Latest Reddit activities</CardDescription>
+                  <CardDescription>
+                    {isViewingSavedSession ? 'Saved activities from this session' : 'Latest Reddit activities'}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {profileData.communityName ? (

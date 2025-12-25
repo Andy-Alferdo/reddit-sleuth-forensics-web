@@ -63,14 +63,23 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
 
       if (error) throw error;
 
-      if (data.user) {
-        toast({
-          title: "Login Successful",
-          description: "Welcome back to Intel Reddit!",
-        });
-        onLogin();
-        navigate('/');
-      }
+        if (data.user) {
+          toast({
+            title: "Login Successful",
+            description: "Welcome back to Intel Reddit!",
+          });
+          onLogin();
+
+          const from = (location.state as any)?.from;
+          if (from?.pathname) {
+            navigate(from.pathname + (from.search || ''), {
+              replace: true,
+              state: from.state,
+            });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+        }
     } catch (error: any) {
       toast({
         title: "Login Failed",
