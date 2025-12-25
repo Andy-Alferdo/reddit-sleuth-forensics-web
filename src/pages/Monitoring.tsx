@@ -77,17 +77,30 @@ const Monitoring = () => {
 
         if (error) throw error;
         if (!data) throw new Error('Session not found');
-        if (currentCase?.id && data.case_id && data.case_id !== currentCase.id) {
-          // Do nothing special; still allow viewing, but avoid confusing edits to current case
-        }
 
         if (cancelled) return;
 
-        setSearchType((data.search_type as any) || '');
+        const savedProfile = data.profile_data as any;
+        const savedActivities = Array.isArray(data.activities) ? (data.activities as any) : [];
+        const savedWordCloud = Array.isArray(data.word_cloud_data) ? (data.word_cloud_data as any) : [];
+        
+        setSearchType((data.search_type as 'user' | 'community') || 'user');
         setSearchQuery(data.target_name || '');
-        setProfileData((data.profile_data as any) || null);
-        setActivities(Array.isArray(data.activities) ? (data.activities as any) : []);
-        setWordCloudData(Array.isArray(data.word_cloud_data) ? (data.word_cloud_data as any) : []);
+        
+        // Ensure profileData is properly structured for rendering
+        if (savedProfile && typeof savedProfile === 'object') {
+          setProfileData(savedProfile);
+        } else {
+          // Create a minimal profile from target name if profile_data is missing
+          const isUser = data.search_type === 'user';
+          setProfileData(isUser 
+            ? { username: data.target_name || 'Unknown' }
+            : { communityName: data.target_name || 'Unknown' }
+          );
+        }
+        
+        setActivities(savedActivities);
+        setWordCloudData(savedWordCloud);
         setNewActivityCount(data.new_activity_count || 0);
         monitoringStartTimeRef.current = data.started_at || '';
         setIsViewingSavedSession(true);
@@ -95,7 +108,7 @@ const Monitoring = () => {
 
         toast({
           title: 'Loaded past session',
-          description: `Showing saved results for ${data.target_name}`,
+          description: `Showing saved results for ${data.target_name} (${savedActivities.length} activities)`,
         });
       } catch (e: any) {
         if (!cancelled) {
@@ -113,7 +126,7 @@ const Monitoring = () => {
     return () => {
       cancelled = true;
     };
-  }, [location.state, currentCase?.id, toast]);
+  }, [location.state, toast]);
 
   // Generate sample activities
   const generateActivities = (type: 'user' | 'community', name: string): RedditActivity[] => {
