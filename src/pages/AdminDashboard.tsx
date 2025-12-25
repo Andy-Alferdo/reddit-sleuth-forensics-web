@@ -214,16 +214,36 @@ const AdminDashboard = () => {
 
       if (error) throw error;
 
+      // Send invite email
+      const inviteLink = `${window.location.origin}/register?token=${tokenData}`;
+      const { error: emailError } = await supabase.functions.invoke('send-invite-email', {
+        body: {
+          email: newUserEmail,
+          inviteLink,
+          role: newUserRole,
+          expiresAt: expiresAt.toISOString(),
+        },
+      });
+
+      if (emailError) {
+        console.error('Failed to send invite email:', emailError);
+        toast({
+          title: "Invite Created",
+          description: `Invite link generated for ${newUserEmail}, but email delivery failed. You can copy the link manually.`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Invite Sent",
+          description: `Invite email sent to ${newUserEmail}.`,
+        });
+      }
+
       await logAction({
         actionType: 'invite_create',
         resourceType: 'invite',
         resourceId: data.id,
-        details: { email: newUserEmail, role: newUserRole },
-      });
-
-      toast({
-        title: "Invite Created",
-        description: `Invite link generated for ${newUserEmail}.`,
+        details: { email: newUserEmail, role: newUserRole, email_sent: !emailError },
       });
 
       setAddUserOpen(false);
