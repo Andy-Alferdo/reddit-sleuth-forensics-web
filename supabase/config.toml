@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.data-store]
 verify_jwt = false
+
+[functions.admin-reset-password]
+verify_jwt = false
+
+[functions.send-invite-email]
+verify_jwt = false
