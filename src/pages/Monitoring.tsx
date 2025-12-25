@@ -83,10 +83,30 @@ const Monitoring = () => {
 
         if (cancelled) return;
 
-        setSearchType((data.search_type as any) || '');
+        // Parse profile_data properly - it might be stored with 'u/' prefix
+        const loadedProfile = data.profile_data as ProfileData | null;
+        
+        // Ensure profile has required data for rendering
+        const parsedProfile: ProfileData | null = loadedProfile ? {
+          ...loadedProfile,
+          // Keep username as-is (may include u/ prefix)
+          username: loadedProfile.username || data.target_name,
+        } : data.search_type === 'user' ? {
+          username: data.target_name,
+          accountAge: 'N/A',
+          totalKarma: 0,
+          activeSubreddits: 0,
+        } : data.search_type === 'community' ? {
+          communityName: data.target_name,
+          memberCount: 'N/A',
+          description: '',
+          createdDate: 'N/A',
+        } : null;
+
+        setSearchType((data.search_type as 'user' | 'community') || '');
         setSearchQuery(data.target_name || '');
-        setProfileData((data.profile_data as any) || null);
-        setActivities(Array.isArray(data.activities) ? (data.activities as any) : []);
+        setProfileData(parsedProfile);
+        setActivities(Array.isArray(data.activities) ? (data.activities as unknown as RedditActivity[]) : []);
         setWordCloudData(Array.isArray(data.word_cloud_data) ? (data.word_cloud_data as any) : []);
         setNewActivityCount(data.new_activity_count || 0);
         monitoringStartTimeRef.current = data.started_at || '';
