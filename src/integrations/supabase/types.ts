@@ -52,41 +52,83 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: string | null
+          resource_id: string | null
+          resource_type: string
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          resource_id?: string | null
+          resource_type: string
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          resource_id?: string | null
+          resource_type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       investigation_cases: {
         Row: {
+          cache_duration_days: number | null
           case_name: string
           case_number: string
+          case_password_hash: string | null
           created_at: string | null
           created_by: string | null
           department: string | null
           description: string | null
           id: string
+          is_sensitive: boolean | null
           lead_investigator: string | null
           priority: string | null
           status: string | null
           updated_at: string | null
         }
         Insert: {
+          cache_duration_days?: number | null
           case_name: string
           case_number: string
+          case_password_hash?: string | null
           created_at?: string | null
           created_by?: string | null
           department?: string | null
           description?: string | null
           id?: string
+          is_sensitive?: boolean | null
           lead_investigator?: string | null
           priority?: string | null
           status?: string | null
           updated_at?: string | null
         }
         Update: {
+          cache_duration_days?: number | null
           case_name?: string
           case_number?: string
+          case_password_hash?: string | null
           created_at?: string | null
           created_by?: string | null
           department?: string | null
           description?: string | null
           id?: string
+          is_sensitive?: boolean | null
           lead_investigator?: string | null
           priority?: string | null
           status?: string | null
@@ -342,6 +384,39 @@ export type Database = {
           },
         ]
       }
+      user_invites: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          email: string
+          expires_at: string
+          id: string
+          invite_token: string
+          role: Database["public"]["Enums"]["app_role"]
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          invite_token: string
+          role?: Database["public"]["Enums"]["app_role"]
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          invite_token?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       user_profiles_analyzed: {
         Row: {
           account_age: string | null
@@ -433,11 +508,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_invite_token: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      hash_case_password: { Args: { p_password: string }; Returns: string }
+      log_audit_event: {
+        Args: {
+          p_action_type: string
+          p_details?: Json
+          p_resource_id?: string
+          p_resource_type: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      verify_case_password: {
+        Args: { p_case_id: string; p_password: string }
         Returns: boolean
       }
     }
