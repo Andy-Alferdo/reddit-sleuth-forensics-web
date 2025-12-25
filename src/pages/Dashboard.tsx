@@ -125,10 +125,24 @@ const Dashboard = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'monitoring_sessions' }, () => fetchCaseStats())
       .subscribe();
 
+    const onCaseDataUpdated = (e: Event) => {
+      const ce = e as CustomEvent<{ caseId: string; kind: string }>;
+      if (ce.detail?.caseId === selectedCase.id) {
+        fetchCaseStats();
+        // If dialog is open for the same category, refresh it too
+        if (dialogOpen && selectedResultType === ce.detail.kind) {
+          handleViewPastResults(selectedResultType);
+        }
+      }
+    };
+
+    window.addEventListener('case-data-updated', onCaseDataUpdated);
+
     return () => {
+      window.removeEventListener('case-data-updated', onCaseDataUpdated);
       supabase.removeChannel(channel);
     };
-  }, [selectedCase?.id]);
+  }, [selectedCase?.id, dialogOpen, selectedResultType]);
 
   const hasSelectedCase = selectedCase !== null;
 
@@ -269,17 +283,20 @@ const Dashboard = () => {
             .eq('case_id', selectedCase.id)
             .order('started_at', { ascending: false });
           
-          results = (sessions || []).map(s => {
-            // Count actual activities from the JSONB array
-            const activitiesArray = Array.isArray(s.activities) ? s.activities : [];
-            return {
-              id: s.id,
-              target: s.target_name,
-              date: s.started_at ? format(new Date(s.started_at), 'MMM d, yyyy HH:mm') : 'N/A',
-              type: s.search_type,
-              data: { activityCount: activitiesArray.length, endedAt: s.ended_at },
-            };
-          });
+           results = (sessions || []).map(s => {
+             const activitiesArray = Array.isArray(s.activities) ? s.activities : [];
+             return {
+               id: s.id,
+               target: s.target_name,
+               date: s.started_at ? format(new Date(s.started_at), 'MMM d, yyyy HH:mm') : 'N/A',
+               type: s.search_type,
+               data: {
+                 activities: activitiesArray,
+                 activityCount: activitiesArray.length,
+                 endedAt: s.ended_at,
+               },
+             };
+           });
           break;
       }
 
@@ -526,12 +543,48 @@ const Dashboard = () => {
                         </Badge>
                       </div>
                       {result.data && (
-                        <div className="mt-2 text-xs text-muted-foreground">
+                        <div className="mt-2 text-xs text-muted-foreground space-y-2">
                           {selectedResultType === 'userProfiles' && result.data.karma && (
                             <span>Karma: {result.data.karma?.toLocaleString()}</span>
                           )}
+
                           {selectedResultType === 'monitoringSessions' && (
-                            <span>Activities: {result.data.activityCount || 0}</span>
+                            <div className="space-y-1">
+                              <div>Activities: {result.data.activityCount || 0}</div>
+                              {Array.isArray(result.data.activities) && result.data.activities.length > 0 && (
+                                <div className="rounded-md border bg-card p-2">
+                                  <div className="font-medium text-foreground mb-1">Latest activity</div>
+                                  <ul className="space-y-1">
+                                    {result.data.activities.slice(0, 3).map((a: any, idx: number) => (
+                                      <li key={idx} className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <div className="truncate">{a.title || a.body || 'Activity'}</div>
+                                          <div className="text-[11px] text-muted-foreground truncate">
+                                            {(a.subreddit ? `r/${a.subreddit}` : a.subreddit || '')}{a.timestamp ? ` • ${a.timestamp}` : ''}
+                                          </div>
+                                        </div>
+                                        {a.url && (
+                                          <a
+                                            className="text-primary underline shrink-0"
+                                            href={a.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            Open
+                                          </a>
+                                        )}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  {result.data.activities.length > 3 && (
+                                    <div className="mt-1 text-[11px] text-muted-foreground">
+                                      +{result.data.activities.length - 3} more (click card to open full session)
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
