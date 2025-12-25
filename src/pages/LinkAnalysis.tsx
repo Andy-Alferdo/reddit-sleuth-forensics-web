@@ -200,30 +200,32 @@ const LinkAnalysis = () => {
       {linkData && (
         <div className="space-y-6">
           {/* Network Overview */}
-          <Card className="border-primary/20">
-            <CardHeader>
-              <CardTitle>Network Overview - u/{linkData.primaryUser}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-4 rounded-lg bg-primary/10">
-                  <Share2 className="h-6 w-6 text-primary mx-auto mb-2" />
-                  <div className="font-bold text-primary">{linkData.networkGraph.nodes}</div>
-                  <p className="text-sm text-muted-foreground">Connected Nodes</p>
+          {linkData.networkGraph && (
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle>Network Overview - u/{linkData.primaryUser}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-4 rounded-lg bg-primary/10">
+                    <Share2 className="h-6 w-6 text-primary mx-auto mb-2" />
+                    <div className="font-bold text-primary">{linkData.networkGraph.nodes}</div>
+                    <p className="text-sm text-muted-foreground">Connected Nodes</p>
+                  </div>
+                  <div className="text-center p-4 rounded-lg bg-forensic-accent/10">
+                    <Network className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
+                    <div className="font-bold text-forensic-accent">{linkData.networkGraph.connections}</div>
+                    <p className="text-sm text-muted-foreground">Total Connections</p>
+                  </div>
+                  <div className="text-center p-4 rounded-lg bg-card border">
+                    <Users className="h-6 w-6 text-foreground mx-auto mb-2" />
+                    <div className="font-bold text-foreground">{linkData.networkGraph.clusters}</div>
+                    <p className="text-sm text-muted-foreground">Platform Clusters</p>
+                  </div>
                 </div>
-                <div className="text-center p-4 rounded-lg bg-forensic-accent/10">
-                  <Network className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
-                  <div className="font-bold text-forensic-accent">{linkData.networkGraph.connections}</div>
-                  <p className="text-sm text-muted-foreground">Total Connections</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-card border">
-                  <Users className="h-6 w-6 text-foreground mx-auto mb-2" />
-                  <div className="font-bold text-foreground">{linkData.networkGraph.clusters}</div>
-                  <p className="text-sm text-muted-foreground">Platform Clusters</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Linked Accounts */}
           <Card className="border-primary/20">
@@ -235,7 +237,7 @@ const LinkAnalysis = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {linkData.linkedAccounts.map((account: any, index: number) => (
+                {(linkData.linkedAccounts || []).map((account: any, index: number) => (
                   <div key={index} className="p-4 rounded-lg bg-card border border-border">
                     <div className="flex justify-between items-start mb-3">
                       <div>
@@ -279,8 +281,8 @@ const LinkAnalysis = () => {
                 <CardTitle>Connection Strength Analysis</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {linkData.connectionStrength.map((connection: any, index: number) => (
+              <div className="space-y-3">
+                  {(linkData.connectionStrength || []).map((connection: any, index: number) => (
                     <div key={index} className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">{connection.type}</span>
@@ -307,8 +309,8 @@ const LinkAnalysis = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {linkData.riskFactors.map((risk: any, index: number) => (
+              <div className="space-y-3">
+                  {(linkData.riskFactors || []).map((risk: any, index: number) => (
                     <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border">
                       <span className="text-sm">{risk.risk}</span>
                       <span className={`text-sm font-bold ${getRiskColor(risk.level)}`}>
