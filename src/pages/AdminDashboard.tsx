@@ -59,6 +59,8 @@ const AdminDashboard = () => {
   const [inviteExpireDays, setInviteExpireDays] = useState('7');
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [lastGeneratedLink, setLastGeneratedLink] = useState('');
+  const [revokeInviteOpen, setRevokeInviteOpen] = useState(false);
+  const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { logAction } = useAuditLog();
@@ -272,6 +274,46 @@ const AdminDashboard = () => {
       title: "Copied!",
       description: "Invite link copied to clipboard.",
     });
+  };
+
+  const openRevokeInvite = (invite: Invite) => {
+    setSelectedInvite(invite);
+    setRevokeInviteOpen(true);
+  };
+
+  const handleRevokeInvite = async () => {
+    if (!selectedInvite) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_invites')
+        .delete()
+        .eq('id', selectedInvite.id);
+
+      if (error) throw error;
+
+      await logAction({
+        actionType: 'invite_revoke',
+        resourceType: 'invite',
+        resourceId: selectedInvite.id,
+        details: { email: selectedInvite.email },
+      });
+
+      toast({
+        title: "Invite Revoked",
+        description: `Invite for ${selectedInvite.email} has been revoked.`,
+      });
+
+      setRevokeInviteOpen(false);
+      setSelectedInvite(null);
+      fetchInvites();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to revoke invite.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleUpdateRole = async () => {
@@ -596,11 +638,18 @@ const AdminDashboard = () => {
                             </TableCell>
                             <TableCell>{formatDateShort(invite.expires_at)}</TableCell>
                             <TableCell className="text-right">
-                              {!isUsed && !isExpired && (
-                                <Button variant="ghost" size="sm" onClick={() => copyInviteLink(invite.invite_token)} title="Copy Link">
-                                  <Copy className="w-4 h-4" />
-                                </Button>
-                              )}
+                              <div className="flex justify-end gap-1">
+                                {!isUsed && !isExpired && (
+                                  <Button variant="ghost" size="sm" onClick={() => copyInviteLink(invite.invite_token)} title="Copy Link">
+                                    <Copy className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {!isUsed && (
+                                  <Button variant="ghost" size="sm" onClick={() => openRevokeInvite(invite)} title="Revoke Invite">
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -764,6 +813,22 @@ const AdminDashboard = () => {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowLinkDialog(false)}>Done</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Revoke Invite Confirmation Dialog */}
+        <Dialog open={revokeInviteOpen} onOpenChange={setRevokeInviteOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Revoke Invite</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to revoke the invite for {selectedInvite?.email}? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRevokeInviteOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleRevokeInvite}>Revoke Invite</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
