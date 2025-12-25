@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, Users, Database, LogOut, Trash2, UserPlus, Edit, KeyRound, Mail, Copy, Clock, FileText } from 'lucide-react';
+import { Shield, Users, Database, LogOut, Trash2, UserPlus, Edit, KeyRound, Mail, Copy, Clock, FileText, Check, Link } from 'lucide-react';
 import { formatDateShort } from '@/lib/dateUtils';
 import { useAuditLog } from '@/hooks/useAuditLog';
 
@@ -57,6 +57,8 @@ const AdminDashboard = () => {
   const [selectedRole, setSelectedRole] = useState('user');
   const [newPassword, setNewPassword] = useState('');
   const [inviteExpireDays, setInviteExpireDays] = useState('7');
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [lastGeneratedLink, setLastGeneratedLink] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { logAction } = useAuditLog();
@@ -214,9 +216,16 @@ const AdminDashboard = () => {
 
       if (error) throw error;
 
-      // Send invite email
+      // Generate invite link
       const inviteLink = `${window.location.origin}/register?token=${tokenData}`;
-      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-invite-email', {
+      
+      // Store the link and show the success dialog
+      setLastGeneratedLink(inviteLink);
+      setAddUserOpen(false);
+      setShowLinkDialog(true);
+
+      // Try to send invite email (non-blocking)
+      const { error: emailError } = await supabase.functions.invoke('send-invite-email', {
         body: {
           email: newUserEmail,
           inviteLink,
@@ -227,16 +236,6 @@ const AdminDashboard = () => {
 
       if (emailError) {
         console.error('Failed to send invite email:', emailError);
-        toast({
-          title: "Invite Created",
-          description: `Invite link generated for ${newUserEmail}, but email delivery failed. You can copy the link manually.`,
-          variant: "default",
-        });
-      } else {
-        toast({
-          title: "Invite Sent",
-          description: `Invite email sent to ${newUserEmail}.`,
-        });
       }
 
       await logAction({
@@ -246,7 +245,6 @@ const AdminDashboard = () => {
         details: { email: newUserEmail, role: newUserRole, email_sent: !emailError },
       });
 
-      setAddUserOpen(false);
       setNewUserEmail('');
       setNewUserRole('user');
       fetchInvites();
@@ -262,6 +260,14 @@ const AdminDashboard = () => {
   const copyInviteLink = (token: string) => {
     const link = `${window.location.origin}/register?token=${token}`;
     navigator.clipboard.writeText(link);
+    toast({
+      title: "Copied!",
+      description: "Invite link copied to clipboard.",
+    });
+  };
+
+  const copyLastGeneratedLink = () => {
+    navigator.clipboard.writeText(lastGeneratedLink);
     toast({
       title: "Copied!",
       description: "Invite link copied to clipboard.",
@@ -727,6 +733,37 @@ const AdminDashboard = () => {
             <DialogFooter>
               <Button variant="outline" onClick={() => setResetPasswordOpen(false)}>Cancel</Button>
               <Button onClick={handleAdminResetPassword} variant="destructive">Reset Password</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Invite Link Success Dialog */}
+        <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Check className="w-5 h-5 text-green-500" />
+                Invite Created Successfully
+              </DialogTitle>
+              <DialogDescription>
+                Share this link with the user to let them register. The link will expire based on your settings.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg border">
+                <Link className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <code className="text-sm break-all flex-1">{lastGeneratedLink}</code>
+              </div>
+              <Button onClick={copyLastGeneratedLink} className="w-full" size="lg">
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Invite Link
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                You can share this via WhatsApp, SMS, email, or any other method.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowLinkDialog(false)}>Done</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
