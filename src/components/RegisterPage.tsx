@@ -155,11 +155,8 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
       if (error) throw error;
 
       if (data.user) {
-        // Mark invite as used
-        await supabase
-          .from('user_invites')
-          .update({ used_at: new Date().toISOString() })
-          .eq('invite_token', inviteToken);
+        // Mark invite as used using the secure database function
+        await supabase.rpc('mark_invite_used', { p_invite_token: inviteToken });
 
         // Sign out immediately to force user to login with credentials
         await supabase.auth.signOut();
