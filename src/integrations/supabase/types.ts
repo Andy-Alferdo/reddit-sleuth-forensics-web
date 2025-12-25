@@ -527,6 +527,7 @@ export type Database = {
         }
         Returns: string
       }
+      mark_invite_used: { Args: { p_invite_token: string }; Returns: boolean }
       verify_case_password: {
         Args: { p_case_id: string; p_password: string }
         Returns: boolean
