@@ -58,6 +58,7 @@ const Monitoring = () => {
   const [newActivityCount, setNewActivityCount] = useState(0);
   const monitoringIntervalRef = useRef<number | null>(null);
   const monitoringStartTimeRef = useRef<string>('');
+  const suppressResetOnSearchTypeChangeRef = useRef(false);
 
   // Load a past session when navigating from Case Dashboard
   useEffect(() => {
@@ -66,69 +67,78 @@ const Monitoring = () => {
 
     let cancelled = false;
 
-    (async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('monitoring_sessions')
-          .select('id, case_id, target_name, search_type, started_at, ended_at, profile_data, activities, word_cloud_data, new_activity_count')
-          .eq('id', loadSessionId)
-          .maybeSingle();
+     (async () => {
+       setIsLoading(true);
+       try {
+         const { data, error } = await supabase
+           .from('monitoring_sessions')
+           .select('id, case_id, target_name, search_type, started_at, ended_at, profile_data, activities, word_cloud_data, new_activity_count')
+           .eq('id', loadSessionId)
+           .maybeSingle();
 
-        if (error) throw error;
-        if (!data) throw new Error('Session not found');
-        if (currentCase?.id && data.case_id && data.case_id !== currentCase.id) {
-          // Do nothing special; still allow viewing, but avoid confusing edits to current case
-        }
+         if (error) throw error;
+         if (!data) throw new Error('Session not found');
+         if (currentCase?.id && data.case_id && data.case_id !== currentCase.id) {
+           // Do nothing special; still allow viewing, but avoid confusing edits to current case
+         }
 
-        if (cancelled) return;
+         if (cancelled) return;
 
-        // Parse profile_data properly - it might be stored with 'u/' prefix
-        const loadedProfile = data.profile_data as ProfileData | null;
-        
-        // Ensure profile has required data for rendering
-        const parsedProfile: ProfileData | null = loadedProfile ? {
-          ...loadedProfile,
-          // Keep username as-is (may include u/ prefix)
-          username: loadedProfile.username || data.target_name,
-        } : data.search_type === 'user' ? {
-          username: data.target_name,
-          accountAge: 'N/A',
-          totalKarma: 0,
-          activeSubreddits: 0,
-        } : data.search_type === 'community' ? {
-          communityName: data.target_name,
-          memberCount: 'N/A',
-          description: '',
-          createdDate: 'N/A',
-        } : null;
+         // Prevent the searchType-change effect from wiping loaded saved data.
+         suppressResetOnSearchTypeChangeRef.current = true;
 
-        setSearchType((data.search_type as 'user' | 'community') || '');
-        setSearchQuery(data.target_name || '');
-        setProfileData(parsedProfile);
-        setActivities(Array.isArray(data.activities) ? (data.activities as unknown as RedditActivity[]) : []);
-        setWordCloudData(Array.isArray(data.word_cloud_data) ? (data.word_cloud_data as any) : []);
-        setNewActivityCount(data.new_activity_count || 0);
-        monitoringStartTimeRef.current = data.started_at || '';
-        setIsViewingSavedSession(true);
-        setIsMonitoring(false);
+         // Parse profile_data properly
+         const loadedProfile = data.profile_data as ProfileData | null;
+
+         const parsedProfile: ProfileData | null = loadedProfile
+           ? {
+               ...loadedProfile,
+               username: loadedProfile.username || data.target_name,
+             }
+           : data.search_type === 'user'
+             ? {
+                 username: data.target_name,
+                 accountAge: 'N/A',
+                 totalKarma: 0,
+                 activeSubreddits: 0,
+               }
+             : data.search_type === 'community'
+               ? {
+                   communityName: data.target_name,
+                   memberCount: 'N/A',
+                   description: '',
+                   createdDate: 'N/A',
+                 }
+               : null;
+
+         setSearchType((data.search_type as 'user' | 'community') || '');
+         setSearchQuery(data.target_name || '');
+         setProfileData(parsedProfile);
+         setActivities(Array.isArray(data.activities) ? (data.activities as unknown as RedditActivity[]) : []);
+         setWordCloudData(Array.isArray(data.word_cloud_data) ? (data.word_cloud_data as any) : []);
+         setNewActivityCount(data.new_activity_count || 0);
+         monitoringStartTimeRef.current = data.started_at || '';
+         setIsViewingSavedSession(true);
+         setIsMonitoring(false);
+
+        // Note: do not reset the suppress flag here; the searchType effect will consume it once
 
         toast({
           title: 'Loaded past session',
           description: `Showing saved results for ${data.target_name}`,
         });
-      } catch (e: any) {
-        if (!cancelled) {
-          toast({
-            title: 'Failed to load session',
-            description: e?.message || 'Could not load saved session',
-            variant: 'destructive',
-          });
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
+       } catch (e: any) {
+         if (!cancelled) {
+           toast({
+             title: 'Failed to load session',
+             description: e?.message || 'Could not load saved session',
+             variant: 'destructive',
+           });
+         }
+       } finally {
+         if (!cancelled) setIsLoading(false);
+       }
+     })();
 
     return () => {
       cancelled = true;
@@ -652,8 +662,12 @@ const Monitoring = () => {
     }
   };
 
-  // Reset when search type changes
+  // Reset when search type changes (but never wipe a saved-session load)
   useEffect(() => {
+    if (suppressResetOnSearchTypeChangeRef.current) {
+      suppressResetOnSearchTypeChangeRef.current = false;
+      return;
+    }
     handleClearSearch();
   }, [searchType]);
 
