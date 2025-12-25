@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 // Types for the investigation data
@@ -162,22 +162,51 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
   const [communityAnalyses, setCommunityAnalyses] = useState<CommunityAnalysisData[]>([]);
   const [linkAnalyses, setLinkAnalyses] = useState<LinkAnalysisData[]>([]);
 
-  // Helper to call data-store edge function
+  // Helper to call data-store backend function
   const callDataStore = useCallback(async (operation: string, data?: any, caseId?: string) => {
     const { data: session } = await supabase.auth.getSession();
     const headers: Record<string, string> = {};
     if (session?.session?.access_token) {
       headers['Authorization'] = `Bearer ${session.session.access_token}`;
     }
-    
+
     const { data: result, error } = await supabase.functions.invoke('data-store', {
       body: { operation, data, caseId },
       headers,
     });
-    
+
     if (error) throw error;
     if (!result.success) throw new Error(result.error);
     return result.data;
+  }, []);
+
+  const emitCaseDataUpdated = useCallback((caseId: string, kind: string) => {
+    window.dispatchEvent(
+      new CustomEvent('case-data-updated', {
+        detail: { caseId, kind, ts: Date.now() },
+      })
+    );
+  }, []);
+
+  // Keep current case in sync with localStorage selection (single-tab safe)
+  useEffect(() => {
+    const syncFromStorage = () => {
+      const raw = localStorage.getItem('selectedCase');
+      if (!raw) {
+        setCurrentCase(null);
+        return;
+      }
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.id) setCurrentCase(parsed);
+      } catch {
+        // ignore
+      }
+    };
+
+    syncFromStorage();
+    window.addEventListener('storage', syncFromStorage);
+    return () => window.removeEventListener('storage', syncFromStorage);
   }, []);
 
   // Load all cases for current user
@@ -293,7 +322,8 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
   const saveUserProfileToDb = useCallback(async (profile: UserProfileData) => {
     if (!currentCase?.id) return;
     await callDataStore('saveUserProfile', profile, currentCase.id);
-  }, [currentCase, callDataStore]);
+    emitCaseDataUpdated(currentCase.id, 'userProfiles');
+  }, [currentCase, callDataStore, emitCaseDataUpdated]);
 
   const addMonitoringSession = (session: MonitoringData) => {
     setMonitoringSessions(prev => [...prev, session]);
@@ -302,7 +332,8 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
   const saveMonitoringSessionToDb = useCallback(async (session: MonitoringData) => {
     if (!currentCase?.id) return;
     await callDataStore('saveMonitoringSession', session, currentCase.id);
-  }, [currentCase, callDataStore]);
+    emitCaseDataUpdated(currentCase.id, 'monitoringSessions');
+  }, [currentCase, callDataStore, emitCaseDataUpdated]);
 
   const addKeywordAnalysis = (analysis: KeywordAnalysisData) => {
     setKeywordAnalyses(prev => {
@@ -324,7 +355,8 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
       resultData: analysis,
       sentimentData: analysis.sentimentChartData,
     }, currentCase.id);
-  }, [currentCase, callDataStore]);
+    emitCaseDataUpdated(currentCase.id, 'keywordAnalyses');
+  }, [currentCase, callDataStore, emitCaseDataUpdated]);
 
   const addCommunityAnalysis = (analysis: CommunityAnalysisData) => {
     setCommunityAnalyses(prev => {
@@ -346,7 +378,8 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
       resultData: analysis,
       sentimentData: analysis.sentimentChartData,
     }, currentCase.id);
-  }, [currentCase, callDataStore]);
+    emitCaseDataUpdated(currentCase.id, 'communityAnalyses');
+  }, [currentCase, callDataStore, emitCaseDataUpdated]);
 
   const addLinkAnalysis = (analysis: LinkAnalysisData) => {
     setLinkAnalyses(prev => {
@@ -367,7 +400,8 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
       target: analysis.primaryUser,
       resultData: analysis,
     }, currentCase.id);
-  }, [currentCase, callDataStore]);
+    emitCaseDataUpdated(currentCase.id, 'linkAnalyses');
+  }, [currentCase, callDataStore, emitCaseDataUpdated]);
 
   const clearUserProfiles = () => setUserProfiles([]);
   const clearMonitoringSessions = () => setMonitoringSessions([]);

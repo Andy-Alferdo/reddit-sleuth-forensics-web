@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,13 +42,14 @@ interface ProfileData {
 
 const Monitoring = () => {
   const { toast } = useToast();
+  const location = useLocation();
   const { addMonitoringSession, saveMonitoringSessionToDb, currentCase } = useInvestigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'user' | 'community' | ''>('');
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMonitoring, setIsMonitoring] = useState(false);
-  
+
   const [activities, setActivities] = useState<RedditActivity[]>([]);
   const [wordCloudData, setWordCloudData] = useState<any[]>([]);
   const [isFetching, setIsFetching] = useState(false);
@@ -55,6 +57,61 @@ const Monitoring = () => {
   const [newActivityCount, setNewActivityCount] = useState(0);
   const monitoringIntervalRef = useRef<number | null>(null);
   const monitoringStartTimeRef = useRef<string>('');
+
+  // Load a past session when navigating from Case Dashboard
+  useEffect(() => {
+    const loadSessionId = (location.state as any)?.loadSession as string | undefined;
+    if (!loadSessionId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('monitoring_sessions')
+          .select('id, case_id, target_name, search_type, started_at, ended_at, profile_data, activities, word_cloud_data, new_activity_count')
+          .eq('id', loadSessionId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) throw new Error('Session not found');
+        if (currentCase?.id && data.case_id && data.case_id !== currentCase.id) {
+          // Do nothing special; still allow viewing, but avoid confusing edits to current case
+        }
+
+        if (cancelled) return;
+
+        setSearchType((data.search_type as any) || '');
+        setSearchQuery(data.target_name || '');
+        setProfileData((data.profile_data as any) || null);
+        setActivities(Array.isArray(data.activities) ? (data.activities as any) : []);
+        setWordCloudData(Array.isArray(data.word_cloud_data) ? (data.word_cloud_data as any) : []);
+        setNewActivityCount(data.new_activity_count || 0);
+        monitoringStartTimeRef.current = data.started_at || '';
+        setIsMonitoring(false);
+
+        toast({
+          title: 'Loaded past session',
+          description: `Showing saved results for ${data.target_name}`,
+        });
+      } catch (e: any) {
+        if (!cancelled) {
+          toast({
+            title: 'Failed to load session',
+            description: e?.message || 'Could not load saved session',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [location.state, currentCase?.id, toast]);
 
   // Generate sample activities
   const generateActivities = (type: 'user' | 'community', name: string): RedditActivity[] => {
