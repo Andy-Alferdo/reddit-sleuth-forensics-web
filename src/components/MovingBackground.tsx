@@ -16,13 +16,13 @@ const MovingBackground = () => {
   useEffect(() => {
     const generateLogos = () => {
       const newLogos: FloatingLogo[] = [];
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 15; i++) {
         newLogos.push({
           id: i,
           x: Math.random() * window.innerWidth,
           y: Math.random() * window.innerHeight,
-          delay: Math.random() * 20,
-          size: 40 + Math.random() * 60,
+          delay: Math.random() * 15,
+          size: 20 + Math.random() * 40,
           rotation: Math.random() * 30 - 15
         });
       }
