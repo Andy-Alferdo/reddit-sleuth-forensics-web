@@ -227,7 +227,7 @@ const AdminDashboard = () => {
       setShowLinkDialog(true);
 
       // Try to send invite email (non-blocking)
-      const { error: emailError } = await supabase.functions.invoke('send-invite-email', {
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-invite-email', {
         body: {
           email: newUserEmail,
           inviteLink,
@@ -236,15 +236,22 @@ const AdminDashboard = () => {
         },
       });
 
-      if (emailError) {
-        console.error('Failed to send invite email:', emailError);
+      const emailSent = Boolean(emailResult?.success);
+
+      if (emailError || !emailSent) {
+        console.error('Invite email not sent:', emailError || emailResult?.error);
+        toast({
+          title: "Invite created",
+          description:
+            "Email couldn't be sent (email provider test mode). Share the invite link manually.",
+        });
       }
 
       await logAction({
         actionType: 'invite_create',
         resourceType: 'invite',
         resourceId: data.id,
-        details: { email: newUserEmail, role: newUserRole, email_sent: !emailError },
+        details: { email: newUserEmail, role: newUserRole, email_sent: emailSent },
       });
 
       setNewUserEmail('');

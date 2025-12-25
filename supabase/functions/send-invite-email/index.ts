@@ -87,6 +87,8 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (emailResponse?.error) {
+      // IMPORTANT: Resend may block sending in test mode (403) unless the domain is verified.
+      // We still return 200 here so the admin UI can continue and show/copy the invite link.
       console.error("Resend error:", emailResponse.error);
       return new Response(
         JSON.stringify({
@@ -94,7 +96,7 @@ const handler = async (req: Request): Promise<Response> => {
           error: emailResponse.error,
         }),
         {
-          status: Number(emailResponse.error.statusCode) || 500,
+          status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
@@ -107,11 +109,12 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
+    // Return 200 so the caller can handle the failure gracefully without treating it as a transport error.
     console.error("Error sending invite email:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: { message: error.message } }),
       {
-        status: 500,
+        status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
