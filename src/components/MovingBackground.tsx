@@ -22,7 +22,7 @@ const MovingBackground = () => {
           x: Math.random() * window.innerWidth,
           y: Math.random() * window.innerHeight,
           delay: Math.random() * 15,
-          size: 20 + Math.random() * 40,
+          size: 15 + Math.random() * 25,
           rotation: Math.random() * 30 - 15
         });
       }
