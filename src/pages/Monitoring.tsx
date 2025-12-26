@@ -1112,25 +1112,27 @@ const Monitoring = () => {
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Users className="h-4 w-4" />
-                        Weekly Contributors
+                        Weekly Contributions
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        Active contributors this week
+                        From Reddit community stats
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex items-center justify-center min-h-[220px]">
-                      {profileData.weeklyContributors !== undefined && profileData.weeklyContributors !== null && profileData.weeklyContributors > 0 ? (
-                        <div className="text-center">
-                          <p className="text-5xl font-bold text-primary">{profileData.weeklyContributors.toLocaleString()}</p>
-                          <p className="text-sm text-muted-foreground mt-2">contributors this week</p>
-                        </div>
-                      ) : (
-                        <div className="text-center text-muted-foreground">
-                          <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm font-medium">Weekly contributors not showing</p>
-                          <p className="text-xs mt-1">This community doesn't expose contributor data</p>
-                        </div>
-                      )}
+                      <div className="text-center text-muted-foreground">
+                        <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm font-medium">Weekly contributions not available</p>
+                        <p className="text-xs mt-1 max-w-[200px]">Reddit's API doesn't expose this metric. Visit Reddit directly to see this data.</p>
+                        <a 
+                          href={`https://reddit.com/${profileData.communityName}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-3"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View on Reddit
+                        </a>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
