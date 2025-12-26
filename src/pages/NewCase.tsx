@@ -38,20 +38,13 @@ const NewCase = () => {
       const currentYear = new Date().getFullYear();
       const yearPrefix = `CASE-${currentYear}-`;
       
-      // Fetch existing cases for this year to determine next number
-      const { data: existingCases } = await supabase
+      // Count existing cases for this year to determine next number
+      const { count } = await supabase
         .from('investigation_cases')
-        .select('case_number')
-        .like('case_number', `${yearPrefix}%`)
-        .order('case_number', { ascending: false })
-        .limit(1);
+        .select('*', { count: 'exact', head: true })
+        .like('case_number', `${yearPrefix}%`);
       
-      let nextNumber = 1;
-      if (existingCases && existingCases.length > 0) {
-        const lastCaseNumber = existingCases[0].case_number;
-        const lastNumber = parseInt(lastCaseNumber.split('-').pop() || '0', 10);
-        nextNumber = lastNumber + 1;
-      }
+      const nextNumber = (count || 0) + 1;
       
       setCaseNumber(`${yearPrefix}${String(nextNumber).padStart(3, '0')}`);
     };
