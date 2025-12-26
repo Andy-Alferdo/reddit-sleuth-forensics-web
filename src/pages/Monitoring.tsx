@@ -185,20 +185,22 @@ const Monitoring = () => {
   };
 
   // Calculate real activity breakdown from scraped data
-  // For communities, calculate posts per day for the last 7 days
+  // For communities, calculate posts per day for the last 3 days
   const getActivityBreakdownData = () => {
     if (profileData?.communityName) {
-      // Get day names for last 7 days
+      // Get day names for last 3 days with full date
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const today = new Date();
       const dailyData: { name: string; value: number }[] = [];
       
-      // Initialize daily data for last 7 days
-      for (let i = 6; i >= 0; i--) {
+      // Initialize daily data for last 3 days
+      for (let i = 2; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dayName = days[date.getDay()];
-        dailyData.push({ name: dayName, value: 0 });
+        const dateStr = `${dayName}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+        dailyData.push({ name: dateStr, value: 0 });
       }
       
       // Count posts for each day using created_utc
@@ -208,10 +210,10 @@ const Monitoring = () => {
         // Use created_utc directly (Unix timestamp in seconds)
         const activityDate = new Date(activity.created_utc * 1000);
         
-        // Find which day index this post belongs to
-        for (let i = 6; i >= 0; i--) {
+        // Find which day index this post belongs to (last 3 days)
+        for (let i = 2; i >= 0; i--) {
           const targetDate = new Date(today);
-          targetDate.setDate(targetDate.getDate() - (6 - i));
+          targetDate.setDate(targetDate.getDate() - (2 - i));
           
           if (activityDate.toDateString() === targetDate.toDateString()) {
             dailyData[i].value++;
@@ -919,9 +921,9 @@ const Monitoring = () => {
 
         {/* Main Monitoring Dashboard - shown for live monitoring OR saved session viewing */}
         {(isMonitoring || isViewingSavedSession) && profileData && (
-          <div className={`grid gap-6 animate-fade-in ${profileData.communityName ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
+          <div className={`grid gap-6 animate-fade-in ${profileData.communityName ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
             {/* Left Column */}
-            <div className={profileData.communityName ? 'space-y-6' : 'lg:col-span-2 space-y-6'}>
+            <div className={profileData.communityName ? 'space-y-6' : 'space-y-6'}>
               {/* Notifications */}
               <Card>
                 <CardHeader>
@@ -1058,15 +1060,17 @@ const Monitoring = () => {
                 </CardContent>
               </Card>
 
-              {/* Activity Timeline - User monitoring only */}
+              {/* Word Cloud for User monitoring - positioned where Activity Timeline was */}
               {!profileData.communityName && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Activity Timeline</CardTitle>
-                    <CardDescription>Activity over the last 6 hours</CardDescription>
+                    <CardTitle>Trending Keywords (Recent Activity)</CardTitle>
+                    <CardDescription>
+                      Color coded: Red = high, Green = medium, Light blue = low
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <AnalyticsChart data={activityTimelineData} title="" type="line" height={250} />
+                    <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
                   </CardContent>
                 </Card>
               )}
@@ -1074,33 +1078,46 @@ const Monitoring = () => {
 
             {/* Right Column */}
             <div className="space-y-6">
-              {/* Trending Keywords */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Trending Keywords (Recent Activity)</CardTitle>
-                  <CardDescription>
-                    Color coded: Red = high, Green = medium, Light blue = low
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
-                </CardContent>
-              </Card>
+              {/* For User monitoring - expanded Posts and Comments */}
+              {!profileData.communityName && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Activity Breakdown</CardTitle>
+                    <CardDescription>Posts vs Comments distribution</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
+                  </CardContent>
+                </Card>
+              )}
 
-              {/* Activity Breakdown */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    {profileData.communityName ? 'Posts (Last 7 Days)' : 'Activity Breakdown'}
-                  </CardTitle>
-                  {profileData.communityName && (
+              {/* Trending Keywords - Community monitoring */}
+              {profileData.communityName && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Trending Keywords (Recent Activity)</CardTitle>
+                    <CardDescription>
+                      Color coded: Red = high, Green = medium, Light blue = low
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Activity Breakdown - Community monitoring */}
+              {profileData.communityName && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Posts (Last 3 Days)</CardTitle>
                     <CardDescription>Daily post distribution</CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
-                </CardContent>
-              </Card>
+                  </CardHeader>
+                  <CardContent>
+                    <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
+                  </CardContent>
+                </Card>
+              )}
 
             </div>
           </div>
