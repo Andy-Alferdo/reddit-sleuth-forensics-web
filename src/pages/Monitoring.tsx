@@ -1065,9 +1065,6 @@ const Monitoring = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle>Trending Keywords (Recent Activity)</CardTitle>
-                    <CardDescription>
-                      Color coded: Red = high, Green = medium, Light blue = low
-                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
@@ -1098,9 +1095,6 @@ const Monitoring = () => {
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base">Trending Keywords</CardTitle>
-                      <CardDescription className="text-xs">
-                        Red = high, Green = medium, Blue = low
-                      </CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
