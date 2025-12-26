@@ -11,25 +11,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, Users, Database, LogOut, Trash2, UserPlus, Edit, KeyRound, Mail, Copy, Clock, FileText, Check, Link } from 'lucide-react';
+import { Shield, Users, Database, LogOut, Trash2, UserPlus, Edit, KeyRound, FileText, Check, Eye, EyeOff } from 'lucide-react';
 import { formatDateShort } from '@/lib/dateUtils';
 import { useAuditLog } from '@/hooks/useAuditLog';
 
 interface User {
   id: string;
   email: string;
+  full_name?: string;
   created_at: string;
   role?: string;
-}
-
-interface Invite {
-  id: string;
-  email: string;
-  invite_token: string;
-  role: string;
-  expires_at: string;
-  used_at: string | null;
-  created_at: string;
 }
 
 interface AuditLog {
@@ -45,22 +36,23 @@ interface AuditLog {
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
-  const [invites, setInvites] = useState<Invite[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [editRoleOpen, setEditRoleOpen] = useState(false);
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserFullName, setNewUserFullName] = useState('');
   const [newUserRole, setNewUserRole] = useState('user');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState('user');
   const [newPassword, setNewPassword] = useState('');
-  const [inviteExpireDays, setInviteExpireDays] = useState('7');
-  const [showLinkDialog, setShowLinkDialog] = useState(false);
-  const [lastGeneratedLink, setLastGeneratedLink] = useState('');
-  const [revokeInviteOpen, setRevokeInviteOpen] = useState(false);
-  const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [createdUserCredentials, setCreatedUserCredentials] = useState<{ email: string; password: string } | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { logAction } = useAuditLog();
@@ -68,7 +60,6 @@ const AdminDashboard = () => {
   useEffect(() => {
     checkAdminAccess();
     fetchUsers();
-    fetchInvites();
     fetchAuditLogs();
   }, []);
 
@@ -117,6 +108,7 @@ const AdminDashboard = () => {
           return {
             id: profile.id,
             email: profile.email || 'N/A',
+            full_name: profile.full_name,
             created_at: profile.created_at,
             role: roleData ? String(roleData.role) : 'user',
           };
@@ -132,20 +124,6 @@ const AdminDashboard = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchInvites = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('user_invites')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setInvites(data || []);
-    } catch (error: any) {
-      console.error('Failed to fetch invites:', error);
     }
   };
 
@@ -184,7 +162,7 @@ const AdminDashboard = () => {
     navigate('/');
   };
 
-  const handleCreateInvite = async () => {
+  const handleCreateUser = async () => {
     if (!newUserEmail || !newUserEmail.includes('@')) {
       toast({
         title: "Validation Error",
@@ -194,132 +172,58 @@ const AdminDashboard = () => {
       return;
     }
 
+    if (!newUserPassword || newUserPassword.length < 8) {
+      toast({
+        title: "Validation Error",
+        description: "Password must be at least 8 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingUser(true);
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Generate token
-      const { data: tokenData, error: tokenError } = await supabase.rpc('generate_invite_token');
-      if (tokenError) throw tokenError;
-
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + parseInt(inviteExpireDays));
-
-      const { data, error } = await supabase
-        .from('user_invites')
-        .insert({
-          email: newUserEmail,
-          invite_token: tokenData,
-          role: newUserRole as any,
-          created_by: user?.id,
-          expires_at: expiresAt.toISOString(),
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Generate invite link
-      const inviteLink = `${window.location.origin}/register?token=${tokenData}`;
-      
-      // Store the link and show the success dialog
-      setLastGeneratedLink(inviteLink);
-      setAddUserOpen(false);
-      setShowLinkDialog(true);
-
-      // Try to send invite email (non-blocking)
-      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-invite-email', {
-        body: {
-          email: newUserEmail,
-          inviteLink,
-          role: newUserRole,
-          expiresAt: expiresAt.toISOString(),
+      const { data, error } = await supabase.functions.invoke('admin-create-user', {
+        body: { 
+          email: newUserEmail, 
+          password: newUserPassword,
+          fullName: newUserFullName,
+          role: newUserRole 
         },
       });
 
-      const emailSent = Boolean(emailResult?.success);
-
-      if (emailError || !emailSent) {
-        console.error('Invite email not sent:', emailError || emailResult?.error);
-        toast({
-          title: "Invite created",
-          description:
-            "Email couldn't be sent (email provider test mode). Share the invite link manually.",
-        });
-      }
-
-      await logAction({
-        actionType: 'invite_create',
-        resourceType: 'invite',
-        resourceId: data.id,
-        details: { email: newUserEmail, role: newUserRole, email_sent: emailSent },
-      });
-
-      setNewUserEmail('');
-      setNewUserRole('user');
-      fetchInvites();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create invite.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const copyInviteLink = (token: string) => {
-    const link = `${window.location.origin}/register?token=${token}`;
-    navigator.clipboard.writeText(link);
-    toast({
-      title: "Copied!",
-      description: "Invite link copied to clipboard.",
-    });
-  };
-
-  const copyLastGeneratedLink = () => {
-    navigator.clipboard.writeText(lastGeneratedLink);
-    toast({
-      title: "Copied!",
-      description: "Invite link copied to clipboard.",
-    });
-  };
-
-  const openRevokeInvite = (invite: Invite) => {
-    setSelectedInvite(invite);
-    setRevokeInviteOpen(true);
-  };
-
-  const handleRevokeInvite = async () => {
-    if (!selectedInvite) return;
-
-    try {
-      const { error } = await supabase
-        .from('user_invites')
-        .delete()
-        .eq('id', selectedInvite.id);
-
       if (error) throw error;
+      if (!data.success) throw new Error(data.error);
 
+      // Store credentials for display
+      setCreatedUserCredentials({ email: newUserEmail, password: newUserPassword });
+      
       await logAction({
-        actionType: 'invite_revoke',
-        resourceType: 'invite',
-        resourceId: selectedInvite.id,
-        details: { email: selectedInvite.email },
+        actionType: 'user_create',
+        resourceType: 'user',
+        resourceId: data.user?.id,
+        details: { email: newUserEmail, role: newUserRole },
       });
 
-      toast({
-        title: "Invite Revoked",
-        description: `Invite for ${selectedInvite.email} has been revoked.`,
-      });
-
-      setRevokeInviteOpen(false);
-      setSelectedInvite(null);
-      fetchInvites();
+      setAddUserOpen(false);
+      setShowCredentialsDialog(true);
+      
+      // Reset form
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserFullName('');
+      setNewUserRole('user');
+      
+      fetchUsers();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to revoke invite.",
+        description: error.message || "Failed to create user.",
         variant: "destructive",
       });
+    } finally {
+      setCreatingUser(false);
     }
   };
 
@@ -449,6 +353,14 @@ const AdminDashboard = () => {
     return 'secondary';
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: "Copied to clipboard.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-forensic-dark to-forensic-darker p-6">
       <div className="max-w-7xl mx-auto">
@@ -457,7 +369,7 @@ const AdminDashboard = () => {
             <Shield className="w-10 h-10 text-primary" />
             <div>
               <h1 className="text-3xl font-bold text-primary">Admin Dashboard</h1>
-              <p className="text-muted-foreground">Manage users, invites, and security</p>
+              <p className="text-muted-foreground">Manage users and security</p>
             </div>
           </div>
           <Button onClick={handleLogout} variant="outline">
@@ -467,14 +379,10 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-4">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="users">
               <Users className="w-4 h-4 mr-2" />
               Users
-            </TabsTrigger>
-            <TabsTrigger value="invites">
-              <Mail className="w-4 h-4 mr-2" />
-              Invites
             </TabsTrigger>
             <TabsTrigger value="audit">
               <FileText className="w-4 h-4 mr-2" />
@@ -492,8 +400,89 @@ const AdminDashboard = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <CardTitle>User Management</CardTitle>
-                    <CardDescription>View and manage all registered users</CardDescription>
+                    <CardDescription>Add and manage users directly</CardDescription>
                   </div>
+                  <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Add User
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add New User</DialogTitle>
+                        <DialogDescription>
+                          Create a new user account with login credentials.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="full-name">Full Name</Label>
+                          <Input
+                            id="full-name"
+                            type="text"
+                            value={newUserFullName}
+                            onChange={(e) => setNewUserFullName(e.target.value)}
+                            placeholder="John Doe"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="email">Email Address</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={newUserEmail}
+                            onChange={(e) => setNewUserEmail(e.target.value)}
+                            placeholder="investigator@example.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="password">Password</Label>
+                          <div className="relative">
+                            <Input
+                              id="password"
+                              type={showPassword ? "text" : "password"}
+                              value={newUserPassword}
+                              onChange={(e) => setNewUserPassword(e.target.value)}
+                              placeholder="Minimum 8 characters"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="role">Role</Label>
+                          <Select value={newUserRole} onValueChange={setNewUserRole}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">Investigator</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setAddUserOpen(false)}>Cancel</Button>
+                        <Button onClick={handleCreateUser} disabled={creatingUser}>
+                          {creatingUser ? 'Creating...' : 'Create User'}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </CardHeader>
               <CardContent>
@@ -506,6 +495,7 @@ const AdminDashboard = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Email</TableHead>
+                        <TableHead>Name</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Created</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -515,6 +505,7 @@ const AdminDashboard = () => {
                       {users.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.email}</TableCell>
+                          <TableCell>{user.full_name || '-'}</TableCell>
                           <TableCell>
                             <Badge variant={getRoleBadgeVariant(user.role || 'user')}>
                               {user.role || 'user'}
@@ -536,131 +527,6 @@ const AdminDashboard = () => {
                           </TableCell>
                         </TableRow>
                       ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="invites">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Invite Management</CardTitle>
-                    <CardDescription>Create and manage user invites</CardDescription>
-                  </div>
-                  <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Create Invite
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create New Invite</DialogTitle>
-                        <DialogDescription>
-                          Generate an invite link for a new investigator.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="email">Email Address</Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={newUserEmail}
-                            onChange={(e) => setNewUserEmail(e.target.value)}
-                            placeholder="investigator@example.com"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="role">Role</Label>
-                          <Select value={newUserRole} onValueChange={setNewUserRole}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="user">Investigator</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="expires">Expires In</Label>
-                          <Select value={inviteExpireDays} onValueChange={setInviteExpireDays}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">1 Day</SelectItem>
-                              <SelectItem value="7">7 Days</SelectItem>
-                              <SelectItem value="30">30 Days</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setAddUserOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreateInvite}>Create Invite</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {invites.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No invites found.</div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Expires</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {invites.map((invite) => {
-                        const isExpired = new Date(invite.expires_at) < new Date();
-                        const isUsed = !!invite.used_at;
-                        return (
-                          <TableRow key={invite.id}>
-                            <TableCell className="font-medium">{invite.email}</TableCell>
-                            <TableCell>
-                              <Badge variant={getRoleBadgeVariant(invite.role)}>{invite.role}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              {isUsed ? (
-                                <Badge variant="outline" className="text-green-500">Used</Badge>
-                              ) : isExpired ? (
-                                <Badge variant="destructive">Expired</Badge>
-                              ) : (
-                                <Badge variant="default">Pending</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>{formatDateShort(invite.expires_at)}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
-                                {!isUsed && !isExpired && (
-                                  <Button variant="ghost" size="sm" onClick={() => copyInviteLink(invite.invite_token)} title="Copy Link">
-                                    <Copy className="w-4 h-4" />
-                                  </Button>
-                                )}
-                                {!isUsed && (
-                                  <Button variant="ghost" size="sm" onClick={() => openRevokeInvite(invite)} title="Revoke Invite">
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
                     </TableBody>
                   </Table>
                 )}
@@ -716,7 +582,7 @@ const AdminDashboard = () => {
                 <CardDescription>Overview of system usage</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-4 border rounded-lg">
                     <h3 className="font-semibold mb-2">Total Users</h3>
                     <p className="text-3xl font-bold text-primary">{users.length}</p>
@@ -725,12 +591,6 @@ const AdminDashboard = () => {
                     <h3 className="font-semibold mb-2">Admins</h3>
                     <p className="text-3xl font-bold text-primary">
                       {users.filter(u => u.role === 'admin').length}
-                    </p>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <h3 className="font-semibold mb-2">Pending Invites</h3>
-                    <p className="text-3xl font-bold text-primary">
-                      {invites.filter(i => !i.used_at && new Date(i.expires_at) > new Date()).length}
                     </p>
                   </div>
                 </div>
@@ -777,13 +637,28 @@ const AdminDashboard = () => {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="new-password">New Password</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password (min 8 chars)"
-                />
+                <div className="relative">
+                  <Input
+                    id="new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password (min 8 chars)"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -793,49 +668,56 @@ const AdminDashboard = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Invite Link Success Dialog */}
-        <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        {/* User Created Success Dialog */}
+        <Dialog open={showCredentialsDialog} onOpenChange={setShowCredentialsDialog}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Check className="w-5 h-5 text-green-500" />
-                Invite Created Successfully
+                User Created Successfully
               </DialogTitle>
               <DialogDescription>
-                Share this link with the user to let them register. The link will expire based on your settings.
+                Share these credentials with the user securely. They can use these to login.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg border">
-                <Link className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <code className="text-sm break-all flex-1">{lastGeneratedLink}</code>
+              <div className="p-4 bg-muted rounded-lg border space-y-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="text-sm font-medium flex-1">{createdUserCredentials?.email}</code>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => copyToClipboard(createdUserCredentials?.email || '')}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Password</Label>
+                  <div className="flex items-center gap-2">
+                    <code className="text-sm font-medium flex-1">{createdUserCredentials?.password}</code>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => copyToClipboard(createdUserCredentials?.password || '')}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <Button onClick={copyLastGeneratedLink} className="w-full" size="lg">
-                <Copy className="w-4 h-4 mr-2" />
-                Copy Invite Link
-              </Button>
               <p className="text-xs text-muted-foreground text-center">
-                You can share this via WhatsApp, SMS, email, or any other method.
+                Share these credentials via WhatsApp, SMS, email, or any secure method.
               </p>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowLinkDialog(false)}>Done</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Revoke Invite Confirmation Dialog */}
-        <Dialog open={revokeInviteOpen} onOpenChange={setRevokeInviteOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Revoke Invite</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to revoke the invite for {selectedInvite?.email}? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRevokeInviteOpen(false)}>Cancel</Button>
-              <Button variant="destructive" onClick={handleRevokeInvite}>Revoke Invite</Button>
+              <Button onClick={() => {
+                setShowCredentialsDialog(false);
+                setCreatedUserCredentials(null);
+              }}>Done</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
