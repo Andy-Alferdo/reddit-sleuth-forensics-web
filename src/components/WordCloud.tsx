@@ -13,7 +13,6 @@ interface WordCloudProps {
 }
 
 export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
-  // Ensure all 3 colors are present by reassigning categories based on thirds
   const styledWords = useMemo(() => {
     if (words.length === 0) return [];
     
@@ -26,7 +25,7 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
     const mediumThreshold = Math.ceil((sorted.length * 2) / 3);
     
     return sorted.map((wordData, index) => {
-      // Assign category based on position in sorted list (ensures all 3 colors)
+      // Assign category based on position (ensures all 3 colors present)
       let category: 'high' | 'medium' | 'low';
       if (index < highThreshold) {
         category = 'high';
@@ -36,28 +35,31 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
         category = 'low';
       }
       
-      // Calculate font size based on frequency
+      // Calculate font size based on frequency - wider range for more visual impact
       const ratio = wordData.frequency / maxFreq;
       let fontSize: number;
       let fontWeight: string;
       
-      if (ratio > 0.8) {
-        fontSize = 42;
+      if (ratio > 0.85) {
+        fontSize = 48;
         fontWeight = 'font-black';
-      } else if (ratio > 0.6) {
-        fontSize = 34;
+      } else if (ratio > 0.7) {
+        fontSize = 38;
         fontWeight = 'font-extrabold';
-      } else if (ratio > 0.45) {
-        fontSize = 26;
+      } else if (ratio > 0.55) {
+        fontSize = 30;
         fontWeight = 'font-bold';
-      } else if (ratio > 0.3) {
-        fontSize = 20;
+      } else if (ratio > 0.4) {
+        fontSize = 24;
+        fontWeight = 'font-bold';
+      } else if (ratio > 0.25) {
+        fontSize = 18;
         fontWeight = 'font-semibold';
-      } else if (ratio > 0.15) {
-        fontSize = 16;
+      } else if (ratio > 0.12) {
+        fontSize = 14;
         fontWeight = 'font-medium';
       } else {
-        fontSize = 13;
+        fontSize = 11;
         fontWeight = 'font-medium';
       }
 
@@ -71,12 +73,12 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
           color = '#16a34a'; // green-600
           break;
         case 'low':
-          color = '#0284c7'; // sky-600
+          color = '#0369a1'; // sky-700
           break;
       }
 
-      // Slight random rotation for organic look
-      const rotations = [-8, -4, -2, 0, 0, 0, 2, 4, 6];
+      // Varied rotations for organic cloud look
+      const rotations = [-15, -8, -3, 0, 0, 0, 0, 3, 8, 12];
       const rotation = rotations[index % rotations.length];
 
       return {
@@ -90,24 +92,27 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
     });
   }, [words]);
 
-  // Shuffle for visual variety while keeping size prominence
-  const shuffledWords = useMemo(() => {
-    const result = [...styledWords];
-    // Interleave: take from start and end alternately
-    const interleaved: typeof result = [];
-    let left = 0;
-    let right = result.length - 1;
-    while (left <= right) {
-      if (left === right) {
-        interleaved.push(result[left]);
-      } else {
-        interleaved.push(result[left]);
-        interleaved.push(result[right]);
-      }
-      left++;
-      right--;
+  // Create a more organic layout by interleaving sizes
+  const arrangedWords = useMemo(() => {
+    if (styledWords.length === 0) return [];
+    
+    const result: typeof styledWords = [];
+    const large = styledWords.filter(w => w.fontSize >= 30);
+    const medium = styledWords.filter(w => w.fontSize >= 18 && w.fontSize < 30);
+    const small = styledWords.filter(w => w.fontSize < 18);
+    
+    // Interleave: large words first, then mix medium and small around them
+    let li = 0, mi = 0, si = 0;
+    
+    while (li < large.length || mi < medium.length || si < small.length) {
+      if (li < large.length) result.push(large[li++]);
+      if (si < small.length) result.push(small[si++]);
+      if (mi < medium.length) result.push(medium[mi++]);
+      if (si < small.length) result.push(small[si++]);
+      if (mi < medium.length) result.push(medium[mi++]);
     }
-    return interleaved;
+    
+    return result;
   }, [styledWords]);
 
   return (
@@ -115,43 +120,47 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
       <CardHeader className="pb-2">
         <CardTitle className="text-center text-lg">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-3">
         <div 
-          className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0 min-h-[200px] px-4 py-6"
-          style={{ lineHeight: '1.1' }}
+          className="flex flex-wrap items-center justify-center min-h-[220px] py-4 leading-none"
+          style={{ 
+            gap: '2px 6px',
+            wordSpacing: '-2px',
+          }}
         >
-          {shuffledWords.map((wordData, index) => (
+          {arrangedWords.map((wordData, index) => (
             <span
               key={`${wordData.word}-${index}`}
               className={`
                 ${wordData.fontWeight}
-                cursor-default transition-opacity duration-200
-                hover:opacity-70 select-none whitespace-nowrap
+                cursor-default transition-opacity duration-150
+                hover:opacity-60 select-none
               `}
               style={{
                 fontSize: `${wordData.fontSize}px`,
                 color: wordData.color,
                 transform: `rotate(${wordData.rotation}deg)`,
-                marginTop: `${(index % 3) * 2 - 2}px`,
+                lineHeight: '1',
                 display: 'inline-block',
+                margin: `${Math.abs(wordData.rotation) > 5 ? 4 : 0}px 0`,
               }}
-              title={`Frequency: ${wordData.frequency}`}
+              title={`${wordData.word}: ${wordData.frequency}`}
             >
               {wordData.word}
             </span>
           ))}
         </div>
-        <div className="flex justify-center gap-6 mt-2 text-xs border-t pt-3">
+        <div className="flex justify-center gap-5 mt-2 text-xs border-t pt-3">
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 bg-red-600 rounded-full"></div>
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#dc2626' }}></div>
             <span className="text-muted-foreground">High</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 bg-green-600 rounded-full"></div>
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#16a34a' }}></div>
             <span className="text-muted-foreground">Medium</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 bg-sky-600 rounded-full"></div>
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#0369a1' }}></div>
             <span className="text-muted-foreground">Low</span>
           </div>
         </div>

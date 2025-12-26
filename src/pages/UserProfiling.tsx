@@ -210,11 +210,11 @@ const UserProfiling = () => {
 
       const wordCloudData = Object.entries(wordFreq)
         .sort(([,a], [,b]) => b - a)
-        .slice(0, 15)
+        .slice(0, 40)
         .map(([word, freq]) => ({
           word,
           frequency: freq,
-          category: freq > 30 ? 'high' as const : freq > 15 ? 'medium' as const : 'low' as const
+          category: freq > 20 ? 'high' as const : freq > 8 ? 'medium' as const : 'low' as const
         }));
 
       const profileResult = {
