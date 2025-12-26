@@ -22,6 +22,7 @@ interface RedditActivity {
   title: string;
   subreddit: string;
   timestamp: string;
+  created_utc: number; // Raw Unix timestamp for proper sorting
   url: string;
 }
 
@@ -153,12 +154,14 @@ const Monitoring = () => {
     // Generate 5 posts
     for (let i = 0; i < 5; i++) {
       const timestamp = new Date(now.getTime() - (i * 3600000 + Math.random() * 3600000));
+      const created_utc = Math.floor(timestamp.getTime() / 1000);
       activities.push({
         id: `post-${i}`,
         type: 'post',
         title: `Sample post ${i + 1} from ${name}`,
         subreddit: type === 'user' ? `r/technology` : name,
         timestamp: timestamp.toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+        created_utc,
         url: `https://reddit.com/r/technology/post${i}`
       });
     }
@@ -166,17 +169,19 @@ const Monitoring = () => {
     // Generate 5 comments
     for (let i = 0; i < 5; i++) {
       const timestamp = new Date(now.getTime() - (i * 2400000 + Math.random() * 2400000));
+      const created_utc = Math.floor(timestamp.getTime() / 1000);
       activities.push({
         id: `comment-${i}`,
         type: 'comment',
         title: `Comment on discussion about technology trends and innovation`,
         subreddit: type === 'user' ? `r/science` : name,
         timestamp: timestamp.toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+        created_utc,
         url: `https://reddit.com/r/science/comment${i}`
       });
     }
     
-    return activities.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    return activities.sort((a, b) => b.created_utc - a.created_utc);
   };
 
   // Calculate real activity breakdown from scraped data
@@ -196,23 +201,12 @@ const Monitoring = () => {
         dailyData.push({ name: dayName, value: 0 });
       }
       
-      // Count posts for each day by parsing timestamps
+      // Count posts for each day using created_utc
       const posts = activities.filter(a => a.type === 'post');
       
       posts.forEach(activity => {
-        // Parse timestamp - format: "Dec 15, 2024, 10:30 AM PKT" or "2024-12-15 10:30:00 UTC"
-        let activityDate: Date;
-        const timestamp = activity.timestamp;
-        
-        if (timestamp.includes('PKT') || timestamp.includes('AM') || timestamp.includes('PM')) {
-          // Parse formatted date like "Dec 15, 2024, 10:30 AM PKT"
-          const cleanTimestamp = timestamp.replace(' PKT', '').replace(' PST', '').trim();
-          activityDate = new Date(cleanTimestamp);
-        } else {
-          // Parse ISO-like format
-          const timestampStr = timestamp.replace(' UTC', '').replace('T', ' ');
-          activityDate = new Date(timestampStr);
-        }
+        // Use created_utc directly (Unix timestamp in seconds)
+        const activityDate = new Date(activity.created_utc * 1000);
         
         // Find which day index this post belongs to
         for (let i = 6; i >= 0; i--) {
@@ -289,22 +283,13 @@ const Monitoring = () => {
       ];
     }
 
-    const now = new Date();
+    const now = Date.now();
     const hourBuckets: { [key: number]: number } = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
     
     activities.forEach(activity => {
-      let activityDate: Date;
-      const timestamp = activity.timestamp;
-      
-      if (timestamp.includes('PKT') || timestamp.includes('AM') || timestamp.includes('PM')) {
-        const cleanTimestamp = timestamp.replace(' PKT', '').replace(' PST', '').trim();
-        activityDate = new Date(cleanTimestamp);
-      } else {
-        const timestampStr = timestamp.replace(' UTC', '').replace('T', ' ');
-        activityDate = new Date(timestampStr);
-      }
-      
-      const hoursAgo = Math.floor((now.getTime() - activityDate.getTime()) / (1000 * 60 * 60));
+      // Use created_utc directly (Unix timestamp in seconds)
+      const activityTime = activity.created_utc * 1000;
+      const hoursAgo = Math.floor((now - activityTime) / (1000 * 60 * 60));
       
       if (hoursAgo >= 0 && hoursAgo < 6) {
         hourBuckets[hoursAgo + 1]++;
@@ -472,6 +457,7 @@ const Monitoring = () => {
             title: post.title,
             subreddit: `r/${post.subreddit}`,
             timestamp: formatActivityTime(post.created_utc),
+            created_utc: post.created_utc,
             url: `https://reddit.com${post.permalink}`
           });
         });
@@ -485,13 +471,14 @@ const Monitoring = () => {
             title: comment.body.substring(0, 100) + (comment.body.length > 100 ? '...' : ''),
             subreddit: `r/${comment.subreddit}`,
             timestamp: formatActivityTime(comment.created_utc),
+            created_utc: comment.created_utc,
             url: `https://reddit.com${comment.permalink}`
           });
         });
       }
 
-      // Sort by timestamp descending
-      newActivities.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      // Sort by created_utc (Unix timestamp) descending - most recent first
+      newActivities.sort((a, b) => b.created_utc - a.created_utc);
       
       // Detect new activities
       if (!isInitial && activities.length > 0) {
@@ -508,14 +495,8 @@ const Monitoring = () => {
         }
       }
       
-      // Sort activities by timestamp (most recent first)
-      const sortedActivities = newActivities.sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime();
-        const timeB = new Date(b.timestamp).getTime();
-        return timeB - timeA;
-      });
-      
-      setActivities(sortedActivities);
+      // Activities are already sorted by created_utc, just use them
+      setActivities(newActivities);
       setLastFetchTime(formatCurrentTimePakistan());
 
       // Extract words for word cloud
