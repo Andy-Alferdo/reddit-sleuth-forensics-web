@@ -13,76 +13,127 @@ interface WordCloudProps {
 }
 
 export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
-  const maxFrequency = Math.max(...words.map(w => w.frequency), 1);
-
-  // Create randomized positions and rotations for each word
+  // Ensure all 3 colors are present by reassigning categories based on thirds
   const styledWords = useMemo(() => {
-    return words.map((wordData, index) => {
-      // Calculate font size based on frequency ratio
-      const ratio = wordData.frequency / maxFrequency;
-      let fontSize: string;
-      if (ratio > 0.7) {
-        fontSize = 'text-3xl md:text-4xl';
-      } else if (ratio > 0.5) {
-        fontSize = 'text-2xl md:text-3xl';
-      } else if (ratio > 0.3) {
-        fontSize = 'text-xl md:text-2xl';
-      } else if (ratio > 0.15) {
-        fontSize = 'text-lg md:text-xl';
+    if (words.length === 0) return [];
+    
+    // Sort by frequency descending
+    const sorted = [...words].sort((a, b) => b.frequency - a.frequency);
+    const maxFreq = sorted[0]?.frequency || 1;
+    
+    // Divide into thirds for color distribution
+    const highThreshold = Math.ceil(sorted.length / 3);
+    const mediumThreshold = Math.ceil((sorted.length * 2) / 3);
+    
+    return sorted.map((wordData, index) => {
+      // Assign category based on position in sorted list (ensures all 3 colors)
+      let category: 'high' | 'medium' | 'low';
+      if (index < highThreshold) {
+        category = 'high';
+      } else if (index < mediumThreshold) {
+        category = 'medium';
       } else {
-        fontSize = 'text-base md:text-lg';
+        category = 'low';
+      }
+      
+      // Calculate font size based on frequency
+      const ratio = wordData.frequency / maxFreq;
+      let fontSize: number;
+      let fontWeight: string;
+      
+      if (ratio > 0.8) {
+        fontSize = 42;
+        fontWeight = 'font-black';
+      } else if (ratio > 0.6) {
+        fontSize = 34;
+        fontWeight = 'font-extrabold';
+      } else if (ratio > 0.45) {
+        fontSize = 26;
+        fontWeight = 'font-bold';
+      } else if (ratio > 0.3) {
+        fontSize = 20;
+        fontWeight = 'font-semibold';
+      } else if (ratio > 0.15) {
+        fontSize = 16;
+        fontWeight = 'font-medium';
+      } else {
+        fontSize = 13;
+        fontWeight = 'font-medium';
       }
 
-      // Determine color based on category
+      // Colors: Red for high, Green for medium, Blue for low
       let color: string;
-      switch (wordData.category) {
+      switch (category) {
         case 'high':
-          color = 'text-red-500';
+          color = '#dc2626'; // red-600
           break;
         case 'medium':
-          color = 'text-green-500';
+          color = '#16a34a'; // green-600
           break;
         case 'low':
-          color = 'text-sky-500';
+          color = '#0284c7'; // sky-600
           break;
-        default:
-          color = 'text-sky-500';
       }
 
-      // Random slight rotation for variety (-5 to 5 degrees)
-      const rotation = (index % 5) * 2 - 4;
-      
-      // Random vertical offset for scattered look
-      const verticalOffset = ((index * 7) % 20) - 10;
+      // Slight random rotation for organic look
+      const rotations = [-8, -4, -2, 0, 0, 0, 2, 4, 6];
+      const rotation = rotations[index % rotations.length];
 
       return {
         ...wordData,
+        category,
         fontSize,
+        fontWeight,
         color,
         rotation,
-        verticalOffset,
       };
     });
-  }, [words, maxFrequency]);
+  }, [words]);
+
+  // Shuffle for visual variety while keeping size prominence
+  const shuffledWords = useMemo(() => {
+    const result = [...styledWords];
+    // Interleave: take from start and end alternately
+    const interleaved: typeof result = [];
+    let left = 0;
+    let right = result.length - 1;
+    while (left <= right) {
+      if (left === right) {
+        interleaved.push(result[left]);
+      } else {
+        interleaved.push(result[left]);
+        interleaved.push(result[right]);
+      }
+      left++;
+      right--;
+    }
+    return interleaved;
+  }, [styledWords]);
 
   return (
     <Card className="border-primary/20">
-      <CardHeader>
-        <CardTitle className="text-center">{title}</CardTitle>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-center text-lg">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center items-center min-h-[250px] p-6">
-          {styledWords.map((wordData, index) => (
+        <div 
+          className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0 min-h-[200px] px-4 py-6"
+          style={{ lineHeight: '1.1' }}
+        >
+          {shuffledWords.map((wordData, index) => (
             <span
               key={`${wordData.word}-${index}`}
               className={`
-                ${wordData.fontSize}
-                ${wordData.color}
-                font-bold cursor-default transition-all duration-200
-                hover:scale-110 hover:opacity-80 select-none whitespace-nowrap
+                ${wordData.fontWeight}
+                cursor-default transition-opacity duration-200
+                hover:opacity-70 select-none whitespace-nowrap
               `}
               style={{
-                transform: `rotate(${wordData.rotation}deg) translateY(${wordData.verticalOffset}px)`,
+                fontSize: `${wordData.fontSize}px`,
+                color: wordData.color,
+                transform: `rotate(${wordData.rotation}deg)`,
+                marginTop: `${(index % 3) * 2 - 2}px`,
+                display: 'inline-block',
               }}
               title={`Frequency: ${wordData.frequency}`}
             >
@@ -90,17 +141,17 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
             </span>
           ))}
         </div>
-        <div className="flex justify-center gap-6 mt-4 text-sm border-t pt-4">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <span className="text-muted-foreground">High Frequency</span>
+        <div className="flex justify-center gap-6 mt-2 text-xs border-t pt-3">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 bg-red-600 rounded-full"></div>
+            <span className="text-muted-foreground">High</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 bg-green-600 rounded-full"></div>
             <span className="text-muted-foreground">Medium</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-sky-500 rounded-full"></div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 bg-sky-600 rounded-full"></div>
             <span className="text-muted-foreground">Low</span>
           </div>
         </div>
