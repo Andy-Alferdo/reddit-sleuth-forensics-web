@@ -230,6 +230,17 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
       setCurrentCase(newCase);
       setCaseNumber(newCase.case_number);
       setInvestigator(newCase.lead_investigator || '');
+      
+      // Clear all previous case data when creating a new case
+      setUserProfiles([]);
+      setMonitoringSessions([]);
+      setKeywordAnalyses([]);
+      setCommunityAnalyses([]);
+      setLinkAnalyses([]);
+      
+      // Store in localStorage for persistence
+      localStorage.setItem('selectedCase', JSON.stringify(newCase));
+      
       return newCase;
     } catch (err) {
       console.error('Failed to create case:', err);
