@@ -158,7 +158,7 @@ const Report = () => {
   return (
     <div className="p-6 space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-primary mb-2">Forensic Report Generator</h2>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Forensic Report Generator</h2>
         <p className="text-muted-foreground">Generate automated or customized investigation reports in PDF or HTML format</p>
       </div>
 

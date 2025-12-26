@@ -675,9 +675,9 @@ const Monitoring = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reddit Monitoring</h1>
-          <p className="text-muted-foreground mt-1">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-foreground mb-2">Reddit Monitoring</h2>
+          <p className="text-muted-foreground">
             Start monitoring any Reddit user or community for activity and trends
           </p>
         </div>
