@@ -319,22 +319,69 @@ const LinkAnalysis = () => {
               </Card>
             )}
 
+            {/* Beautiful Network Graph Visualization - Same as Live */}
             <UserCommunityNetworkGraph
-              title="User to Community Network Connections"
+              title="User to Community Network Graph"
               primaryUserId="user1"
-              nodes={[
-                { id: "user1", label: linkData.primaryUser, type: "user" },
-                ...(linkData.userToCommunities || []).slice(0, 6).map((c: any, i: number) => ({
-                  id: `comm${i}`,
-                  label: c.community || `Community ${i + 1}`,
-                  type: "community" as const,
-                })),
-              ]}
-              links={(linkData.userToCommunities || []).slice(0, 6).map((_: any, i: number) => ({
-                source: "user1",
-                target: `comm${i}`,
-                weight: 3,
-              }))}
+              nodes={(() => {
+                // Build nodes: user + their communities + related communities
+                const userNode = { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' as const };
+                
+                const communityNodes = (linkData.userToCommunities || []).slice(0, 6).map((item: any, index: number) => ({
+                  id: `community-${index}`,
+                  label: item.community,
+                  type: 'community' as const
+                }));
+                
+                // Add related communities from crossover data
+                const relatedCommunities = new Set<string>();
+                (linkData.communityCrossover || []).forEach((item: any) => {
+                  // Only add if it's a real related subreddit (not already in user's communities)
+                  const existsInUser = (linkData.userToCommunities || []).some((c: any) => c.community === item.to);
+                  if (!existsInUser) {
+                    relatedCommunities.add(item.to);
+                  }
+                });
+                
+                const relatedNodes = Array.from(relatedCommunities).slice(0, 5).map((name: string, index: number) => ({
+                  id: `related-${index}`,
+                  label: name,
+                  type: 'interest' as const
+                }));
+                
+                return [userNode, ...communityNodes, ...relatedNodes];
+              })()}
+              links={(() => {
+                // User to their communities
+                const userLinks = (linkData.userToCommunities || []).slice(0, 6).map((item: any, index: number) => ({
+                  source: 'user1',
+                  target: `community-${index}`,
+                  weight: Math.min(4, Math.ceil((item.totalActivity || 1) / 10))
+                }));
+                
+                // Community to related community links
+                const crossoverLinks: { source: string; target: string; weight: number }[] = [];
+                const relatedCommunityList = Array.from(new Set(
+                  (linkData.communityCrossover || [])
+                    .filter((item: any) => !(linkData.userToCommunities || []).some((c: any) => c.community === item.to))
+                    .map((item: any) => item.to)
+                )).slice(0, 5);
+                
+                (linkData.communityCrossover || []).forEach((item: any) => {
+                  const fromIdx = (linkData.userToCommunities || []).findIndex((c: any) => c.community === item.from);
+                  const toIdx = relatedCommunityList.indexOf(item.to);
+                  
+                  if (fromIdx !== -1 && toIdx !== -1) {
+                    crossoverLinks.push({
+                      source: `community-${fromIdx}`,
+                      target: `related-${toIdx}`,
+                      weight: Math.ceil((item.strength || 30) / 30)
+                    });
+                  }
+                });
+                
+                return [...userLinks, ...crossoverLinks];
+              })()}
             />
           </section>
         )}
