@@ -122,9 +122,9 @@ const NewCase = () => {
         </Button>
       </div>
 
-      <Card className="border-primary/20">
+      <Card className="border-border">
         <CardHeader>
-          <CardTitle className="text-2xl text-primary">Create New Investigation Case</CardTitle>
+          <CardTitle className="text-2xl text-foreground">Create New Investigation Case</CardTitle>
           <p className="text-muted-foreground">
             Fill in the details below to start a new forensic investigation case
           </p>
