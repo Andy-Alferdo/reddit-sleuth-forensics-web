@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import MovingBackground from '@/components/MovingBackground';
 import mascotLogo from '@/assets/reddit-sleuth-mascot.png';
 import { Mail, Lock, Loader2, Eye, EyeOff, ShieldAlert } from 'lucide-react';
@@ -21,7 +20,6 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   // Show success message when coming from signup
   useEffect(() => {
@@ -77,7 +75,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               state: from.state,
             });
           } else {
-            navigate('/dashboard', { replace: true });
+            navigate('/', { replace: true });
           }
         }
     } catch (error: any) {
@@ -118,7 +116,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
-                className="pl-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full"
+                className="pl-12 h-12 bg-background/50 border-foreground/30 focus:border-foreground rounded-full"
               />
             </div>
             
@@ -132,7 +130,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className="pl-12 pr-12 h-12 bg-background/50 border-primary/30 focus:border-primary rounded-full"
+                className="pl-12 pr-12 h-12 bg-background/50 border-foreground/30 focus:border-foreground rounded-full"
               />
               <button
                 type="button"
@@ -143,31 +141,11 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               </button>
             </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="remember"
-                  checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                  className="border-primary/50 data-[state=checked]:bg-primary"
-                />
-                <label htmlFor="remember" className="text-muted-foreground cursor-pointer">
-                  Remember me
-                </label>
-              </div>
-              
-              {/* Password Reset Notice */}
-              <div className="flex items-center gap-1 text-muted-foreground text-xs">
-                <ShieldAlert className="w-3 h-3" />
-                <span>Contact admin for reset</span>
-              </div>
-            </div>
             
             {/* Login Button */}
             <Button 
               type="submit" 
-              className="w-full h-12 mt-6 rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 hover:from-cyan-400 hover:via-blue-400 hover:to-purple-400 text-white font-semibold shadow-lg shadow-blue-500/25 transition-all duration-300"
+              className="w-full h-12 mt-6 rounded-full bg-foreground hover:bg-foreground/90 text-background font-semibold shadow-lg transition-all duration-300"
               disabled={isLoading}
             >
               {isLoading ? (
