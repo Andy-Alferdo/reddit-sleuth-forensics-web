@@ -264,15 +264,15 @@ const Report = () => {
       {/* Report Header */}
       <Card className="border-primary/20">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <FileText className="h-5 w-5 text-primary" />
-            <span>Report Information</span>
-          </CardTitle>
+          <CardTitle className="text-2xl text-primary">Report Information</CardTitle>
+          <p className="text-muted-foreground">
+            Fill in the details below to generate your forensic investigation report
+          </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="caseNumber">Case Number</Label>
+              <Label htmlFor="caseNumber">Case Number *</Label>
               <Input 
                 id="caseNumber" 
                 value={caseNumber} 
@@ -280,6 +280,19 @@ const Report = () => {
                 className="bg-muted"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="subject">Report Subject *</Label>
+              <Input 
+                id="subject" 
+                name="subject" 
+                placeholder="e.g., Reddit User Investigation - Harassment Case" 
+                value={reportData.subject} 
+                onChange={handleInputChange} 
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="department">Department</Label>
               <Input 
@@ -301,10 +314,6 @@ const Report = () => {
                 className="bg-muted"
               />
             </div>
-          </div>
-          <div className="mt-6 space-y-2">
-            <Label htmlFor="subject">Report Subject</Label>
-            <Input id="subject" name="subject" placeholder="e.g., Reddit User Investigation - Harassment Case" value={reportData.subject} onChange={handleInputChange} />
           </div>
         </CardContent>
       </Card>
