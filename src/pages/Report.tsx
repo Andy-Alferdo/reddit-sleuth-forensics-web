@@ -273,19 +273,33 @@ const Report = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="caseNumber">Case Number</Label>
-              <Input id="caseNumber" value={caseNumber} onChange={(e) => setCaseNumber(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="investigator">Lead Investigator</Label>
-              <Input id="investigator" value={investigator} onChange={(e) => setInvestigator(e.target.value)} placeholder="Enter investigator name" />
+              <Input 
+                id="caseNumber" 
+                value={caseNumber} 
+                readOnly 
+                className="bg-muted"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="department">Department</Label>
-              <Input id="department" name="department" value={reportData.department} onChange={handleInputChange} />
+              <Input 
+                id="department" 
+                name="department" 
+                placeholder="e.g., Cybercrime Unit"
+                value={reportData.department} 
+                onChange={handleInputChange} 
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="dateGenerated">Date Generated</Label>
-              <Input id="dateGenerated" name="dateGenerated" type="date" value={reportData.dateGenerated} onChange={handleInputChange} />
+              <Input 
+                id="dateGenerated" 
+                name="dateGenerated" 
+                type="text" 
+                value={reportData.dateGenerated} 
+                readOnly 
+                className="bg-muted"
+              />
             </div>
           </div>
           <div className="mt-6 space-y-2">
