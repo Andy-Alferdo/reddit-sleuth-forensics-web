@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 interface NetworkNode {
   id: string;
   label: string;
-  type: 'user' | 'community' | 'platform' | 'interest';
+  type: 'user' | 'community' | 'interest';
   color?: string;
   size?: number;
 }
@@ -39,14 +39,12 @@ interface SimulatedLink {
 const nodeColors: Record<string, string> = {
   user: '#10B981', // Emerald green
   community: '#3B82F6', // Blue
-  platform: '#8B5CF6', // Purple
   interest: '#F59E0B', // Amber
 };
 
 const nodeGradients: Record<string, { start: string; end: string }> = {
   user: { start: '#10B981', end: '#059669' },
   community: { start: '#3B82F6', end: '#2563EB' },
-  platform: { start: '#8B5CF6', end: '#7C3AED' },
   interest: { start: '#F59E0B', end: '#D97706' },
 };
 
@@ -274,7 +272,6 @@ export const UserCommunityNetworkGraph = ({
         const icons: Record<string, string> = {
           user: '👤',
           community: '👥',
-          platform: '🌐',
           interest: '⭐',
         };
         ctx.fillText(icons[node.type] || '●', node.x, node.y);
@@ -344,12 +341,8 @@ export const UserCommunityNetworkGraph = ({
             <span className="text-muted-foreground">Communities</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full" style={{ background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)' }}></div>
-            <span className="text-muted-foreground">Platforms</span>
-          </div>
-          <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full" style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}></div>
-            <span className="text-muted-foreground">Interests</span>
+            <span className="text-muted-foreground">Interests (Related Communities)</span>
           </div>
         </div>
       </CardContent>
