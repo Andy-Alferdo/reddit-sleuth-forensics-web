@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useInvestigation } from '@/contexts/InvestigationContext';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
 
 const NewCase = () => {
   const navigate = useNavigate();
@@ -18,12 +19,11 @@ const NewCase = () => {
   const { createCase } = useInvestigation();
   const { logAction } = useAuditLog();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [caseNumber, setCaseNumber] = useState('');
   const [formData, setFormData] = useState({
-    caseNumber: `CASE-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`,
     caseName: '',
     description: '',
-    leadInvestigator: '',
-    priority: 'medium',
+    investigator: '',
     department: '',
     startDate: new Date().toISOString().split('T')[0],
     isSensitive: false,
@@ -31,6 +31,33 @@ const NewCase = () => {
     confirmPassword: '',
     cacheDurationDays: '30',
   });
+
+  // Generate case number on mount
+  useEffect(() => {
+    const generateCaseNumber = async () => {
+      const currentYear = new Date().getFullYear();
+      const yearPrefix = `CASE-${currentYear}-`;
+      
+      // Fetch existing cases for this year to determine next number
+      const { data: existingCases } = await supabase
+        .from('investigation_cases')
+        .select('case_number')
+        .like('case_number', `${yearPrefix}%`)
+        .order('case_number', { ascending: false })
+        .limit(1);
+      
+      let nextNumber = 1;
+      if (existingCases && existingCases.length > 0) {
+        const lastCaseNumber = existingCases[0].case_number;
+        const lastNumber = parseInt(lastCaseNumber.split('-').pop() || '0', 10);
+        nextNumber = lastNumber + 1;
+      }
+      
+      setCaseNumber(`${yearPrefix}${String(nextNumber).padStart(3, '0')}`);
+    };
+    
+    generateCaseNumber();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -51,7 +78,7 @@ const NewCase = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.caseNumber || !formData.caseName) {
+    if (!caseNumber || !formData.caseName) {
       toast({
         title: "Validation Error",
         description: "Case number and case name are required.",
@@ -83,12 +110,12 @@ const NewCase = () => {
     
     try {
       const newCase = await createCase({
-        caseNumber: formData.caseNumber,
+        caseNumber: caseNumber,
         caseName: formData.caseName,
         description: formData.description,
-        leadInvestigator: formData.leadInvestigator,
+        leadInvestigator: formData.investigator,
         department: formData.department,
-        priority: formData.priority,
+        priority: 'medium',
         isSensitive: formData.isSensitive,
         casePassword: formData.isSensitive ? formData.casePassword : undefined,
         cacheDurationDays: parseInt(formData.cacheDurationDays),
@@ -100,15 +127,14 @@ const NewCase = () => {
           resourceType: 'case',
           resourceId: newCase.id,
           details: { 
-            case_number: formData.caseNumber, 
+            case_number: caseNumber, 
             is_sensitive: formData.isSensitive,
-            priority: formData.priority,
           },
         });
 
         toast({
           title: "Case Created Successfully",
-          description: `Case ${formData.caseNumber} has been created and is ready for investigation.`,
+          description: `Case ${caseNumber} has been created and is ready for investigation.`,
         });
         navigate('/dashboard');
       } else {
@@ -155,10 +181,10 @@ const NewCase = () => {
                 <Input
                   id="caseNumber"
                   name="caseNumber"
-                  placeholder="e.g., CASE-2023-001"
-                  value={formData.caseNumber}
-                  onChange={handleInputChange}
-                  required
+                  placeholder="e.g., CASE-2025-001"
+                  value={caseNumber}
+                  readOnly
+                  className="bg-muted"
                 />
               </div>
               
@@ -167,7 +193,7 @@ const NewCase = () => {
                 <Input
                   id="caseName"
                   name="caseName"
-                  placeholder="e.g., Reddit Harassment Investigation"
+                  placeholder="e.g., Anti-Organization Propaganda Investigation"
                   value={formData.caseName}
                   onChange={handleInputChange}
                   required
@@ -189,12 +215,12 @@ const NewCase = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="leadInvestigator">Lead Investigator</Label>
+                <Label htmlFor="investigator">Investigator</Label>
                 <Input
-                  id="leadInvestigator"
-                  name="leadInvestigator"
+                  id="investigator"
+                  name="investigator"
                   placeholder="Enter investigator name"
-                  value={formData.leadInvestigator}
+                  value={formData.investigator}
                   onChange={handleInputChange}
                 />
               </div>
@@ -213,29 +239,14 @@ const NewCase = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="priority">Priority Level</Label>
-                <select
-                  id="priority"
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleInputChange}
-                  className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="low">Low Priority</option>
-                  <option value="medium">Medium Priority</option>
-                  <option value="high">High Priority</option>
-                  <option value="critical">Critical</option>
-                </select>
-              </div>
-              
-              <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date</Label>
                 <Input
                   id="startDate"
                   name="startDate"
-                  type="date"
+                  type="text"
                   value={formData.startDate}
-                  onChange={handleInputChange}
+                  readOnly
+                  className="bg-muted"
                 />
               </div>
             </div>
