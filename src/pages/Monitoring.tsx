@@ -1091,19 +1091,49 @@ const Monitoring = () => {
                 </Card>
               )}
 
-              {/* Trending Keywords - Community monitoring */}
+              {/* Word Cloud and Weekly Contributors - Community monitoring (side by side) */}
               {profileData.communityName && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Trending Keywords (Recent Activity)</CardTitle>
-                    <CardDescription>
-                      Color coded: Red = high, Green = medium, Light blue = low
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
-                  </CardContent>
-                </Card>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Trending Keywords - Half width */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Trending Keywords</CardTitle>
+                      <CardDescription className="text-xs">
+                        Red = high, Green = medium, Blue = low
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
+                    </CardContent>
+                  </Card>
+
+                  {/* Weekly Contributors Card */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Weekly Contributors
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Active contributors this week
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex items-center justify-center min-h-[220px]">
+                      {profileData.weeklyContributors !== undefined && profileData.weeklyContributors !== null && profileData.weeklyContributors > 0 ? (
+                        <div className="text-center">
+                          <p className="text-5xl font-bold text-primary">{profileData.weeklyContributors.toLocaleString()}</p>
+                          <p className="text-sm text-muted-foreground mt-2">contributors this week</p>
+                        </div>
+                      ) : (
+                        <div className="text-center text-muted-foreground">
+                          <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                          <p className="text-sm font-medium">Weekly contributors not showing</p>
+                          <p className="text-xs mt-1">This community doesn't expose contributor data</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               )}
 
               {/* Activity Breakdown - Community monitoring */}

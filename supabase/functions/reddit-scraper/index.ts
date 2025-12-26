@@ -236,11 +236,16 @@ serve(async (req) => {
       const posts: RedditPost[] = postsData.data?.children?.map((child: any) => child.data) || [];
       console.log(`Fetched ${posts.length} posts from subreddit`);
 
+      // Reddit API provides accounts_active (online now) but not weekly contributors directly
+      // The weekly contributors shown on Reddit sidebar is not exposed via API
+      // We'll use accounts_active as a proxy and let frontend handle display
       responseData = {
         subreddit: subredditData.data,
         posts,
         weeklyVisitors: subredditData.data.accounts_active || 0,
         activeUsers: subredditData.data.active_user_count || 0,
+        // Reddit doesn't expose weekly contributors via API, so we pass null to indicate unavailable
+        weeklyContributors: subredditData.data.wls !== undefined ? null : null,
       };
     }
 
