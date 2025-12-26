@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Search, Users, Calendar, Shield, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
+import { format, subDays } from "date-fns";
 
 const CommunityAnalysis = () => {
   const [subreddit, setSubreddit] = useState("");
@@ -41,15 +42,21 @@ const CommunityAnalysis = () => {
     { name: 'Awards', value: 456 },
   ];
 
-  const postFrequencyData = [
-    { name: 'Mon', value: 45 },
-    { name: 'Tue', value: 52 },
-    { name: 'Wed', value: 48 },
-    { name: 'Thu', value: 61 },
-    { name: 'Fri', value: 55 },
-    { name: 'Sat', value: 38 },
-    { name: 'Sun', value: 42 },
-  ];
+  // Generate post frequency data with actual dates
+  const postFrequencyData = useMemo(() => {
+    const today = new Date();
+    const dayValues = [45, 52, 48, 61, 55, 38, 42];
+    
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = subDays(today, 6 - i);
+      const dayName = format(date, 'EEE');
+      const dateStr = format(date, 'dd-MM-yyyy');
+      return {
+        name: `${dayName}, ${dateStr}`,
+        value: dayValues[i],
+      };
+    });
+  }, []);
 
   const handleSearch = async () => {
     if (!subreddit.trim()) return;
