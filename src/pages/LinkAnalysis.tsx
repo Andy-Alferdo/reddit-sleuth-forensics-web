@@ -259,8 +259,8 @@ const LinkAnalysis = () => {
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-primary">{Number(item.engagement || 0).toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground">Engagement</p>
+                            <p className="font-bold text-primary">{Number(item.totalActivity || (item.posts || 0) + (item.comments || 0)).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">Activity</p>
                           </div>
                         </div>
                         <div className="w-full bg-muted rounded-full h-2">
