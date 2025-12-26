@@ -184,12 +184,7 @@ const Dashboard = () => {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'active': return 'text-forensic-success';
-      case 'closed': return 'text-muted-foreground';
-      case 'pending': return 'text-forensic-warning';
-      default: return 'text-foreground';
-    }
+    return 'text-foreground';
   };
 
   const handleViewPastResults = async (type: string) => {
@@ -342,47 +337,47 @@ const Dashboard = () => {
       label: 'User Profiles',
       count: caseStats.userProfiles,
       icon: User,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
+      color: 'text-foreground',
+      bgColor: 'bg-muted',
     },
     {
       key: 'keywordAnalyses',
       label: 'Keyword Analyses',
       count: caseStats.keywordAnalyses,
       icon: TrendingUp,
-      color: 'text-forensic-cyan',
-      bgColor: 'bg-forensic-cyan/10',
+      color: 'text-foreground',
+      bgColor: 'bg-muted',
     },
     {
       key: 'communityAnalyses',
       label: 'Communities',
       count: caseStats.communityAnalyses,
       icon: Users,
-      color: 'text-forensic-accent',
-      bgColor: 'bg-forensic-accent/10',
+      color: 'text-foreground',
+      bgColor: 'bg-muted',
     },
     {
       key: 'linkAnalyses',
       label: 'Link Analyses',
       count: caseStats.linkAnalyses,
       icon: Link2,
-      color: 'text-forensic-warning',
-      bgColor: 'bg-forensic-warning/10',
+      color: 'text-foreground',
+      bgColor: 'bg-muted',
     },
     {
       key: 'monitoringSessions',
       label: 'Monitoring Sessions',
       count: caseStats.monitoringSessions,
       icon: Activity,
-      color: 'text-forensic-success',
-      bgColor: 'bg-forensic-success/10',
+      color: 'text-foreground',
+      bgColor: 'bg-muted',
     },
   ];
 
   return (
     <div className="p-6 space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-primary mb-2">
+        <h2 className="text-2xl font-bold text-foreground mb-2">
           {hasSelectedCase ? `Case Dashboard - ${selectedCase.name}` : 'Dashboard Overview'}
         </h2>
         <p className="text-muted-foreground">
@@ -396,7 +391,7 @@ const Dashboard = () => {
         <>
           {/* Case Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="border-primary/20">
+            <Card className="border-border">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -405,31 +400,31 @@ const Dashboard = () => {
                       {selectedCase.status}
                     </p>
                   </div>
-                  <FolderOpen className="h-8 w-8 text-primary" />
+                  <FolderOpen className="h-8 w-8 text-foreground" />
                 </div>
               </CardContent>
             </Card>
             
-            <Card className="border-primary/20">
+            <Card className="border-border">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Created</p>
                     <p className="text-xl font-bold text-foreground">{selectedCase.date}</p>
                   </div>
-                  <Eye className="h-8 w-8 text-forensic-cyan" />
+                  <Eye className="h-8 w-8 text-foreground" />
                 </div>
               </CardContent>
             </Card>
             
-            <Card className="border-primary/20">
+            <Card className="border-border">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Case Number</p>
-                    <p className="text-xl font-bold text-forensic-warning">{selectedCase.name}</p>
+                    <p className="text-xl font-bold text-foreground">{selectedCase.name}</p>
                   </div>
-                  <FolderOpen className="h-8 w-8 text-forensic-warning" />
+                  <FolderOpen className="h-8 w-8 text-foreground" />
                 </div>
               </CardContent>
             </Card>
@@ -457,7 +452,7 @@ const Dashboard = () => {
           {/* Collected Investigation Data */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
+              <Activity className="h-5 w-5 text-foreground" />
               <h3 className="text-lg font-semibold text-foreground">Collected Investigation Data</h3>
             </div>
             
