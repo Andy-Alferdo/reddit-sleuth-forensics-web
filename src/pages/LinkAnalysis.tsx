@@ -325,7 +325,7 @@ const LinkAnalysis = () => {
               title="User to Community Network Graph"
               primaryUserId="user1"
               nodes={(() => {
-                // Build nodes: user + their communities + related communities (interests)
+                // Build nodes: user + their communities + interests (from crossover destinations)
                 const userNode = { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' as const };
                 
                 const communityNodes = (linkData.userToCommunities || []).slice(0, 6).map((item: any, index: number) => ({
@@ -334,39 +334,39 @@ const LinkAnalysis = () => {
                   type: 'community' as const
                 }));
                 
-                // Build related communities (interests) from communityRelations if available
-                // This is where the real sidebar-related subreddits come from
-                const relatedCommunities = new Set<string>();
+                // Build interests from communityCrossover destinations
+                // These are communities that the user's communities are related to
                 const userCommunityNames = (linkData.userToCommunities || []).map((c: any) => c.community);
+                const interestSet = new Set<string>();
                 
-                // Use communityRelations (real Reddit sidebar data) if available
+                // Use communityRelations if available (live data)
                 if (linkData.communityRelations && linkData.communityRelations.length > 0) {
                   linkData.communityRelations.forEach((rel: { subreddit: string; relatedTo: string[] }) => {
                     (rel.relatedTo || []).forEach((related: string) => {
                       const formattedRelated = related.startsWith('r/') ? related : `r/${related}`;
-                      // Only add if not already in user's communities
                       if (!userCommunityNames.includes(formattedRelated) && !userCommunityNames.includes(related)) {
-                        relatedCommunities.add(formattedRelated);
+                        interestSet.add(formattedRelated);
                       }
                     });
                   });
                 }
                 
-                // Fallback: also check communityCrossover for related communities
+                // Use communityCrossover as source for interests (offline/mock data)
                 (linkData.communityCrossover || []).forEach((item: any) => {
-                  const existsInUser = userCommunityNames.some((c: string) => c === item.to || c === `r/${item.to}` || `r/${c}` === item.to);
-                  if (!existsInUser && item.relationType === 'sidebar') {
-                    relatedCommunities.add(item.to.startsWith('r/') ? item.to : `r/${item.to}`);
+                  const toFormatted = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
+                  // Only add as interest if it's not already in user's communities
+                  if (!userCommunityNames.includes(toFormatted) && !userCommunityNames.includes(item.to)) {
+                    interestSet.add(toFormatted);
                   }
                 });
                 
-                const relatedNodes = Array.from(relatedCommunities).slice(0, 8).map((name: string, index: number) => ({
+                const interestNodes = Array.from(interestSet).slice(0, 8).map((name: string, index: number) => ({
                   id: `interest-${index}`,
                   label: name,
                   type: 'interest' as const
                 }));
                 
-                return [userNode, ...communityNodes, ...relatedNodes];
+                return [userNode, ...communityNodes, ...interestNodes];
               })()}
               links={(() => {
                 // User to their communities
@@ -376,31 +376,33 @@ const LinkAnalysis = () => {
                   weight: Math.min(4, Math.ceil((item.totalActivity || 1) / 10))
                 }));
                 
-                // Community to related interest links
-                const crossoverLinks: { source: string; target: string; weight: number }[] = [];
+                // Build the interest list the same way as nodes
                 const userCommunityNames = (linkData.userToCommunities || []).map((c: any) => c.community);
+                const interestSet = new Set<string>();
                 
-                // Build related list same way as nodes
-                const relatedCommunities = new Set<string>();
                 if (linkData.communityRelations && linkData.communityRelations.length > 0) {
                   linkData.communityRelations.forEach((rel: { subreddit: string; relatedTo: string[] }) => {
                     (rel.relatedTo || []).forEach((related: string) => {
                       const formattedRelated = related.startsWith('r/') ? related : `r/${related}`;
                       if (!userCommunityNames.includes(formattedRelated) && !userCommunityNames.includes(related)) {
-                        relatedCommunities.add(formattedRelated);
+                        interestSet.add(formattedRelated);
                       }
                     });
                   });
                 }
+                
                 (linkData.communityCrossover || []).forEach((item: any) => {
-                  const existsInUser = userCommunityNames.some((c: string) => c === item.to || c === `r/${item.to}` || `r/${c}` === item.to);
-                  if (!existsInUser && item.relationType === 'sidebar') {
-                    relatedCommunities.add(item.to.startsWith('r/') ? item.to : `r/${item.to}`);
+                  const toFormatted = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
+                  if (!userCommunityNames.includes(toFormatted) && !userCommunityNames.includes(item.to)) {
+                    interestSet.add(toFormatted);
                   }
                 });
-                const relatedCommunityList = Array.from(relatedCommunities).slice(0, 8);
                 
-                // Link communities to their related interests using communityRelations
+                const interestList = Array.from(interestSet).slice(0, 8);
+                
+                // Community to interest links from communityRelations (live)
+                const crossoverLinks: { source: string; target: string; weight: number }[] = [];
+                
                 if (linkData.communityRelations && linkData.communityRelations.length > 0) {
                   linkData.communityRelations.forEach((rel: { subreddit: string; relatedTo: string[] }) => {
                     const fromCommunity = rel.subreddit.startsWith('r/') ? rel.subreddit : `r/${rel.subreddit}`;
@@ -409,13 +411,13 @@ const LinkAnalysis = () => {
                     if (fromIdx !== -1) {
                       (rel.relatedTo || []).forEach((related: string, relIdx: number) => {
                         const formattedRelated = related.startsWith('r/') ? related : `r/${related}`;
-                        const toIdx = relatedCommunityList.indexOf(formattedRelated);
+                        const toIdx = interestList.indexOf(formattedRelated);
                         
                         if (toIdx !== -1) {
                           crossoverLinks.push({
                             source: `community-${fromIdx}`,
                             target: `interest-${toIdx}`,
-                            weight: Math.max(1, 3 - relIdx) // Higher weight for earlier relations
+                            weight: Math.max(1, 3 - relIdx)
                           });
                         }
                       });
@@ -423,24 +425,30 @@ const LinkAnalysis = () => {
                   });
                 }
                 
-                // Fallback: use communityCrossover for sidebar links
-                if (crossoverLinks.length === 0) {
-                  (linkData.communityCrossover || []).forEach((item: any) => {
-                    if (item.relationType === 'sidebar') {
-                      const fromIdx = (linkData.userToCommunities || []).findIndex((c: any) => c.community === item.from);
-                      const toFormatted = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
-                      const toIdx = relatedCommunityList.indexOf(toFormatted);
-                      
-                      if (fromIdx !== -1 && toIdx !== -1) {
-                        crossoverLinks.push({
-                          source: `community-${fromIdx}`,
-                          target: `interest-${toIdx}`,
-                          weight: Math.ceil((item.strength || 30) / 30)
-                        });
-                      }
+                // Community to interest links from communityCrossover (offline/mock)
+                (linkData.communityCrossover || []).forEach((item: any) => {
+                  const fromCommunity = item.from.startsWith('r/') ? item.from : `r/${item.from}`;
+                  const toCommunity = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
+                  
+                  const fromIdx = (linkData.userToCommunities || []).findIndex((c: any) => 
+                    c.community === fromCommunity || c.community === item.from
+                  );
+                  const toIdx = interestList.indexOf(toCommunity);
+                  
+                  // Only add if this link doesn't already exist
+                  if (fromIdx !== -1 && toIdx !== -1) {
+                    const exists = crossoverLinks.some(l => 
+                      l.source === `community-${fromIdx}` && l.target === `interest-${toIdx}`
+                    );
+                    if (!exists) {
+                      crossoverLinks.push({
+                        source: `community-${fromIdx}`,
+                        target: `interest-${toIdx}`,
+                        weight: Math.ceil((item.strength || 50) / 30)
+                      });
                     }
-                  });
-                }
+                  }
+                });
                 
                 return [...userLinks, ...crossoverLinks];
               })()}
