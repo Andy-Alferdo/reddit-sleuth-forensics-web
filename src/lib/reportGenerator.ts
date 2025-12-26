@@ -6,7 +6,7 @@ interface ReportData {
   investigator: string;
   department: string;
   dateGenerated: string;
-  subject: string;
+  caseName: string;
   executiveSummary: string;
   findings: string;
   conclusions: string;
@@ -765,7 +765,7 @@ export const generatePDFReport = (options: ReportOptions): void => {
   addKeyValue('Lead Investigator', reportData.investigator || 'Not specified', 10);
   addKeyValue('Department', reportData.department, 10);
   addKeyValue('Date Generated', reportData.dateGenerated, 10);
-  addKeyValue('Report Subject', reportData.subject, 10);
+  addKeyValue('Case Name', reportData.caseName, 10);
 
   yPos += 15;
 

@@ -20,6 +20,7 @@ const Report = () => {
     setCaseNumber,
     investigator,
     setInvestigator,
+    currentCase,
     userProfiles,
     keywordAnalyses,
     communityAnalyses,
@@ -42,9 +43,9 @@ const Report = () => {
   });
   
   const [reportData, setReportData] = useState({
-    department: 'Cybercrime Unit',
+    department: '',
     dateGenerated: new Date().toISOString().split('T')[0],
-    subject: 'Reddit Investigation Report',
+    caseName: '',
     executiveSummary: '',
     findings: '',
     methodology: '',
@@ -52,6 +53,17 @@ const Report = () => {
     recommendations: '',
     personalizedObservations: ''
   });
+
+  // Auto-populate case name and department from current case
+  useEffect(() => {
+    if (currentCase) {
+      setReportData(prev => ({
+        ...prev,
+        caseName: currentCase.case_name || '',
+        department: currentCase.department || ''
+      }));
+    }
+  }, [currentCase]);
 
   useEffect(() => {
     const usersCount = getTotalUsersAnalyzed();
@@ -99,7 +111,7 @@ const Report = () => {
           investigator,
           department: reportData.department,
           dateGenerated: reportData.dateGenerated,
-          subject: reportData.subject,
+          caseName: reportData.caseName,
           executiveSummary: reportData.executiveSummary,
           findings: reportData.findings,
           conclusions: reportData.conclusions,
@@ -281,13 +293,13 @@ const Report = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="subject">Report Subject *</Label>
+              <Label htmlFor="caseName">Case Name *</Label>
               <Input 
-                id="subject" 
-                name="subject" 
-                placeholder="e.g., Reddit User Investigation - Harassment Case" 
-                value={reportData.subject} 
-                onChange={handleInputChange} 
+                id="caseName" 
+                name="caseName" 
+                value={reportData.caseName} 
+                readOnly
+                className="bg-muted"
               />
             </div>
           </div>
@@ -298,9 +310,9 @@ const Report = () => {
               <Input 
                 id="department" 
                 name="department" 
-                placeholder="e.g., Cybercrime Unit"
                 value={reportData.department} 
-                onChange={handleInputChange} 
+                readOnly
+                className="bg-muted"
               />
             </div>
             <div className="space-y-2">
