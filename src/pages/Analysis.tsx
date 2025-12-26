@@ -1140,12 +1140,12 @@ const Analysis = () => {
                 </Card>
               </div>
 
-              {/* Community Distribution Chart */}
+              {/* Community Distribution Pie Chart */}
               {linkData.communityDistribution && linkData.communityDistribution.length > 0 && (
                 <AnalyticsChart 
                   data={linkData.communityDistribution} 
-                  title="Activity Distribution Across Communities" 
-                  type="bar" 
+                  title="Community Distribution" 
+                  type="pie" 
                   height={300}
                 />
               )}
