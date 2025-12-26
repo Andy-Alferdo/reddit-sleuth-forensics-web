@@ -336,15 +336,29 @@ const Analysis = () => {
         .slice(0, 5)
         .map(([username, posts]) => ({ username: `u/${username}`, posts }));
 
-      // Calculate activity by day of week
-      const dayActivity: { [key: string]: number } = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+      // Calculate activity by day of week with dates
+      const now = new Date();
+      const dayActivityMap: { [key: string]: { count: number; label: string } } = {};
+      
+      // Initialize last 7 days with dates
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+        const formattedDate = `${dayName}, ${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getFullYear()}`;
+        dayActivityMap[dayKey] = { count: 0, label: formattedDate };
+      }
+      
       posts.forEach((post: any) => {
-        const date = new Date(post.created_utc * 1000);
-        const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
-        dayActivity[day] = (dayActivity[day] || 0) + 1;
+        const postDate = new Date(post.created_utc * 1000);
+        const dayKey = postDate.toISOString().split('T')[0];
+        if (dayActivityMap[dayKey]) {
+          dayActivityMap[dayKey].count++;
+        }
       });
 
-      const activityData = Object.entries(dayActivity).map(([name, value]) => ({ name, value }));
+      const activityData = Object.values(dayActivityMap).map(({ label, count }) => ({ name: label, value: count }));
 
       // Calculate engagement metrics
       const totalUpvotes = posts.reduce((sum: number, p: any) => sum + (p.score || 0), 0);
