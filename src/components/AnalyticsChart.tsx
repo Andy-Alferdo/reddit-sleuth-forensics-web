@@ -42,9 +42,13 @@ export const AnalyticsChart = ({ data, title, type, height = 300 }: AnalyticsCha
             <XAxis 
               dataKey="name" 
               stroke="hsl(var(--muted-foreground))"
-              fontSize={12}
+              fontSize={10}
               axisLine={{ stroke: 'hsl(var(--border))' }}
               tickLine={{ stroke: 'hsl(var(--border))' }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+              interval={0}
             />
             <YAxis 
               stroke="hsl(var(--muted-foreground))" 
@@ -74,9 +78,13 @@ export const AnalyticsChart = ({ data, title, type, height = 300 }: AnalyticsCha
             <XAxis 
               dataKey="name" 
               stroke="hsl(var(--muted-foreground))" 
-              fontSize={12}
+              fontSize={10}
               axisLine={{ stroke: 'hsl(var(--border))' }}
               tickLine={{ stroke: 'hsl(var(--border))' }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+              interval={0}
             />
             <YAxis 
               stroke="hsl(var(--muted-foreground))" 
