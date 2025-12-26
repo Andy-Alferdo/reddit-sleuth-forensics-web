@@ -274,9 +274,9 @@ const Report = () => {
       </Card>
 
       {/* Report Header */}
-      <Card className="border-primary/20">
+      <Card className="border-border">
         <CardHeader>
-          <CardTitle className="text-2xl text-primary">Report Information</CardTitle>
+          <CardTitle className="text-2xl text-foreground">Report Information</CardTitle>
           <p className="text-muted-foreground">
             Fill in the details below to generate your forensic investigation report
           </p>
