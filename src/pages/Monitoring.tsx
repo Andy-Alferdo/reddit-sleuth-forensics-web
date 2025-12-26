@@ -921,82 +921,28 @@ const Monitoring = () => {
 
         {/* Main Monitoring Dashboard - shown for live monitoring OR saved session viewing */}
         {(isMonitoring || isViewingSavedSession) && profileData && (
-          <div className={`grid gap-6 animate-fade-in ${profileData.communityName ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
-            {/* Left Column */}
-            <div className={profileData.communityName ? 'space-y-6' : 'space-y-6'}>
-              {/* Notifications */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    Notifications
-                    <Badge
-                      variant="default"
-                      className={`ml-auto ${isViewingSavedSession ? '' : 'animate-pulse'}`}
-                    >
-                      {isViewingSavedSession ? 'Saved' : 'Live'}
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription>
-                    {isViewingSavedSession ? 'Saved activities from this session' : 'Latest Reddit activities'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {profileData.communityName ? (
-                    // Community monitoring - only posts and link
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Posts Column */}
-                      <div>
-                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-primary" />
-                          Posts
-                        </h4>
-                        <ScrollArea className="h-80">
-                          <div className="space-y-2 pr-4">
-                            {activities
-                              .filter((activity) => activity.type === 'post')
-                              .map((activity) => (
-                                <a
-                                  key={activity.id}
-                                  href={activity.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-                                >
-                                  <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
-                                  <div className="flex flex-col gap-1 mt-1">
-                                    <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
-                                    <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
-                                  </div>
-                                </a>
-                              ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
-
-                      {/* Community Link */}
-                      <div>
-                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                          <ExternalLink className="h-4 w-4 text-primary" />
-                          Community Link
-                        </h4>
-                        <a
-                          href={`https://reddit.com/${profileData.communityName}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 p-4 rounded-lg border hover:bg-accent transition-colors"
-                        >
-                          <Users className="h-5 w-5 text-primary" />
-                          <div>
-                            <p className="font-semibold">{profileData.communityName}</p>
-                            <p className="text-xs text-muted-foreground">Visit on Reddit</p>
-                          </div>
-                          <ExternalLink className="h-4 w-4 ml-auto" />
-                        </a>
-                      </div>
-                    </div>
-                  ) : (
-                    // User monitoring - posts and comments
+          <div className="space-y-6 animate-fade-in">
+            {/* For User monitoring - Full width Notifications, then Word Cloud + Activity Breakdown side by side */}
+            {!profileData.communityName && (
+              <>
+                {/* Notifications - Full Width */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Notifications
+                      <Badge
+                        variant="default"
+                        className={`ml-auto ${isViewingSavedSession ? '' : 'animate-pulse'}`}
+                      >
+                        {isViewingSavedSession ? 'Saved' : 'Live'}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      {isViewingSavedSession ? 'Saved activities from this session' : 'Latest Reddit activities'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
                     <div className="grid grid-cols-2 gap-4">
                       {/* Posts Column */}
                       <div>
@@ -1056,40 +1002,109 @@ const Monitoring = () => {
                         </ScrollArea>
                       </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Word Cloud for User monitoring - positioned where Activity Timeline was */}
-              {!profileData.communityName && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Trending Keywords (Recent Activity)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
                   </CardContent>
                 </Card>
-              )}
-            </div>
 
-            {/* Right Column */}
-            <div className="space-y-6">
-              {/* For User monitoring - expanded Posts and Comments */}
-              {!profileData.communityName && (
+                {/* Word Cloud + Activity Breakdown - Side by Side */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Trending Keywords (Recent Activity)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <WordCloud words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud} title="" />
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Activity Breakdown</CardTitle>
+                      <CardDescription>Posts vs Comments distribution</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
+
+            {/* For Community monitoring - Original layout */}
+            {profileData.communityName && (
+              <div className="space-y-6">
+                {/* Notifications */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Activity Breakdown</CardTitle>
-                    <CardDescription>Posts vs Comments distribution</CardDescription>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Notifications
+                      <Badge
+                        variant="default"
+                        className={`ml-auto ${isViewingSavedSession ? '' : 'animate-pulse'}`}
+                      >
+                        {isViewingSavedSession ? 'Saved' : 'Live'}
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>
+                      {isViewingSavedSession ? 'Saved activities from this session' : 'Latest Reddit activities'}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Posts Column */}
+                      <div>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-primary" />
+                          Posts
+                        </h4>
+                        <ScrollArea className="h-80">
+                          <div className="space-y-2 pr-4">
+                            {activities
+                              .filter((activity) => activity.type === 'post')
+                              .map((activity) => (
+                                <a
+                                  key={activity.id}
+                                  href={activity.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                                >
+                                  <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
+                                    <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
+                                  </div>
+                                </a>
+                              ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+
+                      {/* Community Link */}
+                      <div>
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-primary" />
+                          Community Link
+                        </h4>
+                        <a
+                          href={`https://reddit.com/${profileData.communityName}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-4 rounded-lg border hover:bg-accent transition-colors"
+                        >
+                          <Users className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="font-semibold">{profileData.communityName}</p>
+                            <p className="text-xs text-muted-foreground">Visit on Reddit</p>
+                          </div>
+                          <ExternalLink className="h-4 w-4 ml-auto" />
+                        </a>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
-              )}
 
-              {/* Word Cloud and Weekly Contributors - Community monitoring (side by side) */}
-              {profileData.communityName && (
+                {/* Word Cloud and Weekly Contributors - Community monitoring (side by side) */}
                 <div className="grid grid-cols-2 gap-4">
                   {/* Trending Keywords - Half width */}
                   <Card>
@@ -1130,10 +1145,8 @@ const Monitoring = () => {
                     </CardContent>
                   </Card>
                 </div>
-              )}
 
-              {/* Activity Breakdown - Community monitoring */}
-              {profileData.communityName && (
+                {/* Activity Breakdown - Community monitoring */}
                 <Card>
                   <CardHeader>
                     <CardTitle>Posts (Last 3 Days)</CardTitle>
@@ -1143,9 +1156,8 @@ const Monitoring = () => {
                     <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
                   </CardContent>
                 </Card>
-              )}
-
-            </div>
+              </div>
+            )}
           </div>
         )}
 
