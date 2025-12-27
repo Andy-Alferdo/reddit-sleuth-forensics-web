@@ -19,7 +19,7 @@ Reddit Sleuth fetches real data from Reddit's API through edge functions and pro
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   Frontend      │────▶│  Edge Functions  │────▶│   Reddit API    │
-│   (React)       │     │  (Supabase)      │     │                 │
+│   (React)       │     │  (Lovable Cloud) │     │                 │
 └─────────────────┘     └──────────────────┘     └─────────────────┘
         │                       │
         │                       ▼
@@ -31,7 +31,7 @@ Reddit Sleuth fetches real data from Reddit's API through edge functions and pro
         ▼                       ▼
 ┌─────────────────┐     ┌──────────────────┐
 │   UI Components │◀────│   PostgreSQL     │
-│   Charts/Graphs │     │   (Supabase)     │
+│   Charts/Graphs │     │   (Lovable Cloud)│
 └─────────────────┘     └──────────────────┘
 ```
 
@@ -68,7 +68,7 @@ interface UserScraperResponse {
   };
   posts: RedditPost[];
   comments: RedditComment[];
-  communityRelations: CommunityRelation[];  // NEW
+  communityRelations: CommunityRelation[];
 }
 
 interface RedditPost {
@@ -126,16 +126,6 @@ interface CommunityScraperResponse {
   weeklyVisitors: number;
   activeUsers: number;
 }
-```
-
-#### Search Request
-```typescript
-const { data } = await supabase.functions.invoke('reddit-scraper', {
-  body: { 
-    keyword: 'search term',
-    type: 'search'
-  }
-});
 ```
 
 ---
@@ -441,7 +431,7 @@ const generateWordCloud = (
   const wordCount = new Map<string, number>();
   
   // Common words to exclude
-  const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', ...]);
+  const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'what', 'which', 'who', 'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just', 'also', 'now', 'here', 'there', 'then', 'once', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'again', 'further', 'because', 'if', 'until', 'while', 'but', 'as', 'get', 'got', 'like', 'dont', 'its', 'im', 'ive', 'your', 'youre']);
   
   // Process all text
   const allText = [
@@ -506,8 +496,6 @@ const analyzeActivityPattern = (
 
 ## Report Data Structure
 
-For the `reportGenerator.ts`:
-
 ```typescript
 interface ReportData {
   caseInfo: {
@@ -516,25 +504,45 @@ interface ReportData {
     description: string;
     status: string;
     priority: string;
+    department: string;
+    leadInvestigator: string;
     createdAt: string;
   };
   
-  userProfiling?: UserProfilingData;
-  communityAnalysis?: CommunityAnalysisData;
-  linkAnalysis?: LinkAnalysisData;
-  monitoringData?: MonitoringData;
-}
-
-interface LinkAnalysisData {
-  crossPostingActivity: CrossPost[];
-  sharedDomains: Domain[];
-  communityConnections: Connection[];
-  communityCrossover: CommunityCrossover[];  // NEW
-  communityRelations: CommunityRelation[];   // NEW
-  networkData?: {
+  userProfiles: Array<{
+    username: string;
+    accountAge: string;
+    karma: number;
+    sentiment: SentimentBreakdown;
+    locations: string[];
+    topSubreddits: string[];
+    wordCloud: WordCloudWord[];
+  }>;
+  
+  communityAnalysis: Array<{
+    subreddit: string;
+    subscribers: number;
+    description: string;
+    sentiment: SentimentBreakdown;
+  }>;
+  
+  linkAnalysis: {
     nodes: NetworkNode[];
     links: NetworkLink[];
+    communityCrossover: CommunityCrossover[];
   };
+  
+  monitoringSessions: Array<{
+    targetName: string;
+    searchType: string;
+    startedAt: string;
+    endedAt: string;
+    newActivityCount: number;
+    activities: any[];
+  }>;
+  
+  generatedAt: string;
+  generatedBy: string;
 }
 ```
 
@@ -545,33 +553,30 @@ interface LinkAnalysisData {
 ### Saving Analysis Results
 
 ```typescript
-// Save to user_profiles_analyzed
 const saveAnalysis = async (
   caseId: string,
-  username: string,
-  userData: any,
-  analysisData: any
+  profileData: UserProfileData
 ) => {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('user_profiles_analyzed')
-    .upsert({
+    .insert({
       case_id: caseId,
-      username,
-      account_age: userData.accountAge,
-      total_karma: userData.karma,
-      post_karma: userData.postKarma,
-      comment_karma: userData.commentKarma,
-      active_subreddits: userData.activeSubreddits,
-      sentiment_analysis: analysisData.sentiment,
-      post_sentiments: analysisData.postSentiments,
-      comment_sentiments: analysisData.commentSentiments,
-      location_indicators: analysisData.locations,
-      behavior_patterns: analysisData.patterns,
-      word_cloud: userData.wordCloud,
-      analyzed_at: new Date().toISOString()
+      username: profileData.username,
+      account_age: profileData.accountAge,
+      total_karma: profileData.karma,
+      post_karma: profileData.postKarma,
+      comment_karma: profileData.commentKarma,
+      active_subreddits: profileData.topSubreddits,
+      activity_pattern: profileData.activityPattern,
+      sentiment_analysis: profileData.sentiment,
+      post_sentiments: profileData.postSentiments,
+      comment_sentiments: profileData.commentSentiments,
+      location_indicators: profileData.locations,
+      behavior_patterns: profileData.patterns,
+      word_cloud: profileData.wordCloud
     });
     
-  if (error) throw error;
+  return { data, error };
 };
 ```
 
@@ -579,17 +584,17 @@ const saveAnalysis = async (
 
 ## Best Practices
 
-1. **Cache API responses** - Avoid redundant Reddit API calls
-2. **Batch AI requests** - Send multiple items in one request
-3. **Handle rate limits** - Implement exponential backoff
-4. **Validate data** - Check for null/undefined before processing
-5. **Error handling** - Graceful degradation when APIs fail
+1. **Error Handling**: Always handle API errors gracefully
+2. **Loading States**: Show loading indicators during API calls
+3. **Caching**: Consider caching frequently accessed data
+4. **Rate Limits**: Implement retry logic for rate-limited requests
+5. **Validation**: Validate all data before storage
+6. **Pagination**: Use pagination for large datasets
 
 ---
 
 ## Resources
 
 - [Reddit API Documentation](https://www.reddit.com/dev/api/)
-- [Supabase JavaScript Client](https://supabase.com/docs/reference/javascript)
-- [React Force Graph 2D](https://github.com/vasturiano/react-force-graph-2d)
-- [Recharts](https://recharts.org/)
+- [Supabase Client Documentation](https://supabase.com/docs/reference/javascript/introduction)
+- [Lovable AI Documentation](https://docs.lovable.dev/features/ai)
