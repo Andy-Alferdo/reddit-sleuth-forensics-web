@@ -4,18 +4,21 @@
 
 ### 1. Authentication & Authorization
 - User registration and login with email/password
-- Role-based access control (admin, moderator, user)
+- Role-based access control (admin, user)
 - Admin dashboard for user management
 - Session management and secure logout
-- Password reset functionality
+- Password reset functionality (admin-initiated)
+- User invitation system via email
 
 ### 2. Case Management
 - Create new investigation cases with unique case numbers
 - Track case status (active, closed, pending)
 - Set case priority (low, medium, high, critical)
 - Assign lead investigators and departments
+- Sensitive case protection with password
 - View all cases on home dashboard
 - Filter and search existing cases
+- Cache duration settings for case data
 
 ### 3. Reddit User Profiling
 - Search Reddit users by username (with or without u/ prefix)
@@ -52,6 +55,7 @@
   - Public description
   - Moderator list
 - Show recent posts and activity metrics
+- Post frequency chart with exact dates (format: Day, DD-MM-YYYY)
 - Generate community word clouds
 - Visualize member growth and activity trends
 - Analyze community sentiment
@@ -72,6 +76,8 @@
 - Update word clouds in real-time
 - Track new activity count
 - Posts (Last 7 Days) chart with accurate daily counts
+- Activity breakdown chart (posts vs comments)
+- Full-width notifications display
 - Save monitoring sessions to database
 
 ### 7. Report Generation
@@ -105,6 +111,15 @@
 - Quick navigation to all features
 - Case context maintained across pages
 
+### 10. Admin Features
+- User management dashboard
+- Create new users with role assignment
+- View all registered users
+- Reset user passwords
+- Send email invitations to new users
+- View audit logs of system actions
+- Manage user roles (admin/user)
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -122,6 +137,7 @@
 - CORS protection
 - JWT token authentication
 - No sensitive data in client-side code
+- Audit logging for admin actions
 
 ### Reliability
 - 99.5% uptime target
@@ -173,14 +189,14 @@
 - React Force Graph 2D
 
 ### Backend
-- Lovable Cloud (Supabase)
+- Lovable Cloud (powered by Supabase)
 - PostgreSQL 15
 - Deno Edge Functions
 - Row Level Security
 
 ### AI/ML
 - Google Gemini 2.5 Flash (via Lovable AI Gateway)
-- Optional: Custom BERT models
+- Optional: Custom BERT models (python_ml directory)
 - LIME/SHAP for explainability
 
 ### Authentication
@@ -188,16 +204,20 @@
 - Email/password authentication
 - Role-based access control
 
+### Email
+- Resend API for invitations
+
 ### External APIs
 - Reddit API (OAuth2 client credentials)
 - Lovable AI Gateway
-- Google Gemini API (for local setup)
 
 ## Database Schema
 
 ### Tables
-- `profiles` - User profiles
-- `user_roles` - Role assignments
+- `profiles` - Application user profiles
+- `user_roles` - Role assignments (admin/user enum)
+- `user_invites` - Pending user invitations
+- `audit_logs` - System action logs
 - `investigation_cases` - Case management
 - `reddit_posts` - Scraped posts
 - `reddit_comments` - Scraped comments
@@ -212,6 +232,9 @@
 1. `reddit-scraper` - Fetch Reddit user/community data
 2. `analyze-content` - AI sentiment analysis
 3. `data-store` - Data persistence operations
+4. `admin-create-user` - Create users (admin only)
+5. `admin-reset-password` - Reset passwords (admin only)
+6. `send-invite-email` - Send email invitations
 
 ### Response Formats
 - All responses in JSON

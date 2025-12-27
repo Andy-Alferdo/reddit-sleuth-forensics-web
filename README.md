@@ -6,7 +6,7 @@ A comprehensive forensic intelligence tool for analyzing Reddit users, communiti
 
 ### Core Analysis
 - **User Profiling**: Deep analysis of Reddit user activity, karma, posting patterns, and behavior
-- **Community Analysis**: Subreddit statistics, member analysis, and trending topics
+- **Community Analysis**: Subreddit statistics, member analysis, and trending topics with date-based activity tracking
 - **Link Analysis**: Cross-community relationship mapping with network graph visualization
 - **Community Crossover**: Real community-to-community connections from Reddit's related subreddits
 - **Real-Time Monitoring**: Live tracking of user/community activity with 15-second refresh
@@ -23,22 +23,29 @@ A comprehensive forensic intelligence tool for analyzing Reddit users, communiti
 - **Network Graph Reports**: Visual community connection diagrams in reports
 - **Activity Timelines**: Track user activity patterns over time
 
+### Admin Features
+- **User Management**: Admin dashboard for managing users and roles
+- **User Invitations**: Send email invitations to new users with role assignment
+- **Password Reset**: Admin-initiated password resets for users
+- **Audit Logging**: Track all system actions for compliance
+
 ## Tech Stack
 
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui
-- **Backend**: Lovable Cloud (Supabase) or Express.js
-- **Database**: PostgreSQL
-- **AI**: Google Gemini 2.5 Flash via Lovable AI Gateway (or direct API)
+- **Backend**: Lovable Cloud (powered by Supabase)
+- **Database**: PostgreSQL with Row Level Security
+- **AI**: Google Gemini 2.5 Flash via Lovable AI Gateway
 - **Visualization**: Recharts, React Force Graph 2D, Word Clouds, Network Graphs
-- **Authentication**: Supabase Auth
+- **Authentication**: Supabase Auth with email/password
 - **PDF Generation**: jsPDF with AutoTable
+- **Email**: Resend API for invitations
 
 ## Quick Start
 
 ### Using Lovable Cloud (Recommended)
 
 1. Visit the [Lovable Project](https://lovable.dev/projects/186bdb3b-fa32-4662-a51c-2b10429f41d6)
-2. Configure Reddit API credentials in the backend settings
+2. Configure Reddit API credentials in the backend secrets
 3. Start using the application
 
 ### Local Development
@@ -98,12 +105,14 @@ reddit-sleuth/
 │   │   ├── CommunityAnalysis.tsx
 │   │   ├── LinkAnalysis.tsx
 │   │   ├── Analysis.tsx     # Combined analysis with tabs
-│   │   ├── Monitoring.tsx
+│   │   ├── Monitoring.tsx   # Real-time monitoring
 │   │   ├── Report.tsx
+│   │   ├── AdminDashboard.tsx  # Admin user management
 │   │   └── ...
 │   ├── contexts/            # React contexts
 │   │   └── InvestigationContext.tsx
 │   ├── hooks/               # Custom hooks
+│   │   └── useAuditLog.ts   # Audit logging hook
 │   ├── lib/                 # Utilities
 │   │   ├── reportGenerator.ts  # PDF/HTML report generation
 │   │   ├── dateUtils.ts
@@ -114,20 +123,23 @@ reddit-sleuth/
 │   ├── functions/           # Edge functions
 │   │   ├── reddit-scraper/  # Reddit API integration
 │   │   ├── analyze-content/ # AI content analysis
-│   │   └── data-store/      # Data persistence
+│   │   ├── data-store/      # Data persistence
+│   │   ├── admin-create-user/    # Admin user creation
+│   │   ├── admin-reset-password/ # Admin password reset
+│   │   └── send-invite-email/    # Email invitations
 │   └── config.toml
-├── server/                  # Express backend (optional)
-└── python_ml/               # Custom ML models (optional)
-    ├── preprocessing/       # Data preprocessing
-    ├── training/           # Model training
-    └── evaluation/         # Model evaluation
+├── python_ml/               # Custom ML models (optional)
+│   ├── preprocessing/       # Data preprocessing
+│   ├── training/           # Model training
+│   └── evaluation/         # Model evaluation
+└── diagrams/               # Architecture diagrams
 ```
 
 ## Documentation
 
 - [Local Setup Guide](./LOCAL_SETUP_GUIDE.md) - Complete guide for running locally
 - [Infrastructure Setup](./INFRASTRUCTURE_SETUP.md) - Backend architecture details
-- [Data Integration Guide](./DATA_INTEGRATION_GUIDE.md) - How to integrate real data
+- [Data Integration Guide](./DATA_INTEGRATION_GUIDE.md) - Data structures and API usage
 - [Database Management Guide](./DATABASE_MANAGEMENT_GUIDE.md) - Database operations
 - [Supabase Access Guide](./SUPABASE_ACCESS_GUIDE.md) - Connecting your own Supabase
 - [Requirements](./REQUIREMENTS.md) - Functional and non-functional requirements
@@ -137,6 +149,8 @@ reddit-sleuth/
 | Page | Route | Description |
 |------|-------|-------------|
 | Home | `/` | Case creation and selection |
+| Login | `/login` | User authentication |
+| Register | `/register` | New user registration |
 | Case Dashboard | `/dashboard` | Case overview and statistics |
 | User Profiling | `/user-profiling` | Analyze Reddit users |
 | Community Analysis | `/community-analysis` | Analyze subreddits |
@@ -144,8 +158,9 @@ reddit-sleuth/
 | Link Analysis | `/link-analysis` | Cross-community connections |
 | Monitoring | `/monitoring` | Real-time activity tracking |
 | Report | `/report` | Generate investigation reports |
+| Admin Dashboard | `/admin/dashboard` | User management (admin only) |
 
-## API Endpoints
+## API Endpoints (Edge Functions)
 
 ### Reddit Scraper
 ```
@@ -162,7 +177,7 @@ Response (User):
   user: { ... },
   posts: [...],
   comments: [...],
-  communityRelations: [       // NEW: Related communities
+  communityRelations: [       // Related communities
     { subreddit: "...", relatedTo: ["...", "..."] }
   ]
 }
@@ -187,11 +202,32 @@ Response:
 }
 ```
 
+### Admin Functions
+- `POST /functions/v1/admin-create-user` - Create new users (admin only)
+- `POST /functions/v1/admin-reset-password` - Reset user passwords (admin only)
+- `POST /functions/v1/send-invite-email` - Send email invitations
+
+## Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `profiles` | User profiles linked to auth |
+| `user_roles` | Role assignments (admin/user) |
+| `user_invites` | Pending user invitations |
+| `audit_logs` | System action logs |
+| `investigation_cases` | Case management |
+| `reddit_posts` | Stored Reddit posts |
+| `reddit_comments` | Stored Reddit comments |
+| `user_profiles_analyzed` | Analyzed user profiles |
+| `analysis_results` | Analysis results storage |
+| `monitoring_sessions` | Real-time monitoring sessions |
+| `investigation_reports` | Generated reports |
+
 ## Key Features
 
 ### Link Analysis with Community Crossover
 
-The Link Analysis feature now includes real community-to-community connections:
+The Link Analysis feature includes real community-to-community connections:
 - Fetches related subreddits from Reddit's community widgets
 - Displays network graph showing community relationships
 - Shows connection strength and relationship type (sidebar/co-activity)
@@ -208,6 +244,14 @@ Reports include:
 - Monitoring data and activity timelines
 - Word clouds and charts
 
+### Real-Time Monitoring
+
+- Monitor Reddit users or communities live
+- 15-second automatic refresh interval
+- Activity breakdown charts (posts vs comments)
+- Word cloud updates in real-time
+- Notification feed with timestamps
+
 ## Deployment
 
 ### Lovable Cloud
@@ -223,11 +267,12 @@ See [Local Setup Guide](./LOCAL_SETUP_GUIDE.md) for complete instructions.
 - Input validation on all endpoints
 - CORS protection enabled
 - XAI (Explainable AI) for sentiment analysis transparency
+- Audit logging for admin actions
 
 ## Rate Limits
 
 - Reddit API: 60 requests/minute
-- AI Analysis: Varies by tier (free tier: 15 RPM for Gemini)
+- AI Analysis: Varies by tier (usage-based pricing)
 
 ## Contributing
 

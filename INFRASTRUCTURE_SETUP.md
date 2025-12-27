@@ -10,7 +10,8 @@ This document provides detailed information on the backend infrastructure and fe
 5. [Lovable AI Integration](#lovable-ai-integration)
 6. [Database Schema](#database-schema)
 7. [Report Generation](#report-generation)
-8. [Deployment](#deployment)
+8. [Email Integration](#email-integration)
+9. [Deployment](#deployment)
 
 ---
 
@@ -18,16 +19,18 @@ This document provides detailed information on the backend infrastructure and fe
 
 Reddit Sleuth uses **Lovable Cloud** (powered by Supabase) to provide backend functionality including:
 - Reddit API integration via edge functions
-- AI-powered content analysis using Lovable AI
+- AI-powered content analysis using Lovable AI (Google Gemini)
 - Secure secrets management
 - Serverless architecture that auto-scales
 - Community relationship detection
+- Email invitations via Resend
+- Admin user management
 
 ---
 
 ## Edge Functions
 
-The application uses three serverless edge functions:
+The application uses six serverless edge functions:
 
 ### 1. Reddit Scraper (`reddit-scraper`)
 
@@ -39,14 +42,14 @@ The application uses three serverless edge functions:
 - OAuth2 client credentials authentication
 - Fetches user profiles, posts, and comments
 - Fetches subreddit information and posts
-- **NEW**: Fetches community relations (related subreddits from widgets)
+- Fetches community relations (related subreddits from widgets)
 - Keyword search across Reddit
 - Error handling for non-existent users/communities
 - CORS enabled for web app access
 
 **API Endpoint**:
 ```
-POST https://<your-project>.supabase.co/functions/v1/reddit-scraper
+POST /functions/v1/reddit-scraper
 ```
 
 **Request Body (User)**:
@@ -93,21 +96,6 @@ POST https://<your-project>.supabase.co/functions/v1/reddit-scraper
 }
 ```
 
-**Response (Community)**:
-```json
-{
-  "subreddit": {
-    "display_name": "string",
-    "subscribers": "number",
-    "public_description": "string",
-    "accounts_active": "number"
-  },
-  "posts": [...],
-  "weeklyVisitors": "number",
-  "activeUsers": "number"
-}
-```
-
 **Environment Variables Required**:
 - `REDDIT_CLIENT_ID`
 - `REDDIT_CLIENT_SECRET`
@@ -130,7 +118,7 @@ POST https://<your-project>.supabase.co/functions/v1/reddit-scraper
 
 **API Endpoint**:
 ```
-POST https://<your-project>.supabase.co/functions/v1/analyze-content
+POST /functions/v1/analyze-content
 ```
 
 **Request Body**:
@@ -162,38 +150,22 @@ POST https://<your-project>.supabase.co/functions/v1/analyze-content
       "explanation": "XAI reason for this classification"
     }
   ],
-  "commentSentiments": [
-    {
-      "text": "First 100 chars of comment...",
-      "sentiment": "positive|negative|neutral",
-      "explanation": "XAI reason for this classification"
-    }
-  ],
+  "commentSentiments": [...],
   "sentiment": {
     "postBreakdown": {
       "positive": 0.6,
       "neutral": 0.3,
       "negative": 0.1
     },
-    "commentBreakdown": {
-      "positive": 0.5,
-      "neutral": 0.35,
-      "negative": 0.15
-    }
+    "commentBreakdown": {...}
   },
-  "locations": ["New York", "San Francisco", "California"],
+  "locations": ["New York", "San Francisco"],
   "patterns": {
-    "topicInterests": ["technology", "programming", "gaming"]
+    "topicInterests": ["technology", "programming"]
   },
   "topSubreddits": [
-    { "name": "technology", "count": 15 },
-    { "name": "programming", "count": 10 }
-  ],
-  "stats": {
-    "totalPosts": 50,
-    "totalComments": 100,
-    "totalActivity": 150
-  }
+    { "name": "technology", "count": 15 }
+  ]
 }
 ```
 
@@ -208,6 +180,97 @@ POST https://<your-project>.supabase.co/functions/v1/analyze-content
 
 **Purpose**: Persists analysis results and investigation data to the database
 
+**Operations**:
+- `createCase` - Create new investigation case
+- `getCases` - List all cases for user
+- `getCase` - Get single case details
+- `updateCase` - Update case information
+- `savePosts` - Save Reddit posts
+- `getPosts` - Retrieve posts for a case
+- `saveComments` - Save Reddit comments
+- `getComments` - Retrieve comments for a case
+- `saveUserProfile` - Save analyzed user profile
+- `getUserProfiles` - Retrieve user profiles for a case
+- `saveMonitoringSession` - Save monitoring session
+- `getMonitoringSessions` - Retrieve monitoring sessions
+- `saveAnalysis` - Save analysis results
+- `getAnalyses` - Retrieve analysis results
+- `saveReport` - Save generated report
+- `getReports` - Retrieve reports
+- `getCaseFullData` - Get all data for a case
+
+---
+
+### 4. Admin Create User (`admin-create-user`)
+
+**Location**: `supabase/functions/admin-create-user/index.ts`
+
+**Purpose**: Allows admins to create new users with specified roles
+
+**Features**:
+- Verifies admin authorization
+- Creates user with email/password
+- Assigns specified role (admin/user)
+- Logs audit event
+
+**Request Body**:
+```json
+{
+  "email": "user@example.com",
+  "password": "secure_password",
+  "fullName": "User Name",
+  "role": "user"
+}
+```
+
+---
+
+### 5. Admin Reset Password (`admin-reset-password`)
+
+**Location**: `supabase/functions/admin-reset-password/index.ts`
+
+**Purpose**: Allows admins to reset user passwords
+
+**Features**:
+- Verifies admin authorization
+- Updates user password
+- Logs audit event
+
+**Request Body**:
+```json
+{
+  "userId": "user-uuid",
+  "newPassword": "new_secure_password"
+}
+```
+
+---
+
+### 6. Send Invite Email (`send-invite-email`)
+
+**Location**: `supabase/functions/send-invite-email/index.ts`
+
+**Purpose**: Sends email invitations to new users
+
+**Features**:
+- Uses Resend API for email delivery
+- HTML formatted invitation email
+- Includes invite link, role, and expiration
+
+**Request Body**:
+```json
+{
+  "email": "invitee@example.com",
+  "inviteLink": "https://...",
+  "role": "user",
+  "expiresAt": "2024-01-15T00:00:00Z"
+}
+```
+
+**Environment Variables Required**:
+- `RESEND_API_KEY`
+- `RESEND_FROM` (optional, defaults to onboarding@resend.dev)
+
 ---
 
 ## Secrets Management
@@ -216,23 +279,28 @@ All sensitive credentials are stored securely in Supabase Secrets.
 
 ### Current Secrets
 
-| Secret | Purpose | Used By | How to Obtain |
-|--------|---------|---------|---------------|
-| `REDDIT_CLIENT_ID` | Reddit OAuth2 app client ID | `reddit-scraper` | https://www.reddit.com/prefs/apps |
-| `REDDIT_CLIENT_SECRET` | Reddit OAuth2 app client secret | `reddit-scraper` | https://www.reddit.com/prefs/apps |
-| `LOVABLE_API_KEY` | Authentication for Lovable AI | `analyze-content` | Auto-provided |
-| `SUPABASE_URL` | Database URL | All functions | Auto-managed |
-| `SUPABASE_ANON_KEY` | Database anon key | All functions | Auto-managed |
+| Secret | Purpose | Used By |
+|--------|---------|---------|
+| `REDDIT_CLIENT_ID` | Reddit OAuth2 app client ID | `reddit-scraper` |
+| `REDDIT_CLIENT_SECRET` | Reddit OAuth2 app client secret | `reddit-scraper` |
+| `LOVABLE_API_KEY` | Authentication for Lovable AI | `analyze-content` |
+| `RESEND_API_KEY` | Email delivery API key | `send-invite-email` |
+| `RESEND_FROM` | Sender email address | `send-invite-email` |
+| `SUPABASE_URL` | Database URL | All functions |
+| `SUPABASE_ANON_KEY` | Database anon key | All functions |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin database access | Admin functions |
+| `SUPABASE_DB_URL` | Direct database connection | Edge functions |
 
 ### How to Update Secrets
 
-**Option 1: Through Lovable Interface**
-- Access via: Settings → Backend → Secrets
+**Through Lovable Interface:**
+- Access via: Settings → Cloud → Secrets
 
-**Option 2: Via Supabase CLI** (if connected to custom Supabase)
+**Via Supabase CLI** (if connected to custom Supabase):
 ```bash
 supabase secrets set REDDIT_CLIENT_ID=your_client_id
 supabase secrets set REDDIT_CLIENT_SECRET=your_client_secret
+supabase secrets set RESEND_API_KEY=your_resend_key
 ```
 
 ---
@@ -276,7 +344,16 @@ The application uses the **Client Credentials** OAuth2 flow:
 
 ### What is Lovable AI?
 
-Lovable AI is a gateway service that provides access to Google Gemini and OpenAI GPT models without requiring separate API keys.
+Lovable AI is a gateway service that provides access to AI models without requiring separate API keys.
+
+### Supported Models
+
+- `google/gemini-2.5-pro` - Top-tier reasoning and multimodal
+- `google/gemini-2.5-flash` - Balanced performance and cost (currently used)
+- `google/gemini-2.5-flash-lite` - Fastest and cheapest
+- `openai/gpt-5` - Powerful all-rounder
+- `openai/gpt-5-mini` - Lower cost, good performance
+- `openai/gpt-5-nano` - Speed and cost optimized
 
 ### Current Implementation
 
@@ -297,7 +374,6 @@ Lovable AI is a gateway service that provides access to Google Gemini and OpenAI
    - Extracts mentioned locations from text
    - Identifies cities, states, countries, landmarks
    - Detects timezone and regional references
-   - Deduplicates and validates locations
 
 3. **Behavior Pattern Analysis**
    - Identifies topic interests
@@ -314,14 +390,7 @@ https://ai.gateway.lovable.dev/v1/chat/completions
 
 - Usage-based pricing
 - Free monthly usage included
-- Charged per request after free tier
 - View usage: Settings → Workspace → Usage
-
-### Rate Limits
-
-- Per-workspace rate limiting
-- 429 error = too many requests (retry with backoff)
-- 402 error = insufficient credits (add funds)
 
 ---
 
@@ -332,7 +401,9 @@ https://ai.gateway.lovable.dev/v1/chat/completions
 | Table | Purpose |
 |-------|---------|
 | `profiles` | User profiles linked to auth |
-| `user_roles` | User role assignments |
+| `user_roles` | User role assignments (admin/user) |
+| `user_invites` | Pending user invitations |
+| `audit_logs` | System action logs |
 | `investigation_cases` | Investigation case management |
 | `reddit_posts` | Stored Reddit posts |
 | `reddit_comments` | Stored Reddit comments |
@@ -354,6 +425,9 @@ CREATE TABLE public.investigation_cases (
   priority TEXT DEFAULT 'medium',
   department TEXT,
   lead_investigator TEXT,
+  is_sensitive BOOLEAN DEFAULT false,
+  case_password_hash TEXT,
+  cache_duration_days INTEGER,
   created_by UUID REFERENCES public.profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -382,11 +456,25 @@ CREATE TABLE public.user_profiles_analyzed (
 );
 ```
 
+### Database Functions
+
+| Function | Purpose |
+|----------|---------|
+| `update_updated_at_column()` | Auto-update timestamps |
+| `handle_new_user()` | Create profile on signup |
+| `has_role()` | Check user role |
+| `log_audit_event()` | Log admin actions |
+| `generate_invite_token()` | Create invite tokens |
+| `mark_invite_used()` | Mark invitation as used |
+| `hash_case_password()` | Hash case passwords |
+| `verify_case_password()` | Verify case passwords |
+
 ### Row Level Security (RLS)
 
 All tables have RLS enabled with policies for:
-- Users can view their own data
+- Users can view/modify their own data
 - Users can CRUD their own investigation data
+- Case-linked data requires case ownership
 - Admins can view all data
 
 ---
@@ -409,7 +497,7 @@ All tables have RLS enabled with policies for:
 4. **Community Analysis**
    - Subreddit statistics
    - Member analysis
-5. **Link Analysis** (NEW)
+5. **Link Analysis**
    - Network graph visualization
    - Community crossover connections
    - Relationship strength indicators
@@ -417,17 +505,23 @@ All tables have RLS enabled with policies for:
    - Activity timeline
    - Alert history
 
-### Network Graph in Reports
+---
 
-The Link Analysis section includes:
-- Visual network graph showing community connections
-- Nodes represent subreddits
-- Edges represent relationships (sidebar links, co-activity)
-- Community crossover table with:
-  - Source community
-  - Related communities
-  - Relationship type
-  - Connection strength
+## Email Integration
+
+### Resend Configuration
+
+Reddit Sleuth uses Resend for email delivery:
+
+1. **Get API Key**: Visit https://resend.com and create an account
+2. **Add Secret**: Add `RESEND_API_KEY` to Lovable Cloud secrets
+3. **Configure Sender**: Optionally set `RESEND_FROM` for custom sender address
+
+### Email Features
+
+- User invitation emails with role and expiration
+- HTML formatted professional emails
+- Automatic link generation
 
 ---
 
@@ -447,6 +541,15 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.data-store]
+verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = false
+
+[functions.admin-reset-password]
+verify_jwt = false
+
+[functions.send-invite-email]
 verify_jwt = false
 ```
 
@@ -481,14 +584,6 @@ const { data, error } = await supabase.functions.invoke('reddit-scraper', {
   }
 });
 
-// Reddit scraper - Community
-const { data: communityData } = await supabase.functions.invoke('reddit-scraper', {
-  body: { 
-    subreddit: 'technology',
-    type: 'community'
-  }
-});
-
 // Content analyzer
 const { data: analysis } = await supabase.functions.invoke('analyze-content', {
   body: {
@@ -497,8 +592,15 @@ const { data: analysis } = await supabase.functions.invoke('analyze-content', {
   }
 });
 
-// Access community relations (from user data)
-const communityRelations = data.communityRelations;
+// Admin create user (requires admin token)
+const { data: newUser } = await supabase.functions.invoke('admin-create-user', {
+  body: {
+    email: 'new@user.com',
+    password: 'password123',
+    fullName: 'New User',
+    role: 'user'
+  }
+});
 ```
 
 ### Error Handling
@@ -506,9 +608,9 @@ const communityRelations = data.communityRelations;
 ```typescript
 if (error) {
   if (error.message.includes('not_found')) {
-    toast.error('User/community not found');
+    toast.error('User not found');
   } else if (error.message.includes('rate_limit')) {
-    toast.error('Rate limit exceeded. Please wait.');
+    toast.error('Rate limit exceeded, try again later');
   } else {
     toast.error('An error occurred');
   }
@@ -517,31 +619,22 @@ if (error) {
 
 ---
 
-## Testing
+## Testing Edge Functions
 
-### Test Reddit Scraper
+### Using cURL
 
+**Test Reddit Scraper**:
 ```bash
-# User lookup
-curl -X POST https://<your-project>.supabase.co/functions/v1/reddit-scraper \
-  -H "Content-Type: application/json" \
-  -d '{"username": "spez", "type": "user"}'
-
-# Community lookup
-curl -X POST https://<your-project>.supabase.co/functions/v1/reddit-scraper \
-  -H "Content-Type: application/json" \
-  -d '{"subreddit": "technology", "type": "community"}'
+curl -X POST 'https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/reddit-scraper' \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "testuser", "type": "user"}'
 ```
 
-### Test Content Analyzer
-
+**Test Content Analyzer**:
 ```bash
-curl -X POST https://<your-project>.supabase.co/functions/v1/analyze-content \
-  -H "Content-Type: application/json" \
-  -d '{
-    "posts": [{"title": "Hello World", "selftext": "This is a test post"}],
-    "comments": [{"body": "Great post!"}]
-  }'
+curl -X POST 'https://djcdnudwnyhajnzwykoq.supabase.co/functions/v1/analyze-content' \
+  -H 'Content-Type: application/json' \
+  -d '{"posts": [{"title": "Test", "selftext": "Hello world"}], "comments": []}'
 ```
 
 ---
@@ -549,44 +642,41 @@ curl -X POST https://<your-project>.supabase.co/functions/v1/analyze-content \
 ## Troubleshooting
 
 ### Reddit API Issues
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "Failed to authenticate" | Invalid credentials | Verify REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET |
-| "User not found" | Username doesn't exist | Verify spelling (case-sensitive) |
-| 429 Rate Limited | Too many requests | Implement backoff, wait 60s |
+- Verify REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET are set
+- Check Reddit app is "script" type
+- Ensure rate limits aren't exceeded
 
 ### AI Analysis Issues
+- LOVABLE_API_KEY is auto-provided (shouldn't need manual setup)
+- Check for rate limit (429) or payment (402) errors
+- Verify request payload format
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| 429 Rate Limit | Too many AI requests | Add delays, reduce batch size |
-| 402 Payment Required | Insufficient credits | Add credits in Settings |
-| Parse Error | Invalid JSON response | Check AI prompt formatting |
+### Email Issues
+- Verify RESEND_API_KEY is set correctly
+- Check Resend dashboard for delivery status
+- Verify sender email is verified in Resend
 
-### Community Relations Not Showing
-
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| Empty communityRelations | Subreddit has no widgets | This is normal for some subreddits |
-| Only some relations found | Not all subreddits have related communities | Expected behavior |
+### Database Issues
+- Check RLS policies if data not appearing
+- Verify case_id references are correct
+- Check user has appropriate permissions
 
 ---
 
 ## Security Best Practices
 
-1. **Never commit secrets to code** - Use Supabase Secrets
-2. **Use RLS policies** - Protect sensitive data
-3. **Validate input** - Sanitize user input in edge functions
-4. **Monitor logs** - Check for unusual patterns
-5. **Rate limiting** - Implement client-side rate limiting
+1. **Secrets**: Never commit secrets to code
+2. **RLS**: All tables have Row Level Security enabled
+3. **Validation**: All inputs are validated
+4. **Audit**: Admin actions are logged
+5. **Tokens**: JWTs are validated on protected operations
 
 ---
 
-## Additional Resources
+## Resources
 
-- [Supabase Documentation](https://supabase.com/docs)
-- [Lovable Cloud Docs](https://docs.lovable.dev/features/cloud)
-- [Lovable AI Docs](https://docs.lovable.dev/features/ai)
-- [Reddit API Documentation](https://www.reddit.com/dev/api)
-- [Google Gemini Models](https://ai.google.dev/models/gemini)
+- [Lovable Documentation](https://docs.lovable.dev)
+- [Lovable Cloud](https://docs.lovable.dev/features/cloud)
+- [Lovable AI](https://docs.lovable.dev/features/ai)
+- [Reddit API](https://www.reddit.com/dev/api/)
+- [Resend Documentation](https://resend.com/docs)
