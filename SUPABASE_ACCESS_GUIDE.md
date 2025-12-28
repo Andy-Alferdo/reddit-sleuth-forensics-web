@@ -79,6 +79,7 @@ Go to your Supabase dashboard → SQL Editor and run these commands:
 -- ENABLE EXTENSIONS
 -- =====================================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- =====================================================
 -- CREATE ENUM TYPES
@@ -108,6 +109,34 @@ CREATE TABLE public.user_roles (
 );
 
 -- =====================================================
+-- USER INVITES TABLE
+-- =====================================================
+CREATE TABLE public.user_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL,
+  invite_token TEXT NOT NULL UNIQUE,
+  role app_role NOT NULL DEFAULT 'user',
+  created_by UUID REFERENCES auth.users(id),
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
+-- AUDIT LOGS TABLE
+-- =====================================================
+CREATE TABLE public.audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  action_type TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id UUID,
+  details JSONB,
+  ip_address TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =====================================================
 -- INVESTIGATION CASES TABLE
 -- =====================================================
 CREATE TABLE public.investigation_cases (
@@ -119,6 +148,9 @@ CREATE TABLE public.investigation_cases (
   priority TEXT DEFAULT 'medium',
   department TEXT,
   lead_investigator TEXT,
+  is_sensitive BOOLEAN DEFAULT FALSE,
+  case_password_hash TEXT,
+  cache_duration_days INTEGER DEFAULT 30,
   created_by UUID REFERENCES public.profiles(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -212,8 +244,8 @@ CREATE TABLE public.monitoring_sessions (
   activities JSONB,
   word_cloud_data JSONB,
   new_activity_count INTEGER DEFAULT 0,
-  started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  ended_at TIMESTAMP WITH TIME ZONE
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =====================================================
@@ -236,12 +268,16 @@ CREATE TABLE public.investigation_reports (
 
 -- Function to update timestamps
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Function to check user roles
 CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
@@ -281,6 +317,101 @@ BEGIN
 END;
 $$;
 
+-- Function to log audit events
+CREATE OR REPLACE FUNCTION public.log_audit_event(
+  p_user_id UUID,
+  p_action_type TEXT,
+  p_resource_type TEXT,
+  p_resource_id UUID DEFAULT NULL,
+  p_details JSONB DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_log_id UUID;
+BEGIN
+  INSERT INTO public.audit_logs (user_id, action_type, resource_type, resource_id, details)
+  VALUES (p_user_id, p_action_type, p_resource_type, p_resource_id, p_details)
+  RETURNING id INTO v_log_id;
+  RETURN v_log_id;
+END;
+$$;
+
+-- Function to hash case passwords
+CREATE OR REPLACE FUNCTION public.hash_case_password(p_password TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN crypt(p_password, gen_salt('bf'));
+END;
+$$;
+
+-- Function to verify case passwords
+CREATE OR REPLACE FUNCTION public.verify_case_password(p_case_id UUID, p_password TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_hash TEXT;
+  v_is_sensitive BOOLEAN;
+BEGIN
+  SELECT case_password_hash, is_sensitive INTO v_hash, v_is_sensitive
+  FROM public.investigation_cases
+  WHERE id = p_case_id;
+  
+  IF NOT v_is_sensitive THEN
+    RETURN TRUE;
+  END IF;
+  
+  IF v_hash IS NULL THEN
+    RETURN TRUE;
+  END IF;
+  
+  RETURN v_hash = crypt(p_password, v_hash);
+END;
+$$;
+
+-- Function to generate invite tokens
+CREATE OR REPLACE FUNCTION public.generate_invite_token()
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN encode(extensions.gen_random_bytes(32), 'hex');
+END;
+$$;
+
+-- Function to mark invite as used
+CREATE OR REPLACE FUNCTION public.mark_invite_used(p_invite_token TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_updated BOOLEAN;
+BEGIN
+  UPDATE public.user_invites
+  SET used_at = NOW()
+  WHERE invite_token = p_invite_token
+    AND used_at IS NULL
+    AND expires_at > NOW();
+  
+  v_updated := FOUND;
+  RETURN v_updated;
+END;
+$$;
+
 -- =====================================================
 -- TRIGGERS
 -- =====================================================
@@ -311,8 +442,15 @@ CREATE INDEX idx_reddit_posts_subreddit ON public.reddit_posts(subreddit);
 CREATE INDEX idx_reddit_comments_case_id ON public.reddit_comments(case_id);
 CREATE INDEX idx_reddit_comments_author ON public.reddit_comments(author);
 CREATE INDEX idx_user_profiles_analyzed_username ON public.user_profiles_analyzed(username);
+CREATE INDEX idx_user_profiles_analyzed_case_id ON public.user_profiles_analyzed(case_id);
 CREATE INDEX idx_investigation_cases_status ON public.investigation_cases(status);
+CREATE INDEX idx_investigation_cases_created_by ON public.investigation_cases(created_by);
 CREATE INDEX idx_monitoring_sessions_case_id ON public.monitoring_sessions(case_id);
+CREATE INDEX idx_analysis_results_case_id ON public.analysis_results(case_id);
+CREATE INDEX idx_audit_logs_user_id ON public.audit_logs(user_id);
+CREATE INDEX idx_audit_logs_created_at ON public.audit_logs(created_at);
+CREATE INDEX idx_user_invites_email ON public.user_invites(email);
+CREATE INDEX idx_user_invites_token ON public.user_invites(invite_token);
 ```
 
 ---
@@ -327,6 +465,8 @@ Enable RLS and create policies for all tables:
 -- =====================================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_invites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.investigation_cases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reddit_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reddit_comments ENABLE ROW LEVEL SECURITY;
@@ -378,170 +518,241 @@ CREATE POLICY "Admins can delete roles"
   USING (public.has_role(auth.uid(), 'admin'));
 
 -- =====================================================
+-- USER INVITES POLICIES
+-- =====================================================
+CREATE POLICY "Admins can manage invites"
+  ON public.user_invites FOR ALL
+  USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Anyone can view valid invite by token"
+  ON public.user_invites FOR SELECT
+  USING (
+    invite_token IS NOT NULL 
+    AND used_at IS NULL 
+    AND expires_at > NOW()
+  );
+
+-- =====================================================
+-- AUDIT LOGS POLICIES
+-- =====================================================
+CREATE POLICY "Admins can view all audit logs"
+  ON public.audit_logs FOR SELECT
+  USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Users can view their own audit logs"
+  ON public.audit_logs FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "System can insert audit logs"
+  ON public.audit_logs FOR INSERT
+  WITH CHECK (TRUE);
+
+-- =====================================================
 -- INVESTIGATION CASES POLICIES
 -- =====================================================
 CREATE POLICY "Users can view their own cases"
   ON public.investigation_cases FOR SELECT
-  USING (auth.uid() = created_by OR public.has_role(auth.uid(), 'admin'));
+  USING (auth.uid() = created_by);
 
-CREATE POLICY "Authenticated users can create cases"
+CREATE POLICY "Admins can view all cases"
+  ON public.investigation_cases FOR SELECT
+  USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Users can create cases"
   ON public.investigation_cases FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL);
+  WITH CHECK (auth.uid() = created_by);
 
 CREATE POLICY "Users can update their own cases"
   ON public.investigation_cases FOR UPDATE
-  USING (auth.uid() = created_by OR public.has_role(auth.uid(), 'admin'));
+  USING (auth.uid() = created_by);
 
 CREATE POLICY "Users can delete their own cases"
   ON public.investigation_cases FOR DELETE
-  USING (auth.uid() = created_by OR public.has_role(auth.uid(), 'admin'));
+  USING (auth.uid() = created_by);
+
+CREATE POLICY "Admins can manage all cases"
+  ON public.investigation_cases FOR ALL
+  USING (public.has_role(auth.uid(), 'admin'));
 
 -- =====================================================
--- REDDIT DATA POLICIES (linked to cases)
+-- REDDIT POSTS POLICIES
 -- =====================================================
-CREATE POLICY "Users can view posts for their cases"
+CREATE POLICY "Users can view posts in their cases"
   ON public.reddit_posts FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = reddit_posts.case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Users can insert posts for their cases"
+CREATE POLICY "Users can insert posts to their cases"
   ON public.reddit_posts FOR INSERT
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Users can view comments for their cases"
+CREATE POLICY "Admins can manage all posts"
+  ON public.reddit_posts FOR ALL
+  USING (public.has_role(auth.uid(), 'admin'));
+
+-- =====================================================
+-- REDDIT COMMENTS POLICIES
+-- =====================================================
+CREATE POLICY "Users can view comments in their cases"
   ON public.reddit_comments FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = reddit_comments.case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Users can insert comments for their cases"
+CREATE POLICY "Users can insert comments to their cases"
   ON public.reddit_comments FOR INSERT
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
+CREATE POLICY "Admins can manage all comments"
+  ON public.reddit_comments FOR ALL
+  USING (public.has_role(auth.uid(), 'admin'));
+
 -- =====================================================
--- ANALYSIS DATA POLICIES
+-- USER PROFILES ANALYZED POLICIES
 -- =====================================================
-CREATE POLICY "Users can view analysis for their cases"
+CREATE POLICY "Users can view profiles in their cases"
   ON public.user_profiles_analyzed FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = user_profiles_analyzed.case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Users can insert analysis for their cases"
+CREATE POLICY "Users can insert profiles to their cases"
   ON public.user_profiles_analyzed FOR INSERT
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Users can view results for their cases"
+CREATE POLICY "Admins can manage all profiles"
+  ON public.user_profiles_analyzed FOR ALL
+  USING (public.has_role(auth.uid(), 'admin'));
+
+-- =====================================================
+-- ANALYSIS RESULTS POLICIES
+-- =====================================================
+CREATE POLICY "Users can view analyses in their cases"
   ON public.analysis_results FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = analysis_results.case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Users can insert results for their cases"
+CREATE POLICY "Users can insert analyses to their cases"
   ON public.analysis_results FOR INSERT
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
+
+CREATE POLICY "Admins can manage all analyses"
+  ON public.analysis_results FOR ALL
+  USING (public.has_role(auth.uid(), 'admin'));
 
 -- =====================================================
 -- MONITORING SESSIONS POLICIES
 -- =====================================================
-CREATE POLICY "Users can view monitoring for their cases"
+CREATE POLICY "Users can view sessions in their cases"
   ON public.monitoring_sessions FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = monitoring_sessions.case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Users can create monitoring for their cases"
+CREATE POLICY "Users can insert sessions to their cases"
   ON public.monitoring_sessions FOR INSERT
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Users can update monitoring for their cases"
-  ON public.monitoring_sessions FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.investigation_cases 
-      WHERE id = monitoring_sessions.case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
-    )
-  );
+CREATE POLICY "Admins can manage all sessions"
+  ON public.monitoring_sessions FOR ALL
+  USING (public.has_role(auth.uid(), 'admin'));
 
 -- =====================================================
 -- INVESTIGATION REPORTS POLICIES
 -- =====================================================
-CREATE POLICY "Users can view reports for their cases"
+CREATE POLICY "Users can view reports in their cases"
   ON public.investigation_reports FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = investigation_reports.case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
 
-CREATE POLICY "Users can create reports for their cases"
+CREATE POLICY "Users can insert reports to their cases"
   ON public.investigation_reports FOR INSERT
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.investigation_cases 
       WHERE id = case_id 
-      AND (created_by = auth.uid() OR public.has_role(auth.uid(), 'admin'))
+      AND created_by = auth.uid()
     )
   );
+
+CREATE POLICY "Admins can manage all reports"
+  ON public.investigation_reports FOR ALL
+  USING (public.has_role(auth.uid(), 'admin'));
 ```
 
 ---
 
 ## Edge Functions Setup
+
+### Available Edge Functions
+
+The project includes the following edge functions:
+
+| Function | Description |
+|----------|-------------|
+| `reddit-scraper` | Scrapes Reddit posts and comments from users/subreddits |
+| `analyze-content` | AI-powered sentiment analysis using Lovable AI |
+| `data-store` | Handles data persistence operations |
+| `admin-create-user` | Admin-only user creation with role assignment |
+| `admin-reset-password` | Admin-only password reset functionality |
+| `send-invite-email` | Sends user invitation emails via Resend |
 
 ### Deploy Edge Functions
 
@@ -554,17 +765,32 @@ supabase login
 # Link to your project
 supabase link --project-ref your-project-id
 
-# Deploy functions
+# Deploy all functions
 supabase functions deploy reddit-scraper
 supabase functions deploy analyze-content
 supabase functions deploy data-store
+supabase functions deploy admin-create-user
+supabase functions deploy admin-reset-password
+supabase functions deploy send-invite-email
 ```
 
-### Set Edge Function Secrets
+### Required Secrets
+
+Set the following secrets for edge functions:
 
 ```bash
+# Reddit API credentials
 supabase secrets set REDDIT_CLIENT_ID=your_client_id
 supabase secrets set REDDIT_CLIENT_SECRET=your_client_secret
+
+# Email service (Resend)
+supabase secrets set RESEND_API_KEY=your_resend_api_key
+supabase secrets set RESEND_FROM=your_verified_email@domain.com
+
+# Supabase (auto-provided in Lovable Cloud)
+supabase secrets set SUPABASE_URL=your_project_url
+supabase secrets set SUPABASE_ANON_KEY=your_anon_key
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
 Note: `LOVABLE_API_KEY` is auto-provided by Lovable Cloud. If self-hosting, you'll need to use direct Gemini API access (see LOCAL_SETUP_GUIDE.md).
@@ -627,6 +853,37 @@ WHERE email = 'your-email@example.com';
 
 ---
 
+## Database Summary
+
+### Tables (11 total)
+| Table | Description |
+|-------|-------------|
+| `profiles` | User profile information |
+| `user_roles` | User role assignments (admin/user) |
+| `user_invites` | Pending user invitations |
+| `audit_logs` | System audit trail |
+| `investigation_cases` | Investigation case records |
+| `reddit_posts` | Collected Reddit posts |
+| `reddit_comments` | Collected Reddit comments |
+| `user_profiles_analyzed` | Analyzed Reddit user profiles |
+| `analysis_results` | AI analysis results |
+| `monitoring_sessions` | Real-time monitoring sessions |
+| `investigation_reports` | Generated investigation reports |
+
+### Functions (8 total)
+| Function | Description |
+|----------|-------------|
+| `has_role(uuid, app_role)` | Check if user has specific role |
+| `handle_new_user()` | Auto-create profile on signup |
+| `update_updated_at_column()` | Auto-update timestamps |
+| `log_audit_event(...)` | Create audit log entries |
+| `hash_case_password(text)` | Hash sensitive case passwords |
+| `verify_case_password(uuid, text)` | Verify case password |
+| `generate_invite_token()` | Generate secure invite tokens |
+| `mark_invite_used(text)` | Mark invitation as used |
+
+---
+
 ## Troubleshooting
 
 ### Common Errors
@@ -637,6 +894,22 @@ WHERE email = 'your-email@example.com';
 **Error: "Failed to fetch"**
 - Verify the VITE_SUPABASE_URL is correct
 - Make sure you restarted your development server after updating .env
+
+**Error: "Permission denied for table"**
+- Check RLS policies are correctly set up
+- Verify the user has the correct role
+
+**Can't login as admin**
+- Make sure you ran the SQL command to grant admin role
+- Check the user_roles table in your Supabase dashboard
+
+**Edge function errors**
+- Check edge function logs in Supabase dashboard
+- Verify secrets are set correctly
+
+**Email invites not sending**
+- Verify RESEND_API_KEY and RESEND_FROM secrets are set
+- Check that the sender email is verified in Resend
 
 **Error: "Permission denied for table"**
 - Check RLS policies are correctly set up
