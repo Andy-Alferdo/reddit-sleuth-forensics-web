@@ -26,16 +26,20 @@ const NewCase = () => {
     startDate: new Date().toISOString().split('T')[0],
   });
 
-  // Generate case number on mount
+  // Generate case number on mount - unique per user
   useEffect(() => {
     const generateCaseNumber = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
       const currentYear = new Date().getFullYear();
       const yearPrefix = `CASE-${currentYear}-`;
       
-      // Count existing cases for this year to determine next number
+      // Count only current user's cases for this year
       const { count } = await supabase
         .from('investigation_cases')
         .select('*', { count: 'exact', head: true })
+        .eq('created_by', user.id)
         .like('case_number', `${yearPrefix}%`);
       
       const nextNumber = (count || 0) + 1;
