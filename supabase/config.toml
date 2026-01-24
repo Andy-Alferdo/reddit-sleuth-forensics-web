@@ -1,8 +1,5 @@
 project_id = "djcdnudwnyhajnzwykoq"
 
-[functions.reddit-scraper]
-verify_jwt = false
-
 [functions.analyze-content]
 verify_jwt = false
 
@@ -13,4 +10,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-invite-email]
+verify_jwt = false
+
+[functions.admin-create-user]
 verify_jwt = false

@@ -1,17 +1,12 @@
 /**
  * Reddit Scraper API Client
  * ==========================
- * Frontend client for the local Python Reddit scraper server.
- * Falls back to Edge Function when local server is unavailable.
+ * Frontend client for the local Python Reddit scraper server (Sock Puppet).
+ * This is the ONLY method for scraping Reddit data - no API fallback.
  */
-
-import { supabase } from '@/integrations/supabase/client';
 
 // Local scraper server URL (Python Flask server)
 const SCRAPER_URL = import.meta.env.VITE_SCRAPER_URL || 'http://localhost:5001';
-
-// Toggle for using local scraper vs Edge Function
-const USE_LOCAL_SCRAPER = import.meta.env.VITE_USE_LOCAL_SCRAPER === 'true';
 
 interface ScraperResponse {
   user?: {
@@ -63,12 +58,10 @@ interface ScraperResponse {
  * Check if the local scraper server is available
  */
 async function isLocalScraperAvailable(): Promise<boolean> {
-  if (!USE_LOCAL_SCRAPER) return false;
-  
   try {
     const response = await fetch(`${SCRAPER_URL}/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(2000), // 2 second timeout
+      signal: AbortSignal.timeout(3000), // 3 second timeout
     });
     return response.ok;
   } catch {
@@ -98,20 +91,7 @@ async function scrapeWithLocalServer(body: Record<string, any>): Promise<Scraper
 }
 
 /**
- * Scrape Reddit data using Supabase Edge Function (fallback)
- */
-async function scrapeWithEdgeFunction(body: Record<string, any>): Promise<ScraperResponse> {
-  const { data, error } = await supabase.functions.invoke('reddit-scraper', { body });
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
-}
-
-/**
- * Main scraping function - uses local server if available, falls back to Edge Function
+ * Main scraping function - uses sock puppet scraper exclusively
  */
 export async function scrapeReddit(params: {
   type: 'user' | 'community' | 'search';
@@ -126,19 +106,18 @@ export async function scrapeReddit(params: {
     keyword: params.keyword,
   };
 
-  // Try local scraper first if enabled
-  if (USE_LOCAL_SCRAPER) {
-    const localAvailable = await isLocalScraperAvailable();
-    if (localAvailable) {
-      console.log('Using local Reddit scraper server');
-      return scrapeWithLocalServer(body);
-    }
-    console.log('Local scraper unavailable, falling back to Edge Function');
+  // Check if scraper is available
+  const isAvailable = await isLocalScraperAvailable();
+  
+  if (!isAvailable) {
+    throw new Error(
+      'Reddit scraper server is not running. Please start the Python server with: ' +
+      'python server/reddit_scraper_server.py'
+    );
   }
 
-  // Fallback to Edge Function
-  console.log('Using Edge Function for Reddit scraping');
-  return scrapeWithEdgeFunction(body);
+  console.log('Using sock puppet Reddit scraper');
+  return scrapeWithLocalServer(body);
 }
 
 /**
