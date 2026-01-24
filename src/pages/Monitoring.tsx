@@ -13,6 +13,7 @@ import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { MiniSparkline } from '@/components/MiniSparkline';
 import { CompactBarChart } from '@/components/CompactBarChart';
 import { supabase } from '@/integrations/supabase/client';
+import { scrapeReddit } from '@/lib/api/redditScraper';
 import { formatCurrentTimePakistan, formatActivityTime } from '@/lib/dateUtils';
 import { useInvestigation } from '@/contexts/InvestigationContext';
 
@@ -430,15 +431,15 @@ const Monitoring = () => {
         ? searchQuery.replace(/^u\//, '')
         : searchQuery.replace(/^r\//, '');
 
-      const { data: redditData, error: redditError } = await supabase.functions.invoke('reddit-scraper', {
-        body: { 
+      // Use local scraper if available, falls back to Edge Function
+      let redditData;
+      try {
+        redditData = await scrapeReddit({
+          type: searchType,
           username: searchType === 'user' ? cleanQuery : undefined,
           subreddit: searchType === 'community' ? cleanQuery : undefined,
-          type: searchType
-        }
-      });
-
-      if (redditError) {
+        });
+      } catch (redditError) {
         console.error('Error fetching Reddit data:', redditError);
         toast({
           title: "Fetch Error",
