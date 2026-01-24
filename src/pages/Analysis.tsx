@@ -12,6 +12,7 @@ import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { UserCommunityNetworkGraph } from '@/components/UserCommunityNetworkGraph';
 import { supabase } from '@/integrations/supabase/client';
+import { scrapeReddit } from '@/lib/api/redditScraper';
 import { useToast } from '@/hooks/use-toast';
 import { formatActivityTime } from '@/lib/dateUtils';
 import { useInvestigation } from '@/contexts/InvestigationContext';
@@ -109,15 +110,11 @@ const Analysis = () => {
     setKeywordData(null);
 
     try {
-      // Search for keyword across Reddit using search API
-      const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
-        body: { 
-          keyword: keyword.trim(),
-          type: 'search'
-        }
+      // Search for keyword across Reddit (uses local scraper if available)
+      const redditData = await scrapeReddit({
+        type: 'search',
+        keyword: keyword.trim(),
       });
-
-      if (error) throw error;
 
       const posts = redditData.posts || [];
       const matchingPosts = posts;
@@ -254,14 +251,11 @@ const Analysis = () => {
     try {
       const cleanSubreddit = subreddit.replace(/^r\//, '');
 
-      const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
-        body: { 
-          subreddit: cleanSubreddit,
-          type: 'community'
-        }
+      // Use local scraper if available, falls back to Edge Function
+      const redditData = await scrapeReddit({
+        type: 'community',
+        subreddit: cleanSubreddit,
       });
-
-      if (error) throw error;
 
       if (redditData?.error === 'not_found') {
         toast({
@@ -375,7 +369,7 @@ const Analysis = () => {
         name: subredditInfo.display_name_prefixed || `r/${cleanSubreddit}`,
         subscribers: subredditInfo.subscribers || 0,
         activeUsers: subredditInfo.accounts_active || 0,
-        description: subredditInfo.public_description || subredditInfo.description || 'No description available',
+        description: subredditInfo.public_description || 'No description available',
         created: new Date(subredditInfo.created_utc * 1000).toLocaleDateString('en-US', { 
           year: 'numeric', 
           month: 'long', 
@@ -432,14 +426,11 @@ const Analysis = () => {
     try {
       const cleanUsername = username.replace(/^u\//, '');
 
-      const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
-        body: { 
-          username: cleanUsername,
-          type: 'user'
-        }
+      // Use local scraper if available, falls back to Edge Function
+      const redditData = await scrapeReddit({
+        type: 'user',
+        username: cleanUsername,
       });
-
-      if (error) throw error;
 
       if (redditData?.error === 'not_found') {
         toast({
