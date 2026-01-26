@@ -558,15 +558,11 @@ const Monitoring = () => {
         ? searchQuery.replace(/^u\//, '')
         : searchQuery.replace(/^r\//, '');
 
-      const { data: redditData, error: redditError } = await supabase.functions.invoke('reddit-scraper', {
-        body: { 
-          username: searchType === 'user' ? cleanQuery : undefined,
-          subreddit: searchType === 'community' ? cleanQuery : undefined,
-          type: searchType
-        }
+      const redditData = await scrapeReddit({
+        type: searchType,
+        username: searchType === 'user' ? cleanQuery : undefined,
+        subreddit: searchType === 'community' ? cleanQuery : undefined,
       });
-
-      if (redditError) throw redditError;
 
       if (redditData?.error === 'not_found') {
         toast({
@@ -619,12 +615,12 @@ const Monitoring = () => {
           memberCount: (subreddit.subscribers / 1000000 >= 1) 
             ? `${(subreddit.subscribers / 1000000).toFixed(1)}M`
             : `${(subreddit.subscribers / 1000).toFixed(1)}K`,
-          description: subreddit.public_description || subreddit.description || 'No description available',
+          description: subreddit.public_description || 'No description available',
           createdDate,
           weeklyVisitors: redditData.weeklyVisitors || 0,
           weeklyContributors: uniqueAuthors.size,
-          bannerImg: subreddit.banner_img || subreddit.banner_background_image?.split('?')[0] || '',
-          iconImg: subreddit.icon_img || subreddit.community_icon?.split('?')[0] || '',
+          bannerImg: '',
+          iconImg: '',
         });
       }
 
