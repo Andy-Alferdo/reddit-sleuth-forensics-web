@@ -2,8 +2,7 @@
 Reddit Sock Puppet Scraper Server
 =================================
 A Flask server using Selenium and BeautifulSoup to scrape Reddit data
-without requiring API keys. Mimics real browser behavior with enhanced
-anti-blocking mechanisms.
+without requiring API keys. Mimics real browser behavior.
 
 Usage:
     python server/reddit_scraper_server.py
@@ -28,7 +27,6 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
@@ -47,14 +45,12 @@ CORS(app, origins=["http://localhost:*", "http://127.0.0.1:*", "https://*.lovabl
 class RedditScraper:
     """
     Selenium-based Reddit scraper that mimics real browser behavior.
-    Uses old.reddit.com for easier HTML parsing with enhanced anti-blocking.
+    Uses old.reddit.com for easier HTML parsing.
     """
     
     def __init__(self):
         self.driver: Optional[webdriver.Chrome] = None
         self.ua = UserAgent()
-        self.request_count = 0
-        self.max_requests_before_rotation = 50  # Rotate session every 50 requests
         self._setup_driver()
     
     def _get_random_user_agent(self) -> str:
@@ -65,37 +61,19 @@ class RedditScraper:
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0',
         ]
         return random.choice(user_agents)
     
-    def _get_random_viewport(self) -> tuple:
-        """Get random viewport size to avoid fingerprinting."""
-        viewports = [
-            (1366, 768),
-            (1440, 900),
-            (1536, 864),
-            (1920, 1080),
-            (1280, 720),
-            (1600, 900),
-        ]
-        return random.choice(viewports)
-    
     def _setup_driver(self):
-        """Configure and initialize the Chrome WebDriver with enhanced anti-detection measures."""
+        """Configure and initialize the Chrome WebDriver with anti-detection measures."""
         options = Options()
-        
-        # Get random viewport
-        width, height = self._get_random_viewport()
         
         # Run in headless mode
         options.add_argument('--headless=new')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
-        options.add_argument(f'--window-size={width},{height}')
+        options.add_argument('--window-size=1920,1080')
         
         # Anti-detection measures
         options.add_argument(f'--user-agent={self._get_random_user_agent()}')
@@ -109,149 +87,33 @@ class RedditScraper:
         options.add_argument('--disable-popup-blocking')
         options.add_argument('--ignore-certificate-errors')
         
-        # Enhanced anti-detection options
-        options.add_argument('--disable-web-security')
-        options.add_argument('--allow-running-insecure-content')
-        options.add_argument('--disable-features=IsolateOrigins,site-per-process')
-        options.add_argument('--lang=en-US,en')
-        options.add_argument('--start-maximized')
-        
-        # Proxy support (optional)
-        proxy = os.environ.get('SCRAPER_PROXY')
-        if proxy:
-            options.add_argument(f'--proxy-server={proxy}')
-            logger.info(f"Using proxy: {proxy}")
-        
         try:
             service = Service(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=options)
             
             # Execute stealth scripts
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            self.driver.execute_script("Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]})")
-            self.driver.execute_script("Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']})")
             
-            logger.info("Chrome WebDriver initialized successfully with enhanced anti-detection")
+            logger.info("Chrome WebDriver initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize WebDriver: {e}")
             raise
     
-    def _rotate_session(self):
-        """Rotate browser session to avoid fingerprinting."""
-        logger.info("Rotating browser session...")
-        if self.driver:
-            try:
-                self.driver.quit()
-            except:
-                pass
-        self._setup_driver()
-        self.request_count = 0
-        logger.info("Browser session rotated successfully")
-    
-    def _check_rotation_needed(self):
-        """Check if session rotation is needed."""
-        self.request_count += 1
-        if self.request_count >= self.max_requests_before_rotation:
-            self._rotate_session()
-    
-    def _clear_cookies(self):
-        """Clear cookies periodically."""
-        if self.driver:
-            try:
-                self.driver.delete_all_cookies()
-                logger.debug("Cookies cleared")
-            except:
-                pass
-    
-    def _accept_reddit_cookies(self):
-        """Accept Reddit's cookie consent if present."""
-        try:
-            cookie_btn = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Accept')]")
-            cookie_btn.click()
-            time.sleep(0.5)
-        except:
-            pass
-    
-    def _simulate_human_behavior(self):
-        """Simulate random mouse movements and scrolls."""
-        try:
-            # Random scroll
-            scroll_amount = random.randint(100, 500)
-            self.driver.execute_script(f"window.scrollBy(0, {scroll_amount})")
-            time.sleep(random.uniform(0.3, 1.0))
-            
-            # Sometimes scroll back up a bit
-            if random.random() > 0.7:
-                scroll_back = random.randint(50, 150)
-                self.driver.execute_script(f"window.scrollBy(0, -{scroll_back})")
-                time.sleep(random.uniform(0.2, 0.5))
-        except:
-            pass
-    
-    def _random_delay(self, min_seconds: float = 2.0, max_seconds: float = 6.0):
-        """Add random delay between requests to avoid detection (increased delays)."""
+    def _random_delay(self, min_seconds: float = 1.0, max_seconds: float = 3.0):
+        """Add random delay between requests to avoid detection."""
         delay = random.uniform(min_seconds, max_seconds)
         time.sleep(delay)
-    
-    def _is_blocked(self, soup: BeautifulSoup) -> bool:
-        """Check if Reddit blocked us."""
-        if not soup:
-            return True
-        
-        blocked_indicators = [
-            'too many requests',
-            'rate limit',
-            'access denied',
-            'captcha',
-            'you broke reddit',
-            'our cdn was unable',
-            'request blocked'
-        ]
-        page_text = soup.get_text().lower()
-        return any(indicator in page_text for indicator in blocked_indicators)
-    
-    def _get_page_with_retry(self, url: str, max_retries: int = 3) -> Optional[BeautifulSoup]:
-        """Fetch page with retry logic and exponential backoff."""
-        for attempt in range(max_retries):
-            soup = self._get_page(url)
-            if soup and not self._is_blocked(soup):
-                return soup
-            
-            # Exponential backoff
-            wait_time = (2 ** attempt) * random.uniform(3, 6)
-            logger.warning(f"Retry {attempt + 1}/{max_retries}, waiting {wait_time:.1f}s")
-            time.sleep(wait_time)
-            
-            # Rotate session on retry
-            if attempt > 0:
-                self._rotate_session()
-                self._clear_cookies()
-        
-        return None
     
     def _get_page(self, url: str) -> Optional[BeautifulSoup]:
         """Fetch a page and return parsed BeautifulSoup object."""
         try:
-            self._check_rotation_needed()
-            self._random_delay(2.0, 5.0)
-            
-            # Occasionally simulate human behavior before navigation
-            if random.random() > 0.6:
-                self._simulate_human_behavior()
-            
+            self._random_delay(1.5, 4.0)
             self.driver.get(url)
             
             # Wait for page to load
-            WebDriverWait(self.driver, 15).until(
+            WebDriverWait(self.driver, 10).until(
                 lambda d: d.execute_script('return document.readyState') == 'complete'
             )
-            
-            # Accept cookies if prompted
-            self._accept_reddit_cookies()
-            
-            # Simulate reading the page
-            if random.random() > 0.5:
-                self._simulate_human_behavior()
             
             return BeautifulSoup(self.driver.page_source, 'lxml')
         except Exception as e:
@@ -289,7 +151,7 @@ class RedditScraper:
         url = f"https://old.reddit.com/user/{username}"
         logger.info(f"Scraping user profile: {username}")
         
-        soup = self._get_page_with_retry(url)
+        soup = self._get_page(url)
         if not soup:
             return {'error': 'not_found', 'message': f'User "{username}" not found or page unavailable'}
         
@@ -348,11 +210,8 @@ class RedditScraper:
         url = f"https://old.reddit.com/user/{username}/submitted"
         logger.info(f"Scraping posts for user: {username}")
         
-        page_count = 0
-        max_pages = 5  # Limit pagination
-        
-        while len(posts) < limit and page_count < max_pages:
-            soup = self._get_page_with_retry(url)
+        while len(posts) < limit:
+            soup = self._get_page(url)
             if not soup:
                 break
             
@@ -389,7 +248,6 @@ class RedditScraper:
             next_btn = soup.select_one('.next-button a')
             if next_btn and next_btn.get('href'):
                 url = next_btn['href']
-                page_count += 1
             else:
                 break
         
@@ -411,11 +269,8 @@ class RedditScraper:
         url = f"https://old.reddit.com/user/{username}/comments"
         logger.info(f"Scraping comments for user: {username}")
         
-        page_count = 0
-        max_pages = 5  # Limit pagination
-        
-        while len(comments) < limit and page_count < max_pages:
-            soup = self._get_page_with_retry(url)
+        while len(comments) < limit:
+            soup = self._get_page(url)
             if not soup:
                 break
             
@@ -449,7 +304,6 @@ class RedditScraper:
             next_btn = soup.select_one('.next-button a')
             if next_btn and next_btn.get('href'):
                 url = next_btn['href']
-                page_count += 1
             else:
                 break
         
@@ -470,7 +324,7 @@ class RedditScraper:
         url = f"https://old.reddit.com/r/{subreddit_name}"
         logger.info(f"Scraping subreddit: {subreddit_name}")
         
-        soup = self._get_page_with_retry(url)
+        soup = self._get_page(url)
         if not soup:
             return {'error': 'not_found', 'message': f'Subreddit r/{subreddit_name} not found or unavailable'}
         
@@ -534,7 +388,7 @@ class RedditScraper:
         url = f"https://old.reddit.com/r/{subreddit_name}/new"
         
         # Start with new posts
-        soup = self._get_page_with_retry(url)
+        soup = self._get_page(url)
         if not soup:
             soup = initial_soup
         
@@ -574,7 +428,7 @@ class RedditScraper:
             # Check for next page
             next_btn = soup.select_one('.next-button a')
             if next_btn and next_btn.get('href'):
-                soup = self._get_page_with_retry(next_btn['href'])
+                soup = self._get_page(next_btn['href'])
                 if not soup:
                     break
                 page_count += 1
@@ -605,7 +459,7 @@ class RedditScraper:
         max_pages = 5
         
         while len(posts) < limit and page_count < max_pages:
-            soup = self._get_page_with_retry(url)
+            soup = self._get_page(url)
             if not soup:
                 break
             
@@ -761,20 +615,9 @@ def close_scraper():
     return jsonify({'status': 'closed'})
 
 
-@app.route('/rotate', methods=['POST'])
-def rotate_session():
-    """Force rotate the browser session."""
-    global scraper
-    if scraper:
-        scraper._rotate_session()
-        return jsonify({'status': 'rotated'})
-    return jsonify({'status': 'no_scraper'})
-
-
 if __name__ == '__main__':
     port = int(os.environ.get('SCRAPER_PORT', 5001))
     logger.info(f"Starting Reddit Scraper Server on port {port}")
-    logger.info("Anti-blocking measures enabled: session rotation, random delays, human simulation")
     
     try:
         # Pre-initialize the scraper

@@ -4,12 +4,11 @@ This guide explains how to set up and run the local Reddit web scraper that uses
 
 ## 🎯 Overview
 
-The sock puppet scraper is the **only method** for fetching Reddit data in this application. It mimics real browser behavior to extract data from Reddit:
-
+The sock puppet scraper mimics real browser behavior to extract data from Reddit. It:
 - Uses Selenium with headless Chrome to render JavaScript
 - Parses HTML with BeautifulSoup from old.reddit.com
-- Includes **enhanced anti-detection measures** (session rotation, random delays, human simulation)
-- No Reddit API keys required
+- Includes anti-detection measures (random user agents, delays)
+- Provides the same data format as the Reddit API
 
 ## ⚠️ Important Warnings
 
@@ -60,11 +59,12 @@ python reddit_scraper_server.py
 
 The server will start on `http://localhost:5001`
 
-### 4. Configure Frontend (Optional)
+### 4. Enable Local Scraper in Frontend
 
 Create or update your `.env.local` file:
 
 ```bash
+VITE_USE_LOCAL_SCRAPER=true
 VITE_SCRAPER_URL=http://localhost:5001
 ```
 
@@ -73,10 +73,6 @@ VITE_SCRAPER_URL=http://localhost:5001
 ```bash
 npm run dev
 ```
-
-## ⚠️ Server Required
-
-**The Python scraper server MUST be running for Reddit data fetching to work.** If the server is not running, users will see an error message asking them to start it.
 
 ## 📁 Project Structure
 
@@ -96,19 +92,16 @@ src/lib/api/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `VITE_USE_LOCAL_SCRAPER` | `false` | Enable local scraper instead of Edge Function |
 | `VITE_SCRAPER_URL` | `http://localhost:5001` | URL of the local scraper server |
 | `SCRAPER_PORT` | `5001` | Port for the Python Flask server |
-| `SCRAPER_PROXY` | (none) | Optional HTTP proxy for scraping |
 
-### Anti-Blocking Settings (in server code)
+### Scraper Settings (in server code)
 
 ```python
-# Session rotation
-max_requests_before_rotation = 50  # Rotate browser every 50 requests
-
 # Anti-detection delays (seconds)
-MIN_DELAY = 2.0
-MAX_DELAY = 6.0
+MIN_DELAY = 1.5
+MAX_DELAY = 4.0
 
 # Pagination limits
 MAX_PAGES = 5  # Max pages to scrape per request
@@ -122,44 +115,8 @@ Run these in separate terminals:
 | Terminal | Command | Purpose |
 |----------|---------|---------|
 | 1 | `npm run dev` | Frontend (Vite) |
-| 2 | `python server/reddit_scraper_server.py` | **Sock Puppet Scraper (REQUIRED)** |
+| 2 | `python server/reddit_scraper_server.py` | Sock Puppet Scraper |
 | 3 | `supabase functions serve` | Edge Functions (analyze-content) |
-
-## 🛡️ Anti-Detection Measures
-
-The scraper includes enhanced measures to avoid detection:
-
-### Automatic Features
-
-1. **Session Rotation**: Browser restarts every 50 requests
-2. **Random User Agents**: Rotates between 8 different browser signatures
-3. **Random Delays**: 2-6 seconds between requests
-4. **Random Viewport Sizes**: Different screen sizes to avoid patterns
-5. **Human Behavior Simulation**: Random scrolling and pauses
-6. **Retry with Exponential Backoff**: Auto-retry with increasing delays if blocked
-7. **Block Detection**: Detects rate limits, captchas, and access denied pages
-8. **Cookie Management**: Clears and accepts cookies properly
-9. **Stealth Scripts**: Masks `navigator.webdriver` and other automation indicators
-
-### Optional Proxy Support
-
-```bash
-# Set proxy via environment variable
-SCRAPER_PROXY=http://proxy:port python server/reddit_scraper_server.py
-```
-
-### Advanced Protection
-
-For production use, consider using `undetected-chromedriver`:
-
-```python
-# Install
-pip install undetected-chromedriver
-
-# In your code
-import undetected_chromedriver as uc
-driver = uc.Chrome(options=options)
-```
 
 ## 🔌 API Endpoints
 
@@ -246,26 +203,27 @@ Response:
 }
 ```
 
-### Force Session Rotation
+## 🛡️ Anti-Detection Measures
 
-```bash
-POST http://localhost:5001/rotate
-```
+The scraper includes several measures to avoid detection:
 
-Response:
-```json
-{"status": "rotated"}
-```
+1. **Random User Agents**: Rotates between 5 different browser signatures
+2. **Random Delays**: 1.5-4 seconds between requests
+3. **Headless Chrome Flags**: Hides automation indicators
+4. **Stealth Scripts**: Masks `navigator.webdriver` property
+5. **Natural Browsing**: Uses old.reddit.com for simpler HTML
 
-### Close Scraper
+### Additional Protection (Advanced)
 
-```bash
-POST http://localhost:5001/close
-```
+For production use, consider:
 
-Response:
-```json
-{"status": "closed"}
+```python
+# Use undetected-chromedriver
+pip install undetected-chromedriver
+
+# In your code
+import undetected_chromedriver as uc
+driver = uc.Chrome(options=options)
 ```
 
 ## 🔍 Troubleshooting
@@ -304,11 +262,10 @@ brew install --cask google-chrome
 ### Blocked by Reddit
 
 If you get blocked:
-1. Force rotate the session: `POST /rotate`
-2. Increase delays in the code (MIN_DELAY = 5, MAX_DELAY = 10)
-3. Use a proxy: `SCRAPER_PROXY=http://proxy:port`
-4. Wait 24 hours before retrying
-5. Restart the scraper server
+1. Increase delays (MIN_DELAY = 5, MAX_DELAY = 10)
+2. Use a proxy/VPN
+3. Wait 24 hours before retrying
+4. Consider using the Reddit API instead
 
 ### Memory Issues
 
@@ -318,16 +275,22 @@ If you get blocked:
 POST http://localhost:5001/close
 ```
 
-Then restart the server.
+## 📊 Performance Comparison
 
-## 📊 Performance Notes
+| Metric | Reddit API | Sock Puppet Scraper |
+|--------|-----------|---------------------|
+| Speed | ~100 requests/min | ~15 requests/min |
+| Rate Limits | 60 req/min | Varies (be cautious) |
+| Setup | API keys required | No keys needed |
+| Reliability | High | Medium (HTML can change) |
+| Legal Risk | Low | Higher (ToS concerns) |
 
-| Metric | Value |
-|--------|-------|
-| Speed | ~10-15 requests/min (with delays) |
-| Session Rotation | Every 50 requests |
-| Retry Attempts | 3 with exponential backoff |
-| Page Limit | 5 pages per request |
+## 🔄 Fallback Behavior
+
+The frontend automatically falls back to the Edge Function if:
+- `VITE_USE_LOCAL_SCRAPER` is not set to `true`
+- The local scraper server is not running
+- The health check fails
 
 ## 📝 Requirements.txt
 
@@ -347,9 +310,6 @@ fake-useragent>=1.4.0
 ## 🎮 Testing the Scraper
 
 ```bash
-# Test health
-curl http://localhost:5001/health
-
 # Test user scraping
 curl -X POST http://localhost:5001/scrape \
   -H "Content-Type: application/json" \
@@ -364,9 +324,6 @@ curl -X POST http://localhost:5001/scrape \
 curl -X POST http://localhost:5001/scrape \
   -H "Content-Type: application/json" \
   -d '{"type": "search", "keyword": "python programming"}'
-
-# Force session rotation
-curl -X POST http://localhost:5001/rotate
 ```
 
 ## 📚 Related Documentation
