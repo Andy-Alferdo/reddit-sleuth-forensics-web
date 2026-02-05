@@ -8,7 +8,6 @@ import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info,
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { supabase } from '@/integrations/supabase/client';
-import { scrapeUser } from '@/lib/api/redditScraper';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toZonedTime } from 'date-fns-tz';
@@ -131,14 +130,21 @@ const UserProfiling = () => {
       // Clean username (remove u/ prefix if present)
       const cleanUsername = username.replace(/^u\//, '');
 
-      // Fetch user data from Reddit (uses local scraper if available, falls back to Edge Function)
-      const redditData = await scrapeUser(cleanUsername);
+      // Fetch user data from Reddit
+      const { data: redditData, error: redditError } = await supabase.functions.invoke('reddit-scraper', {
+        body: { 
+          username: cleanUsername,
+          type: 'user'
+        }
+      });
+
+      if (redditError) throw redditError;
 
       if (redditData?.error === 'not_found') {
-        setError(redditData.message || 'User not found');
+        setError(redditData.message);
         toast({
           title: "User Not Found",
-          description: redditData.message || 'User not found',
+          description: redditData.message,
           variant: "destructive",
         });
         setIsLoading(false);
