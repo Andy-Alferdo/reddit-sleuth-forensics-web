@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X } from 'lucide-react';
+import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X, Loader2 } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { UserCommunityNetworkGraph } from '@/components/UserCommunityNetworkGraph';
@@ -576,7 +576,14 @@ const Analysis = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 relative">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+          <p className="text-lg font-medium text-foreground">Analyzing data...</p>
+          <p className="text-sm text-muted-foreground mt-1">This may take a moment</p>
+        </div>
+      )}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-foreground mb-2">Analysis Tools</h2>
         <p className="text-muted-foreground">Comprehensive analysis across different dimensions</p>
