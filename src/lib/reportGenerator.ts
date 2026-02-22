@@ -75,7 +75,7 @@ interface LinkAnalysisData {
   primaryUser: string;
   totalKarma: number;
   userToCommunities: any[];
-  communityCrossover: any[];
+  communityCrossover?: any[];
   communityDistribution: any[];
   communityRelations?: any[];
   networkMetrics: any;
