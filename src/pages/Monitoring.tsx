@@ -33,9 +33,12 @@ const Monitoring = () => {
     if (prefillUser) {
       setSearchQuery(prefillUser);
       setSearchType('user');
-      // Auto-trigger search
-      handleSearch(prefillUser, 'user');
+      // Auto-trigger search after state is set
+      setTimeout(() => {
+        handleSearch(prefillUser, 'user');
+      }, 100);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
   // Load saved session from navigation state
