@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Users, Calendar, Shield, MessageSquare } from "lucide-react";
+import { Search, Users, Calendar, Shield, MessageSquare, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,7 +111,14 @@ const CommunityAnalysis = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-6 relative">
+      {isSearching && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+          <p className="text-lg font-medium text-foreground">Analyzing community...</p>
+          <p className="text-sm text-muted-foreground mt-1">This may take a moment</p>
+        </div>
+      )}
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-primary">Community Analysis</h1>
