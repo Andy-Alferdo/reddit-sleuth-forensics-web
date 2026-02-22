@@ -236,8 +236,14 @@ const UserProfiling = () => {
           timezone: 'PKT (Pakistan Standard Time)',
         },
         sentimentAnalysis: analysisData?.sentiment?.breakdown || { positive: 33, neutral: 34, negative: 33 },
-        postSentiments: analysisData?.postSentiments || [],
-        commentSentiments: analysisData?.commentSentiments || [],
+        postSentiments: (analysisData?.postSentiments || []).map((s: any, i: number) => ({
+          ...s,
+          permalink: redditData.posts?.[i]?.permalink || null,
+        })),
+        commentSentiments: (analysisData?.commentSentiments || []).map((s: any, i: number) => ({
+          ...s,
+          permalink: redditData.comments?.[i]?.permalink || null,
+        })),
         postSentimentBreakdown: analysisData?.sentiment?.postBreakdown || null,
         commentSentimentBreakdown: analysisData?.sentiment?.commentBreakdown || null,
         locationIndicators: analysisData?.locations || ['No specific locations detected'],
