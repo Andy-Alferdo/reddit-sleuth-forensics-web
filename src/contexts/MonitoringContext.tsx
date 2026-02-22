@@ -9,6 +9,7 @@ export interface RedditActivity {
   id: string;
   type: 'post' | 'comment';
   title: string;
+  body?: string;
   subreddit: string;
   timestamp: string;
   created_utc: number;
@@ -71,6 +72,7 @@ const buildActivities = (posts: any[], comments: any[]): RedditActivity[] => {
       id: post.id || Math.random().toString(),
       type: 'post',
       title: post.title,
+      body: post.selftext || '',
       subreddit: `r/${post.subreddit}`,
       timestamp: formatActivityTime(post.created_utc),
       created_utc: post.created_utc,
@@ -82,6 +84,7 @@ const buildActivities = (posts: any[], comments: any[]): RedditActivity[] => {
       id: comment.id || Math.random().toString(),
       type: 'comment',
       title: comment.body.substring(0, 100) + (comment.body.length > 100 ? '...' : ''),
+      body: comment.body || '',
       subreddit: `r/${comment.subreddit}`,
       timestamp: formatActivityTime(comment.created_utc),
       created_utc: comment.created_utc,
