@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderOpen, Loader2, Search } from 'lucide-react';
+import { FolderOpen, Loader2, Search } from 'lucide-react';
+import folderSearchIcon from '@/assets/folder-search-icon.png';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -83,12 +84,10 @@ const Home = () => {
             onClick={() => navigate('/new-case')}
           >
             <CardContent className="pt-8 pb-8 flex flex-col items-center text-center space-y-4">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <Plus className="h-8 w-8 text-primary" />
-              </div>
+              <img src={folderSearchIcon} alt="New Investigation" className="h-16 w-16" />
               <div>
                 <CardTitle className="text-lg mb-1">Create New Case</CardTitle>
-                <CardDescription>Start a new investigation case</CardDescription>
+                <CardDescription>Start a new investigation</CardDescription>
               </div>
             </CardContent>
           </Card>
