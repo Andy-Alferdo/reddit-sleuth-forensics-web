@@ -11,14 +11,14 @@
 - User invitation system via email
 
 ### 2. Case Management
-- Create new investigation cases with unique case numbers
+- Create new investigation cases with unique case numbers (CASE-YYYY-XXX format)
 - Track case status (active, closed, pending)
-- Set case priority (low, medium, high, critical)
-- Assign lead investigators and departments
+- Assign investigators and investigation units
 - Sensitive case protection with password
 - View all cases on home dashboard
 - Filter and search existing cases
 - Cache duration settings for case data
+- Auto-generated case numbers unique per user per year
 
 ### 3. Reddit User Profiling
 - Search Reddit users by username (with or without u/ prefix)
@@ -91,6 +91,7 @@
 - Export in PDF format
 - Customizable report sections
 - Professional formatting with case details
+- Auto-populated case fields (Case Number, Case Name, Investigation Unit, Date Generated)
 
 ### 8. Data Visualization
 - Interactive charts (bar, line, pie, area)
@@ -99,7 +100,7 @@
 - Activity timeline charts
 - Sentiment distribution charts
 - Responsive design for all screen sizes
-- Forensic-themed dark color scheme
+- OSINT-themed dark color scheme
 
 ### 9. Dashboard
 - Home page with case creation/selection
@@ -147,7 +148,7 @@
 - Fallback values for missing data
 
 ### Usability
-- Dark forensic theme with good contrast
+- Dark OSINT theme with good contrast
 - Responsive on all devices (desktop, tablet, mobile)
 - Clear error messages and loading states
 - Flexible input formats (with/without u/ or r/ prefixes)
@@ -218,7 +219,7 @@
 - `user_roles` - Role assignments (admin/user enum)
 - `user_invites` - Pending user invitations
 - `audit_logs` - System action logs
-- `investigation_cases` - Case management
+- `investigation_cases` - Case management (includes investigation_unit field stored as `department`)
 - `reddit_posts` - Scraped posts
 - `reddit_comments` - Scraped comments
 - `user_profiles_analyzed` - Analyzed Reddit users

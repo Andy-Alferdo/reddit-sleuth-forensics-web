@@ -1,6 +1,6 @@
-# Reddit Sleuth - Reddit Forensic Intelligence Platform
+# Reddit Sleuth - Open-Source Intelligence Platform
 
-A comprehensive forensic intelligence tool for analyzing Reddit users, communities, and content patterns. Built with React, TypeScript, and powered by AI for sentiment analysis, location detection, and behavioral profiling.
+A comprehensive OSINT (Open-Source Intelligence) tool for analyzing Reddit users, communities, and content patterns. Built with React, TypeScript, and powered by AI for sentiment analysis, location detection, and behavioral profiling.
 
 ## Features
 
@@ -19,6 +19,7 @@ A comprehensive forensic intelligence tool for analyzing Reddit users, communiti
 
 ### Case Management & Reporting
 - **Investigation Cases**: Create and manage investigation cases with evidence tracking
+- **Investigation Unit**: Assign cases to specific investigation units
 - **Report Generation**: Export comprehensive reports in PDF/HTML format
 - **Network Graph Reports**: Visual community connection diagrams in reports
 - **Activity Timelines**: Track user activity patterns over time
@@ -100,17 +101,20 @@ reddit-sleuth/
 │   │   ├── NetworkVisualization.tsx
 │   │   └── ...
 │   ├── pages/               # Page components
-│   │   ├── Home.tsx         # Main dashboard
+│   │   ├── Home.tsx         # Case creation and selection
+│   │   ├── NewCase.tsx      # Create new investigation case
+│   │   ├── Dashboard.tsx    # Case dashboard
 │   │   ├── UserProfiling.tsx
 │   │   ├── CommunityAnalysis.tsx
 │   │   ├── LinkAnalysis.tsx
-│   │   ├── Analysis.tsx     # Combined analysis with tabs
+│   │   ├── Analysis.tsx     # Combined analysis with tabs (User/Community/Link)
 │   │   ├── Monitoring.tsx   # Real-time monitoring
-│   │   ├── Report.tsx
+│   │   ├── Report.tsx       # Generate investigation reports
 │   │   ├── AdminDashboard.tsx  # Admin user management
 │   │   └── ...
 │   ├── contexts/            # React contexts
-│   │   └── InvestigationContext.tsx
+│   │   ├── InvestigationContext.tsx
+│   │   └── MonitoringContext.tsx
 │   ├── hooks/               # Custom hooks
 │   │   └── useAuditLog.ts   # Audit logging hook
 │   ├── lib/                 # Utilities
@@ -151,6 +155,7 @@ reddit-sleuth/
 | Home | `/` | Case creation and selection |
 | Login | `/login` | User authentication |
 | Register | `/register` | New user registration |
+| New Case | `/new-case` | Create new investigation case |
 | Case Dashboard | `/dashboard` | Case overview and statistics |
 | User Profiling | `/user-profiling` | Analyze Reddit users |
 | Community Analysis | `/community-analysis` | Analyze subreddits |

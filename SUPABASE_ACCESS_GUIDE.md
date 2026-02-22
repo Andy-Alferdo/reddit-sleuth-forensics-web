@@ -1,4 +1,4 @@
-# Supabase Database Access Guide
+# Supabase Database Access Guide - Reddit Sleuth OSINT Platform
 
 This guide explains how to connect your own Supabase account to Reddit Sleuth or set up a local Supabase instance.
 
@@ -146,7 +146,7 @@ CREATE TABLE public.investigation_cases (
   description TEXT,
   status TEXT DEFAULT 'active',
   priority TEXT DEFAULT 'medium',
-  department TEXT,
+  department TEXT,                    -- UI label: "Investigation Unit"
   lead_investigator TEXT,
   is_sensitive BOOLEAN DEFAULT FALSE,
   case_password_hash TEXT,
