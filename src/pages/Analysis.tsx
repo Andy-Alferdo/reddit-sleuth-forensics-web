@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X, Loader2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X, Loader2, ExternalLink, Eye, UserPlus, MoreVertical } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { UserCommunityNetworkGraph } from '@/components/UserCommunityNetworkGraph';
@@ -24,6 +25,7 @@ interface SentimentItem {
 
 const Analysis = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [username, setUsername] = useState('');
   const [subreddit, setSubreddit] = useState('');
@@ -864,12 +866,42 @@ const Analysis = () => {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {communityData.topAuthors.length > 0 ? (
-                      communityData.topAuthors.map((author: any, index: number) => (
-                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
-                          <span className="font-medium">{author.username}</span>
-                          <Badge variant="secondary">{author.posts} posts</Badge>
-                        </div>
-                      ))
+                      communityData.topAuthors.map((author: any, index: number) => {
+                        const cleanUsername = author.username.replace(/^u\//, '');
+                        return (
+                          <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border group">
+                            <a
+                              href={`https://www.reddit.com/user/${cleanUsername}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium hover:text-primary transition-colors flex items-center gap-1.5 cursor-pointer"
+                            >
+                              {author.username}
+                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </a>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">{author.posts} posts</Badge>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => navigate('/monitoring', { state: { prefillUser: cleanUsername } })}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Add to Monitoring
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => navigate('/user-profiling', { state: { prefillUsername: cleanUsername } })}>
+                                    <UserPlus className="h-4 w-4 mr-2" />
+                                    Add to User Profiling
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                        );
+                      })
                     ) : (
                       <p className="text-muted-foreground text-center py-4">No author data available</p>
                     )}
@@ -887,8 +919,17 @@ const Analysis = () => {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {communityData.recentPosts.map((post: any, index: number) => (
-                    <div key={index} className="border border-border/50 rounded-lg p-3 space-y-2">
-                      <h4 className="font-medium text-sm leading-tight">{post.title}</h4>
+                    <a
+                      key={index}
+                      href={post.permalink ? `https://www.reddit.com${post.permalink}` : `https://www.reddit.com/r/${subreddit.replace(/^r\//, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block border border-border/50 rounded-lg p-3 space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+                    >
+                      <h4 className="font-medium text-sm leading-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
+                        {post.title}
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                      </h4>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>by u/{post.author}</span>
                         <div className="flex gap-2">
@@ -896,7 +937,7 @@ const Analysis = () => {
                           <Badge variant="outline" className="text-xs">{post.num_comments} comments</Badge>
                         </div>
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </CardContent>
               </Card>

@@ -27,6 +27,17 @@ const Monitoring = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState<'user' | 'community' | ''>('');
 
+  // Prefill user from navigation state (e.g., from Analysis page)
+  useEffect(() => {
+    const prefillUser = (location.state as any)?.prefillUser as string | undefined;
+    if (prefillUser) {
+      setSearchQuery(prefillUser);
+      setSearchType('user');
+      // Auto-trigger search
+      handleSearch(prefillUser, 'user');
+    }
+  }, [location.state]);
+
   // Load saved session from navigation state
   useEffect(() => {
     const loadSessionId = (location.state as any)?.loadSession as string | undefined;
