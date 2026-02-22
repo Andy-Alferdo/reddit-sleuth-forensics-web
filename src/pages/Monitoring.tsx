@@ -227,13 +227,29 @@ const Monitoring = () => {
   const handleSearch = async () => {
     if (!searchQuery.trim() || !searchType) return;
 
-    if (targets.length >= MAX_TARGETS) {
+    // Count active (non-stopped) slots; if full, evict oldest stopped target
+    const activeCount = targets.filter(t => t.isMonitoring).length;
+    if (activeCount >= MAX_TARGETS) {
       toast({
-        title: "Maximum Targets Reached",
-        description: `You can monitor up to ${MAX_TARGETS} targets simultaneously. Stop one to add another.`,
+        title: "Maximum Active Targets Reached",
+        description: `You can have up to ${MAX_TARGETS} active monitors. Stop one to add another.`,
         variant: "destructive",
       });
       return;
+    }
+    // If all 5 slots occupied (active + stopped), remove the oldest stopped card
+    if (targets.length >= MAX_TARGETS) {
+      const oldestStopped = targets.find(t => !t.isMonitoring);
+      if (oldestStopped) {
+        setTargets(prev => prev.filter(t => t.id !== oldestStopped.id));
+      } else {
+        toast({
+          title: "Maximum Targets Reached",
+          description: `You can monitor up to ${MAX_TARGETS} targets simultaneously. Stop one to add another.`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Check for duplicates
@@ -477,7 +493,13 @@ const Monitoring = () => {
     }
   };
 
-  // Stop monitoring a target
+  // Remove a stopped target (dismiss card)
+  const handleRemoveTarget = (targetId: string) => {
+    setTargets(prev => prev.filter(t => t.id !== targetId));
+    if (selectedTargetId === targetId) setSelectedTargetId(null);
+  };
+
+  // Stop monitoring a target (keep the card visible)
   const handleStopTarget = async (targetId: string) => {
     const target = targets.find(t => t.id === targetId);
     if (!target) return;
@@ -510,9 +532,8 @@ const Monitoring = () => {
       intervalsRef.current.delete(targetId);
     }
 
-    // Remove target
-    setTargets(prev => prev.filter(t => t.id !== targetId));
-    if (selectedTargetId === targetId) setSelectedTargetId(null);
+    // Mark as stopped instead of removing
+    updateTarget(targetId, { isMonitoring: false, isFetching: false });
 
     toast({
       title: "Monitoring Stopped & Saved",
@@ -707,6 +728,7 @@ const Monitoring = () => {
                     totalActivities={target.activities.length}
                     onSelect={setSelectedTargetId}
                     onStop={handleStopTarget}
+                    onRemove={handleRemoveTarget}
                   />
                 ))}
                 {targets.length < MAX_TARGETS && (
