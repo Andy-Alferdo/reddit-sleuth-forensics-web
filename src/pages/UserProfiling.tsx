@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle, Search, X, Loader2 } from 'lucide-react';
+import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle, Search, X, Loader2, ExternalLink, ChevronDown } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,12 +13,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { toZonedTime } from 'date-fns-tz';
 import { useInvestigation } from '@/contexts/InvestigationContext';
 
+const INITIAL_VISIBLE = 10;
+
 const UserProfiling = () => {
   const location = useLocation();
   const [username, setUsername] = useState('');
   const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visiblePosts, setVisiblePosts] = useState(INITIAL_VISIBLE);
+  const [visibleComments, setVisibleComments] = useState(INITIAL_VISIBLE);
   const { toast } = useToast();
   const { addUserProfile, saveUserProfileToDb, currentCase } = useInvestigation();
 
@@ -123,6 +127,8 @@ const UserProfiling = () => {
     setIsLoading(true);
     setError(null);
     setProfileData(null);
+    setVisiblePosts(INITIAL_VISIBLE);
+    setVisibleComments(INITIAL_VISIBLE);
 
     try {
       console.log('Fetching Reddit data for user:', username);
@@ -508,9 +514,20 @@ const UserProfiling = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {profileData.postSentiments.map((item: any, index: number) => (
-                        <tr key={index} className="border-b hover:bg-muted/50">
-                          <td className="p-3 text-sm">{item.text}</td>
+                      {profileData.postSentiments.slice(0, visiblePosts).map((item: any, index: number) => (
+                        <tr 
+                          key={index} 
+                          className="border-b hover:bg-muted/50 cursor-pointer group"
+                          onClick={() => {
+                            if (item.permalink) {
+                              window.open(`https://www.reddit.com${item.permalink}`, '_blank');
+                            }
+                          }}
+                        >
+                          <td className="p-3 text-sm">
+                            <span className="group-hover:text-primary transition-colors">{item.text}</span>
+                            {item.permalink && <ExternalLink className="h-3 w-3 inline ml-1 opacity-0 group-hover:opacity-100 text-primary transition-opacity" />}
+                          </td>
                           <td className="p-3">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               item.sentiment === 'positive' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
@@ -525,6 +542,19 @@ const UserProfiling = () => {
                       ))}
                     </tbody>
                   </table>
+                  {profileData.postSentiments.length > visiblePosts && (
+                    <div className="text-center mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setVisiblePosts(prev => prev + 10)}
+                        className="gap-1"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                        See More ({profileData.postSentiments.length - visiblePosts} remaining)
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {profileData.postSentimentBreakdown && (
                   <AnalyticsChart 
@@ -569,9 +599,20 @@ const UserProfiling = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {profileData.commentSentiments.map((item: any, index: number) => (
-                        <tr key={index} className="border-b hover:bg-muted/50">
-                          <td className="p-3 text-sm">{item.text}</td>
+                      {profileData.commentSentiments.slice(0, visibleComments).map((item: any, index: number) => (
+                        <tr 
+                          key={index} 
+                          className="border-b hover:bg-muted/50 cursor-pointer group"
+                          onClick={() => {
+                            if (item.permalink) {
+                              window.open(`https://www.reddit.com${item.permalink}`, '_blank');
+                            }
+                          }}
+                        >
+                          <td className="p-3 text-sm">
+                            <span className="group-hover:text-primary transition-colors">{item.text}</span>
+                            {item.permalink && <ExternalLink className="h-3 w-3 inline ml-1 opacity-0 group-hover:opacity-100 text-primary transition-opacity" />}
+                          </td>
                           <td className="p-3">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               item.sentiment === 'positive' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
@@ -586,6 +627,19 @@ const UserProfiling = () => {
                       ))}
                     </tbody>
                   </table>
+                  {profileData.commentSentiments.length > visibleComments && (
+                    <div className="text-center mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setVisibleComments(prev => prev + 10)}
+                        className="gap-1"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                        See More ({profileData.commentSentiments.length - visibleComments} remaining)
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {profileData.commentSentimentBreakdown && (
                   <AnalyticsChart 
