@@ -198,7 +198,7 @@ const NewCase = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
+                <Label htmlFor="department">Investigation Unit</Label>
                 <Input
                   id="department"
                   name="department"
