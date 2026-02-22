@@ -1,10 +1,10 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface NetworkNode {
   id: string;
   label: string;
-  type: 'user' | 'community' | 'interest';
+  type: 'user' | 'community';
   color?: string;
   size?: number;
 }
@@ -35,17 +35,14 @@ interface SimulatedLink {
   weight: number;
 }
 
-// Beautiful color palette inspired by the reference image
 const nodeColors: Record<string, string> = {
-  user: '#10B981', // Emerald green
-  community: '#3B82F6', // Blue
-  interest: '#F59E0B', // Amber
+  user: '#10B981',
+  community: '#3B82F6',
 };
 
 const nodeGradients: Record<string, { start: string; end: string }> = {
   user: { start: '#10B981', end: '#059669' },
   community: { start: '#3B82F6', end: '#2563EB' },
-  interest: { start: '#F59E0B', end: '#D97706' },
 };
 
 export const UserCommunityNetworkGraph = ({ 
@@ -60,6 +57,36 @@ export const UserCommunityNetworkGraph = ({
   const animationRef = useRef<number>();
   const nodesRef = useRef<SimulatedNode[]>([]);
   const linksRef = useRef<SimulatedLink[]>([]);
+  const frameCountRef = useRef(0);
+
+  // Drag & click state
+  const isDraggingRef = useRef(false);
+  const dragNodeRef = useRef<SimulatedNode | null>(null);
+  const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const getNodeAtPosition = useCallback((mx: number, my: number): SimulatedNode | null => {
+    const nodes = nodesRef.current;
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const node = nodes[i];
+      const dx = mx - node.x;
+      const dy = my - node.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= (node.size || 30)) return node;
+    }
+    return null;
+  }, []);
+
+  const getCanvasCoords = useCallback((e: MouseEvent): { x: number; y: number } => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  }, []);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -73,6 +100,84 @@ export const UserCommunityNetworkGraph = ({
     window.addEventListener('resize', updateDimensions);
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
+
+  // Mouse event handlers
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      const pos = getCanvasCoords(e);
+      const node = getNodeAtPosition(pos.x, pos.y);
+      if (node) {
+        isDraggingRef.current = false;
+        dragNodeRef.current = node;
+        mouseDownPosRef.current = pos;
+        // Reset simulation to keep rendering while dragging
+        frameCountRef.current = 0;
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const pos = getCanvasCoords(e);
+
+      if (dragNodeRef.current && mouseDownPosRef.current) {
+        const dx = pos.x - mouseDownPosRef.current.x;
+        const dy = pos.y - mouseDownPosRef.current.y;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          isDraggingRef.current = true;
+        }
+        if (isDraggingRef.current) {
+          dragNodeRef.current.x = pos.x;
+          dragNodeRef.current.y = pos.y;
+          dragNodeRef.current.vx = 0;
+          dragNodeRef.current.vy = 0;
+        }
+      }
+
+      // Cursor feedback
+      const hovered = getNodeAtPosition(pos.x, pos.y);
+      canvas.style.cursor = hovered ? 'pointer' : 'default';
+    };
+
+    const handleMouseUp = () => {
+      dragNodeRef.current = null;
+      mouseDownPosRef.current = null;
+      // Let simulation settle again
+      if (isDraggingRef.current) {
+        frameCountRef.current = 150;
+      }
+      isDraggingRef.current = false;
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      if (isDraggingRef.current) return;
+      const pos = getCanvasCoords(e);
+      const node = getNodeAtPosition(pos.x, pos.y);
+      if (!node) return;
+
+      const label = node.label;
+      if (node.type === 'community') {
+        const sub = label.replace(/^r\//, '');
+        window.open(`https://www.reddit.com/r/${sub}`, '_blank');
+      } else if (node.type === 'user') {
+        const user = label.replace(/^u\//, '');
+        window.open(`https://www.reddit.com/user/${user}`, '_blank');
+      }
+    };
+
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('click', handleClick);
+
+    return () => {
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('click', handleClick);
+    };
+  }, [getCanvasCoords, getNodeAtPosition]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -101,11 +206,9 @@ export const UserCommunityNetworkGraph = ({
       };
     });
 
-    // Create node map for quick lookup
     const nodeMap = new Map<string, SimulatedNode>();
     simulatedNodes.forEach(node => nodeMap.set(node.id, node));
 
-    // Initialize links
     const simulatedLinks: SimulatedLink[] = links
       .map(link => ({
         source: nodeMap.get(link.source)!,
@@ -116,21 +219,21 @@ export const UserCommunityNetworkGraph = ({
 
     nodesRef.current = simulatedNodes;
     linksRef.current = simulatedLinks;
+    frameCountRef.current = 0;
 
-    // Force simulation
     const simulate = () => {
       const nodes = nodesRef.current;
       const links = linksRef.current;
 
-      // Apply forces
       nodes.forEach(node => {
-        // Attraction to center (gentle)
+        // Skip dragged node
+        if (node === dragNodeRef.current) return;
+
         const dx = centerX - node.x;
         const dy = centerY - node.y;
         node.vx += dx * 0.0005;
         node.vy += dy * 0.0005;
 
-        // Repulsion from other nodes
         nodes.forEach(other => {
           if (node === other) return;
           const dx = node.x - other.x;
@@ -146,7 +249,6 @@ export const UserCommunityNetworkGraph = ({
         });
       });
 
-      // Link forces (attraction)
       links.forEach(link => {
         const dx = link.target.x - link.source.x;
         const dy = link.target.y - link.source.y;
@@ -154,38 +256,39 @@ export const UserCommunityNetworkGraph = ({
         const idealDist = 120 + (link.weight * 20);
         const force = (dist - idealDist) / dist * 0.02;
         
-        link.source.vx += dx * force;
-        link.source.vy += dy * force;
-        link.target.vx -= dx * force;
-        link.target.vy -= dy * force;
+        if (link.source !== dragNodeRef.current) {
+          link.source.vx += dx * force;
+          link.source.vy += dy * force;
+        }
+        if (link.target !== dragNodeRef.current) {
+          link.target.vx -= dx * force;
+          link.target.vy -= dy * force;
+        }
       });
 
-      // Update positions
       nodes.forEach(node => {
-        node.vx *= 0.85; // Damping
+        if (node === dragNodeRef.current) return;
+        node.vx *= 0.85;
         node.vy *= 0.85;
         node.x += node.vx;
         node.y += node.vy;
 
-        // Keep within bounds
         const margin = 60;
         node.x = Math.max(margin, Math.min(width - margin, node.x));
         node.y = Math.max(margin, Math.min(height - margin, node.y));
       });
     };
 
-    // Draw function
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
 
-      // Draw background gradient
       const bgGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, width / 2);
       bgGradient.addColorStop(0, 'rgba(15, 23, 42, 1)');
       bgGradient.addColorStop(1, 'rgba(2, 6, 23, 1)');
       ctx.fillStyle = bgGradient;
       ctx.fillRect(0, 0, width, height);
 
-      // Draw ambient particles
+      // Ambient particles
       for (let i = 0; i < 50; i++) {
         const x = (Math.sin(Date.now() * 0.001 + i * 0.5) + 1) * width / 2;
         const y = (Math.cos(Date.now() * 0.0008 + i * 0.7) + 1) * height / 2;
@@ -199,7 +302,7 @@ export const UserCommunityNetworkGraph = ({
       const links = linksRef.current;
       const nodes = nodesRef.current;
 
-      // Draw links with gradient
+      // Draw links
       links.forEach(link => {
         const sourceColor = nodeColors[link.source.type] || '#64748b';
         const targetColor = nodeColors[link.target.type] || '#64748b';
@@ -218,7 +321,6 @@ export const UserCommunityNetworkGraph = ({
         ctx.lineWidth = 1.5 + link.weight * 0.5;
         ctx.stroke();
 
-        // Draw animated particles on links
         const time = Date.now() * 0.001;
         const particlePos = (time % 2) / 2;
         const px = link.source.x + (link.target.x - link.source.x) * particlePos;
@@ -236,7 +338,6 @@ export const UserCommunityNetworkGraph = ({
         const isPrimary = node.id === primaryUserId;
         const colors = nodeGradients[node.type] || { start: '#64748b', end: '#475569' };
 
-        // Outer glow
         const glowGradient = ctx.createRadialGradient(node.x, node.y, size * 0.5, node.x, node.y, size * 2);
         glowGradient.addColorStop(0, colors.start + '40');
         glowGradient.addColorStop(1, 'transparent');
@@ -245,7 +346,6 @@ export const UserCommunityNetworkGraph = ({
         ctx.fillStyle = glowGradient;
         ctx.fill();
 
-        // Node circle with gradient
         const nodeGradient = ctx.createRadialGradient(
           node.x - size * 0.3, node.y - size * 0.3, 0,
           node.x, node.y, size
@@ -258,12 +358,11 @@ export const UserCommunityNetworkGraph = ({
         ctx.fillStyle = nodeGradient;
         ctx.fill();
 
-        // Border
         ctx.strokeStyle = isPrimary ? '#ffffff' : 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = isPrimary ? 3 : 1.5;
         ctx.stroke();
 
-        // Icon based on type
+        // Icon
         ctx.fillStyle = '#ffffff';
         ctx.font = `${size * 0.5}px sans-serif`;
         ctx.textAlign = 'center';
@@ -272,7 +371,6 @@ export const UserCommunityNetworkGraph = ({
         const icons: Record<string, string> = {
           user: '👤',
           community: '👥',
-          interest: '⭐',
         };
         ctx.fillText(icons[node.type] || '●', node.x, node.y);
 
@@ -282,7 +380,6 @@ export const UserCommunityNetworkGraph = ({
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         
-        // Label background
         const labelWidth = ctx.measureText(node.label).width + 12;
         const labelHeight = 20;
         const labelY = node.y + size + 8;
@@ -297,11 +394,9 @@ export const UserCommunityNetworkGraph = ({
       });
     };
 
-    // Animation loop
-    let frameCount = 0;
     const animate = () => {
-      frameCount++;
-      if (frameCount < 200) {
+      frameCountRef.current++;
+      if (frameCountRef.current < 200 || dragNodeRef.current) {
         simulate();
       }
       draw();
@@ -339,10 +434,6 @@ export const UserCommunityNetworkGraph = ({
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full" style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}></div>
             <span className="text-muted-foreground">Communities</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full" style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}></div>
-            <span className="text-muted-foreground">Interests (Related Communities)</span>
           </div>
         </div>
       </CardContent>
