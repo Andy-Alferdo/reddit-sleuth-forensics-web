@@ -21,6 +21,7 @@ const Report = () => {
     investigator,
     setInvestigator,
     currentCase,
+    loadCaseData,
     userProfiles,
     keywordAnalyses,
     communityAnalyses,
@@ -53,6 +54,13 @@ const Report = () => {
     recommendations: '',
     personalizedObservations: ''
   });
+
+  // Load full case data from DB to ensure all fields are available
+  useEffect(() => {
+    if (currentCase?.id && !currentCase.case_name) {
+      loadCaseData(currentCase.id);
+    }
+  }, [currentCase?.id]);
 
   // Auto-populate case name and department from current case
   useEffect(() => {
