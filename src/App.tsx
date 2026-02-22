@@ -90,11 +90,11 @@ const App = () => {
               {/* Public routes */}
               <Route
                 path="/login"
-                element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={handleLogin} />}
+                element={isLoggedIn ? <Navigate to="/" replace /> : <LoginPage onLogin={handleLogin} />}
               />
               <Route
                 path="/register"
-                element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <RegisterPage onLogin={handleLogin} />}
+                element={isLoggedIn ? <Navigate to="/" replace /> : <RegisterPage onLogin={handleLogin} />}
               />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/admin/login" element={<AdminLogin />} />

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderOpen, Eye, Loader2, Lock, Unlock, User, TrendingUp, Users, Link2, Activity } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { FolderOpen, Eye, Loader2, Lock, Unlock, User, TrendingUp, Users, Link2, Activity } from 'lucide-react';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -485,19 +485,7 @@ const Dashboard = () => {
           </div>
         </>
       ) : (
-        <Card className="border-dashed border-muted-foreground/30">
-          <CardContent className="py-12 text-center">
-            <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-4">No case selected. Please select a case from the sidebar or create a new one.</p>
-            <Button 
-              variant="default" 
-              onClick={() => navigate('/new-case')}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Case
-            </Button>
-          </CardContent>
-        </Card>
+        <Navigate to="/" replace />
       )}
 
       {/* Past Results Dialog */}

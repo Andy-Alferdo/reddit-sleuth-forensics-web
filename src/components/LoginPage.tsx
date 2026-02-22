@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import MovingBackground from '@/components/MovingBackground';
 import mascotLogo from '@/assets/reddit-sleuth-mascot.png';
-import { Mail, Lock, Loader2, Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -159,13 +159,6 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
             </Button>
           </form>
 
-          {/* Info about invite-only */}
-          <div className="mt-6 p-3 bg-muted/30 rounded-lg border border-muted">
-            <p className="text-center text-xs text-muted-foreground">
-              <ShieldAlert className="w-3 h-3 inline mr-1" />
-              Registration is invite-only. Contact your administrator for access.
-            </p>
-          </div>
         </div>
       </div>
     </div>
