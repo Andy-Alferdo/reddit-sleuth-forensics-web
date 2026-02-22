@@ -84,7 +84,9 @@ const Home = () => {
             onClick={() => navigate('/new-case')}
           >
             <CardContent className="pt-8 pb-8 flex flex-col items-center text-center space-y-4">
-              <img src={folderSearchIcon} alt="New Investigation" className="h-16 w-16" />
+              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <img src={folderSearchIcon} alt="New Investigation" className="h-8 w-8" />
+              </div>
               <div>
                 <CardTitle className="text-lg mb-1">Create New Case</CardTitle>
                 <CardDescription>Start a new investigation</CardDescription>
