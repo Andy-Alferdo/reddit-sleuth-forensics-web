@@ -1,6 +1,6 @@
 # Reddit Sleuth - Data Integration Guide
 
-This guide explains how to integrate real data from Reddit into Reddit Sleuth and understand the data structures used throughout the application.
+This guide explains how to integrate real data from Reddit into the Reddit Sleuth Open-Source Intelligence Platform and understand the data structures used throughout the application.
 
 ## Overview
 

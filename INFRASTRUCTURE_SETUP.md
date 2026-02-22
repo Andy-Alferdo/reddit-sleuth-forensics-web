@@ -1,6 +1,6 @@
 # Reddit Sleuth - Infrastructure Setup Guide
 
-This document provides detailed information on the backend infrastructure and features implemented in the Reddit Sleuth application.
+This document provides detailed information on the backend infrastructure and features implemented in the Reddit Sleuth Open-Source Intelligence Platform.
 
 ## Table of Contents
 1. [Overview](#overview)
@@ -423,7 +423,7 @@ CREATE TABLE public.investigation_cases (
   description TEXT,
   status TEXT DEFAULT 'active',
   priority TEXT DEFAULT 'medium',
-  department TEXT,
+  department TEXT,                    -- UI label: "Investigation Unit"
   lead_investigator TEXT,
   is_sensitive BOOLEAN DEFAULT false,
   case_password_hash TEXT,

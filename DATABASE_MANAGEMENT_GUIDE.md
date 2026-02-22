@@ -1,4 +1,4 @@
-# Database Management Guide for Reddit Sleuth
+# Database Management Guide for Reddit Sleuth - Open-Source Intelligence Platform
 
 This guide explains how to manage the Reddit Sleuth database, add scraped information, and access the database from other devices.
 
@@ -222,7 +222,7 @@ Stores investigation case data.
 - `description` (TEXT): Case description
 - `status` (TEXT): Case status
 - `priority` (TEXT): Priority level
-- `department` (TEXT): Assigned department
+- `department` (TEXT): Investigation unit assignment (UI label: "Investigation Unit")
 - `lead_investigator` (TEXT): Lead investigator name
 - `is_sensitive` (BOOLEAN): Whether case is sensitive
 - `case_password_hash` (TEXT): Password hash for sensitive cases

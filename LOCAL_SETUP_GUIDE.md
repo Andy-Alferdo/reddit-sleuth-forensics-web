@@ -1,6 +1,6 @@
 # Running Reddit Sleuth Locally - Complete Setup Guide
 
-This guide explains how to run the Reddit Sleuth project entirely on your local system without Lovable Cloud/Gateway, using your own PostgreSQL database and direct API access.
+This guide explains how to run the Reddit Sleuth (Open-Source Intelligence Platform) project entirely on your local system without Lovable Cloud/Gateway, using your own PostgreSQL database and direct API access.
 
 ---
 
@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS public.investigation_cases (
     description TEXT,
     status TEXT DEFAULT 'active',
     priority TEXT DEFAULT 'medium',
-    department TEXT,
+    department TEXT,                    -- UI label: "Investigation Unit"
     lead_investigator TEXT,
     created_by UUID REFERENCES public.profiles(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
