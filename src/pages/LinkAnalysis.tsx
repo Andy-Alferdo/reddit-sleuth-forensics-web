@@ -100,68 +100,92 @@ const LinkAnalysis = () => {
     if (!username.trim()) return;
 
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-
     const cleanUsername = username.replace(/^u\//, "").trim();
 
-    // Deterministic-ish mock numbers so UI is stable
-    const seed = cleanUsername
-      .split("")
-      .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    try {
+      const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
+        body: { username: cleanUsername, type: 'user' },
+      });
 
-    const totalPosts = 10 + (seed % 25);
-    const totalComments = 20 + (seed % 60);
-    const totalCommunities = 3 + (seed % 10);
+      if (error || redditData?.error) {
+        toast({
+          title: "Analysis failed",
+          description: redditData?.message || error?.message || "Could not fetch Reddit data",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
 
-    const communities = Array.from({ length: Math.min(5, totalCommunities) }).map((_, i) => {
-      const posts = Math.max(
-        1,
-        Math.round((totalPosts / Math.min(5, totalCommunities)) * (0.7 + i * 0.08))
-      );
-      const comments = Math.max(
-        1,
-        Math.round((totalComments / Math.min(5, totalCommunities)) * (0.75 + i * 0.06))
-      );
-      const engagement = Math.round((posts * 12 + comments * 4) * (0.9 + i * 0.12));
-      const totalActivity = posts + comments;
+      const posts = redditData.posts || [];
+      const comments = redditData.comments || [];
+      const user = redditData.user || {};
 
-      return {
-        community: `r/${["osint", "cybersecurity", "privacy", "technology", "datascience"][i] || `community${i + 1}`}`,
-        posts,
-        comments,
-        totalActivity,
-        engagement,
-        activity: Math.min(100, Math.round((totalActivity / Math.max(1, totalPosts + totalComments)) * 100 * 3)),
+      // Build real community activity from posts and comments
+      const communityMap = new Map<string, { posts: number; comments: number }>();
+      posts.forEach((p: any) => {
+        const sub = p.subreddit;
+        const entry = communityMap.get(sub) || { posts: 0, comments: 0 };
+        entry.posts++;
+        communityMap.set(sub, entry);
+      });
+      comments.forEach((c: any) => {
+        const sub = c.subreddit;
+        const entry = communityMap.get(sub) || { posts: 0, comments: 0 };
+        entry.comments++;
+        communityMap.set(sub, entry);
+      });
+
+      const communities = Array.from(communityMap.entries())
+        .map(([name, data]) => {
+          const totalActivity = data.posts + data.comments;
+          return {
+            community: `r/${name}`,
+            posts: data.posts,
+            comments: data.comments,
+            totalActivity,
+            activity: 0,
+          };
+        })
+        .sort((a, b) => b.totalActivity - a.totalActivity);
+
+      // Calculate relative activity percentage
+      const maxActivity = communities[0]?.totalActivity || 1;
+      communities.forEach(c => {
+        c.activity = Math.round((c.totalActivity / maxActivity) * 100);
+      });
+
+      const communityDistribution = communities.slice(0, 10).map(c => ({
+        name: c.community,
+        value: c.totalActivity,
+      }));
+
+      const analysisResult: LinkAnalysisPayload = {
+        primaryUser: cleanUsername,
+        totalKarma: (user.link_karma || 0) + (user.comment_karma || 0),
+        userToCommunities: communities,
+        communityDistribution,
+        communityRelations: redditData.communityRelations || [],
+        networkMetrics: {
+          totalCommunities: communities.length,
+          avgActivityScore: communities.length > 0 ? Math.round(communities.reduce((s, c) => s + c.totalActivity, 0) / communities.length) : 0,
+          crossCommunityLinks: 0,
+          totalPosts: posts.length,
+          totalComments: comments.length,
+        },
+        analyzedAt: new Date().toISOString(),
       };
-    });
 
-    const communityDistribution = communities.map((c) => ({ name: c.community, value: c.totalActivity || 0 }));
-
-    const communityCrossover = communities.slice(0, 4).flatMap((c, i) => {
-      const next = communities[i + 1];
-      if (!next) return [];
-      const strength = Math.max(20, 85 - i * 12);
-      return [{ from: c.community, to: next.community, strength, relationType: "user-activity" }];
-    });
-
-    const analysisResult: LinkAnalysisPayload = {
-      primaryUser: cleanUsername,
-      totalKarma: 1000 + (seed % 25000),
-      userToCommunities: communities,
-      communityCrossover,
-      communityDistribution,
-      networkMetrics: {
-        totalCommunities,
-        avgActivityScore: Math.round((seed % 900) / 10),
-        crossCommunityLinks: communityCrossover.length,
-        totalPosts,
-        totalComments,
-      },
-      analyzedAt: new Date().toISOString(),
-    };
-
-    setLinkData(analysisResult);
-    setIsLoading(false);
+      setLinkData(analysisResult);
+    } catch (err: any) {
+      toast({
+        title: "Analysis failed",
+        description: err?.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -225,8 +249,8 @@ const LinkAnalysis = () => {
                   </div>
                   <div className="text-center p-4 rounded-lg bg-forensic-accent/10 border border-forensic-accent/30">
                     <Network className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
-                    <div className="font-bold text-forensic-accent">{linkData.networkMetrics?.crossCommunityLinks ?? 0}</div>
-                    <p className="text-sm text-muted-foreground">Cross-Links</p>
+                    <div className="font-bold text-forensic-accent">{linkData.networkMetrics?.avgActivityScore ?? 0}</div>
+                    <p className="text-sm text-muted-foreground">Avg Activity</p>
                   </div>
                   <div className="text-center p-4 rounded-lg bg-card border border-border">
                     <div className="font-bold text-foreground">{linkData.networkMetrics?.totalPosts ?? 0}</div>
@@ -247,74 +271,40 @@ const LinkAnalysis = () => {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    <span>Community Activity</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {(linkData.userToCommunities || []).map((item: any, index: number) => (
-                      <div key={index} className="p-3 rounded-lg border border-border">
-                        <div className="flex justify-between items-center mb-2">
-                          <div>
-                            <p className="font-medium">{item.community}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.posts} posts • {item.comments} comments
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-primary">{Number(item.totalActivity || (item.posts || 0) + (item.comments || 0)).toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground">Activity</p>
-                          </div>
+            <Card className="border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <span>Community Activity ({(linkData.userToCommunities || []).length} communities)</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {(linkData.userToCommunities || []).map((item: any, index: number) => (
+                    <div key={index} className="p-3 rounded-lg border border-border">
+                      <div className="flex justify-between items-center mb-2">
+                        <div>
+                          <p className="font-medium">{item.community}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.posts} posts • {item.comments} comments
+                          </p>
                         </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min(100, Number(item.activity || 0))}%` }}
-                          />
+                        <div className="text-right">
+                          <p className="font-bold text-primary">{Number(item.totalActivity || (item.posts || 0) + (item.comments || 0)).toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">Activity</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Share2 className="h-5 w-5 text-primary" />
-                    <span>Community Crossover</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {(linkData.communityCrossover || []).length > 0 ? (
-                      (linkData.communityCrossover || []).map((item: any, index: number) => (
-                        <div key={index} className="p-3 rounded-lg border border-border">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{item.from}</span>
-                              <span className="text-muted-foreground">→</span>
-                              <span className="text-sm">{item.to}</span>
-                            </div>
-                            <span className="text-sm font-bold text-forensic-accent">{item.strength}%</span>
-                          </div>
-                          {item.relationType && (
-                            <p className="text-xs text-muted-foreground mt-1">Type: {item.relationType}</p>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-muted-foreground text-sm">No crossover patterns detected.</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className="bg-primary h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, Number(item.activity || 0))}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             {(linkData.communityDistribution || []).length > 0 && (
               <Card className="border-primary/20">
@@ -331,134 +321,19 @@ const LinkAnalysis = () => {
             <UserCommunityNetworkGraph
               title="User to Community Network Graph"
               primaryUserId="user1"
-              nodes={(() => {
-                // Build nodes: user + their communities + interests (from crossover destinations)
-                const userNode = { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' as const };
-                
-                const communityNodes = (linkData.userToCommunities || []).slice(0, 6).map((item: any, index: number) => ({
+              nodes={[
+                { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' as const },
+                ...(linkData.userToCommunities || []).slice(0, 10).map((item: any, index: number) => ({
                   id: `community-${index}`,
                   label: item.community,
-                  type: 'community' as const
-                }));
-                
-                // Build interests from communityCrossover destinations
-                // These are communities that the user's communities are related to
-                const userCommunityNames = (linkData.userToCommunities || []).map((c: any) => c.community);
-                const interestSet = new Set<string>();
-                
-                // Use communityRelations if available (live data)
-                if (linkData.communityRelations && linkData.communityRelations.length > 0) {
-                  linkData.communityRelations.forEach((rel: { subreddit: string; relatedTo: string[] }) => {
-                    (rel.relatedTo || []).forEach((related: string) => {
-                      const formattedRelated = related.startsWith('r/') ? related : `r/${related}`;
-                      if (!userCommunityNames.includes(formattedRelated) && !userCommunityNames.includes(related)) {
-                        interestSet.add(formattedRelated);
-                      }
-                    });
-                  });
-                }
-                
-                // Use communityCrossover as source for interests (offline/mock data)
-                (linkData.communityCrossover || []).forEach((item: any) => {
-                  const toFormatted = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
-                  // Only add as interest if it's not already in user's communities
-                  if (!userCommunityNames.includes(toFormatted) && !userCommunityNames.includes(item.to)) {
-                    interestSet.add(toFormatted);
-                  }
-                });
-                
-                const interestNodes = Array.from(interestSet).slice(0, 8).map((name: string, index: number) => ({
-                  id: `interest-${index}`,
-                  label: name,
-                  type: 'interest' as const
-                }));
-                
-                return [userNode, ...communityNodes, ...interestNodes];
-              })()}
-              links={(() => {
-                // User to their communities
-                const userLinks = (linkData.userToCommunities || []).slice(0, 6).map((item: any, index: number) => ({
-                  source: 'user1',
-                  target: `community-${index}`,
-                  weight: Math.min(4, Math.ceil((item.totalActivity || 1) / 10))
-                }));
-                
-                // Build the interest list the same way as nodes
-                const userCommunityNames = (linkData.userToCommunities || []).map((c: any) => c.community);
-                const interestSet = new Set<string>();
-                
-                if (linkData.communityRelations && linkData.communityRelations.length > 0) {
-                  linkData.communityRelations.forEach((rel: { subreddit: string; relatedTo: string[] }) => {
-                    (rel.relatedTo || []).forEach((related: string) => {
-                      const formattedRelated = related.startsWith('r/') ? related : `r/${related}`;
-                      if (!userCommunityNames.includes(formattedRelated) && !userCommunityNames.includes(related)) {
-                        interestSet.add(formattedRelated);
-                      }
-                    });
-                  });
-                }
-                
-                (linkData.communityCrossover || []).forEach((item: any) => {
-                  const toFormatted = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
-                  if (!userCommunityNames.includes(toFormatted) && !userCommunityNames.includes(item.to)) {
-                    interestSet.add(toFormatted);
-                  }
-                });
-                
-                const interestList = Array.from(interestSet).slice(0, 8);
-                
-                // Community to interest links from communityRelations (live)
-                const crossoverLinks: { source: string; target: string; weight: number }[] = [];
-                
-                if (linkData.communityRelations && linkData.communityRelations.length > 0) {
-                  linkData.communityRelations.forEach((rel: { subreddit: string; relatedTo: string[] }) => {
-                    const fromCommunity = rel.subreddit.startsWith('r/') ? rel.subreddit : `r/${rel.subreddit}`;
-                    const fromIdx = (linkData.userToCommunities || []).findIndex((c: any) => c.community === fromCommunity);
-                    
-                    if (fromIdx !== -1) {
-                      (rel.relatedTo || []).forEach((related: string, relIdx: number) => {
-                        const formattedRelated = related.startsWith('r/') ? related : `r/${related}`;
-                        const toIdx = interestList.indexOf(formattedRelated);
-                        
-                        if (toIdx !== -1) {
-                          crossoverLinks.push({
-                            source: `community-${fromIdx}`,
-                            target: `interest-${toIdx}`,
-                            weight: Math.max(1, 3 - relIdx)
-                          });
-                        }
-                      });
-                    }
-                  });
-                }
-                
-                // Community to interest links from communityCrossover (offline/mock)
-                (linkData.communityCrossover || []).forEach((item: any) => {
-                  const fromCommunity = item.from.startsWith('r/') ? item.from : `r/${item.from}`;
-                  const toCommunity = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
-                  
-                  const fromIdx = (linkData.userToCommunities || []).findIndex((c: any) => 
-                    c.community === fromCommunity || c.community === item.from
-                  );
-                  const toIdx = interestList.indexOf(toCommunity);
-                  
-                  // Only add if this link doesn't already exist
-                  if (fromIdx !== -1 && toIdx !== -1) {
-                    const exists = crossoverLinks.some(l => 
-                      l.source === `community-${fromIdx}` && l.target === `interest-${toIdx}`
-                    );
-                    if (!exists) {
-                      crossoverLinks.push({
-                        source: `community-${fromIdx}`,
-                        target: `interest-${toIdx}`,
-                        weight: Math.ceil((item.strength || 50) / 30)
-                      });
-                    }
-                  }
-                });
-                
-                return [...userLinks, ...crossoverLinks];
-              })()}
+                  type: 'community' as const,
+                })),
+              ]}
+              links={(linkData.userToCommunities || []).slice(0, 10).map((item: any, index: number) => ({
+                source: 'user1',
+                target: `community-${index}`,
+                weight: Math.min(4, Math.ceil((item.totalActivity || 1) / 10)),
+              }))}
             />
           </section>
         )}
