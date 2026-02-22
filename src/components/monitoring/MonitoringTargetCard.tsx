@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Users, StopCircle, Eye, Activity } from 'lucide-react';
+import { User, Users, StopCircle, Eye, X } from 'lucide-react';
 
 interface MonitoringTargetCardProps {
   id: string;
@@ -14,6 +14,7 @@ interface MonitoringTargetCardProps {
   totalActivities: number;
   onSelect: (id: string) => void;
   onStop: (id: string) => void;
+  onRemove: (id: string) => void;
 }
 
 export const MonitoringTargetCard = ({
@@ -27,6 +28,7 @@ export const MonitoringTargetCard = ({
   totalActivities,
   onSelect,
   onStop,
+  onRemove,
 }: MonitoringTargetCardProps) => {
   return (
     <Card className="border-2 hover:border-primary/50 transition-all cursor-pointer group relative overflow-hidden">
@@ -41,14 +43,20 @@ export const MonitoringTargetCard = ({
             )}
             <span className="font-semibold text-sm truncate max-w-[140px]">{name}</span>
           </div>
-          {isMonitoring && (
-            <span className="flex items-center gap-1">
-              <span className={`h-2 w-2 rounded-full ${isFetching ? 'bg-primary animate-pulse' : 'bg-green-500'}`} />
-              <Badge variant="default" className="text-[10px] px-1.5 py-0 animate-pulse">
-                Live
+          <span className="flex items-center gap-1">
+            {isMonitoring ? (
+              <>
+                <span className={`h-2 w-2 rounded-full ${isFetching ? 'bg-primary animate-pulse' : 'bg-green-500'}`} />
+                <Badge variant="default" className="text-[10px] px-1.5 py-0 animate-pulse">
+                  Live
+                </Badge>
+              </>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                Stopped
               </Badge>
-            </span>
-          )}
+            )}
+          </span>
         </div>
 
         {/* Stats */}
@@ -85,18 +93,33 @@ export const MonitoringTargetCard = ({
           View
         </Button>
         <div className="w-px bg-border" />
-        <Button
-          variant="ghost"
-          size="sm"
-          className="flex-1 rounded-none text-xs h-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={(e) => {
-            e.stopPropagation();
-            onStop(id);
-          }}
-        >
-          <StopCircle className="h-3 w-3 mr-1" />
-          Stop
-        </Button>
+        {isMonitoring ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1 rounded-none text-xs h-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStop(id);
+            }}
+          >
+            <StopCircle className="h-3 w-3 mr-1" />
+            Stop
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1 rounded-none text-xs h-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(id);
+            }}
+          >
+            <X className="h-3 w-3 mr-1" />
+            Dismiss
+          </Button>
+        )}
       </div>
     </Card>
   );
