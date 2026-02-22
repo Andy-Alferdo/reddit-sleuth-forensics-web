@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import Header from "./components/Header";
 import { AppSidebar } from "./components/AppSidebar";
 import { InvestigationProvider } from "./contexts/InvestigationContext";
+import { MonitoringProvider } from "./contexts/MonitoringContext";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
@@ -82,6 +83,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <InvestigationProvider>
+        <MonitoringProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -134,6 +136,7 @@ const App = () => {
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
+        </MonitoringProvider>
       </InvestigationProvider>
     </QueryClientProvider>
   );
