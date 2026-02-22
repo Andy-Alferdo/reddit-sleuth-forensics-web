@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Users, StopCircle, Eye, X } from 'lucide-react';
+import { User, Users, StopCircle, Eye, X, Play } from 'lucide-react';
 
 interface MonitoringTargetCardProps {
   id: string;
@@ -14,6 +14,7 @@ interface MonitoringTargetCardProps {
   totalActivities: number;
   onSelect: (id: string) => void;
   onStop: (id: string) => void;
+  onRestart: (id: string) => void;
   onRemove: (id: string) => void;
 }
 
@@ -28,6 +29,7 @@ export const MonitoringTargetCard = ({
   totalActivities,
   onSelect,
   onStop,
+  onRestart,
   onRemove,
 }: MonitoringTargetCardProps) => {
   return (
@@ -107,18 +109,33 @@ export const MonitoringTargetCard = ({
             Stop
           </Button>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="flex-1 rounded-none text-xs h-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(id);
-            }}
-          >
-            <X className="h-3 w-3 mr-1" />
-            Dismiss
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1 rounded-none text-xs h-9 text-primary hover:text-primary hover:bg-primary/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRestart(id);
+              }}
+            >
+              <Play className="h-3 w-3 mr-1" />
+              Start
+            </Button>
+            <div className="w-px bg-border" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1 rounded-none text-xs h-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(id);
+              }}
+            >
+              <X className="h-3 w-3 mr-1" />
+              Dismiss
+            </Button>
+          </>
         )}
       </div>
     </Card>
