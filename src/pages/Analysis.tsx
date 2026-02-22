@@ -32,6 +32,7 @@ const Analysis = () => {
   const [linkData, setLinkData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('keyword');
+  const [visibleCommunities, setVisibleCommunities] = useState(5);
   const { toast } = useToast();
   const { addKeywordAnalysis, addCommunityAnalysis, addLinkAnalysis, saveKeywordAnalysisToDb, saveCommunityAnalysisToDb, saveLinkAnalysisToDb, currentCase } = useInvestigation();
 
@@ -428,6 +429,7 @@ const Analysis = () => {
     
     setIsLoading(true);
     setLinkData(null);
+    setVisibleCommunities(5);
 
     try {
       const cleanUsername = username.replace(/^u\//, '');
@@ -1057,7 +1059,7 @@ const Analysis = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {linkData.userToCommunities.map((item: any, index: number) => (
+                    {linkData.userToCommunities.slice(0, visibleCommunities).map((item: any, index: number) => (
                       <div key={index} className="p-3 rounded-lg border border-border">
                         <div className="flex justify-between items-center mb-2">
                           <div>
@@ -1080,6 +1082,17 @@ const Analysis = () => {
                       </div>
                     ))}
                   </div>
+                  {visibleCommunities < (linkData.userToCommunities || []).length && (
+                    <div className="mt-4 text-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setVisibleCommunities(prev => prev + 10)}
+                      >
+                        See More ({(linkData.userToCommunities || []).length - visibleCommunities} remaining)
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
