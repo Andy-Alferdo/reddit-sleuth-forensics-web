@@ -72,7 +72,7 @@ const buildActivities = (posts: any[], comments: any[]): RedditActivity[] => {
       id: post.id || Math.random().toString(),
       type: 'post',
       title: post.title,
-      body: post.selftext || '',
+      body: post.selftext || post.body || post.content || '',
       subreddit: `r/${post.subreddit}`,
       timestamp: formatActivityTime(post.created_utc),
       created_utc: post.created_utc,
