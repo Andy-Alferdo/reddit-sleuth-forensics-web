@@ -93,6 +93,17 @@ const NewCase = () => {
           },
         });
 
+        // Store the newly created case in localStorage so Dashboard loads it
+        const selectedCase = {
+          id: newCase.id,
+          name: caseNumber,
+          description: formData.caseName,
+          status: 'active',
+          date: new Date().toLocaleDateString()
+        };
+        localStorage.setItem('selectedCase', JSON.stringify(selectedCase));
+        window.dispatchEvent(new Event('storage'));
+
         toast({
           title: "Case Created Successfully",
           description: `Case ${caseNumber} has been created and is ready for investigation.`,
@@ -118,11 +129,11 @@ const NewCase = () => {
       <div className="flex items-center space-x-4 mb-6">
         <Button 
           variant="ghost" 
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/')}
           className="flex items-center space-x-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Back to Dashboard</span>
+          <span>Back to Home</span>
         </Button>
       </div>
 
@@ -217,7 +228,7 @@ const NewCase = () => {
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/')}
                 disabled={isSubmitting}
               >
                 Cancel
