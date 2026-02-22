@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { Network, Share2, Users } from "lucide-react";
+import { Network, Share2, Users, Loader2 } from "lucide-react";
 import { AnalyticsChart } from "@/components/AnalyticsChart";
 import { UserCommunityNetworkGraph } from "@/components/UserCommunityNetworkGraph";
 
@@ -165,7 +165,14 @@ const LinkAnalysis = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 relative">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+          <p className="text-lg font-medium text-foreground">Analyzing links...</p>
+          <p className="text-sm text-muted-foreground mt-1">This may take a moment</p>
+        </div>
+      )}
       <header className="text-center">
         <h1 className="text-2xl font-bold text-primary mb-2">Link Analysis</h1>
         <p className="text-muted-foreground">Community connections and crossover from Reddit activity</p>

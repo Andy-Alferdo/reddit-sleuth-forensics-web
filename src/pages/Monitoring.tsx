@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectLabel, SelectGroup, SelectSeparator } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, TrendingUp, ExternalLink, StopCircle } from 'lucide-react';
+import { Search, User, MessageSquare, Calendar, X, FileText, Activity, Users, TrendingUp, ExternalLink, StopCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
@@ -655,7 +655,14 @@ const Monitoring = () => {
   }, [searchType]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+          <p className="text-lg font-medium text-foreground">Loading monitoring data...</p>
+          <p className="text-sm text-muted-foreground mt-1">This may take a moment</p>
+        </div>
+      )}
       <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="text-center">
