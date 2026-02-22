@@ -38,7 +38,10 @@ const Dashboard = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [selectedCase, setSelectedCase] = useState<any>(null);
+  const [selectedCase, setSelectedCase] = useState<any>(() => {
+    const stored = localStorage.getItem('selectedCase');
+    return stored ? JSON.parse(stored) : null;
+  });
   
   // Dialog state for viewing past results
   const [dialogOpen, setDialogOpen] = useState(false);
