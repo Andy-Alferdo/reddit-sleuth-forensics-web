@@ -26,6 +26,19 @@ const UserProfiling = () => {
   const { toast } = useToast();
   const { addUserProfile, saveUserProfileToDb, currentCase } = useInvestigation();
 
+  // Prefill username from navigation state (e.g., from Analysis page)
+  useEffect(() => {
+    const prefillUsername = (location.state as any)?.prefillUsername as string | undefined;
+    if (prefillUsername) {
+      setUsername(prefillUsername);
+      // Auto-trigger analysis
+      setTimeout(() => {
+        const searchBtn = document.querySelector<HTMLButtonElement>('[data-profiling-search]');
+        searchBtn?.click();
+      }, 100);
+    }
+  }, [location.state]);
+
   // Load saved profile when navigating from Dashboard
   useEffect(() => {
     const loadProfileId = (location.state as any)?.loadProfileId as string | undefined;
@@ -350,6 +363,7 @@ const UserProfiling = () => {
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
                 onClick={handleAnalyzeUser}
                 disabled={isLoading || !username.trim()}
+                data-profiling-search
               >
                 <Search className="h-4 w-4" />
               </Button>
