@@ -19,6 +19,7 @@ const Monitoring = () => {
     isSearching,
     handleSearch,
     handleStopTarget,
+    handleRestartTarget,
     handleRemoveTarget,
     loadSavedSession,
   } = useMonitoring();
@@ -165,6 +166,7 @@ const Monitoring = () => {
                     totalActivities={target.activities.length}
                     onSelect={setSelectedTargetId}
                     onStop={handleStopTarget}
+                    onRestart={handleRestartTarget}
                     onRemove={handleRemoveTarget}
                   />
                 ))}

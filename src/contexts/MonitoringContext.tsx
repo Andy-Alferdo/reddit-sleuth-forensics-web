@@ -118,6 +118,7 @@ interface MonitoringContextType {
   isSearching: boolean;
   handleSearch: (query: string, type: 'user' | 'community') => Promise<void>;
   handleStopTarget: (targetId: string) => Promise<void>;
+  handleRestartTarget: (targetId: string) => void;
   handleRemoveTarget: (targetId: string) => void;
   loadSavedSession: (sessionId: string) => Promise<void>;
 }
@@ -354,6 +355,30 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
     [targets, addMonitoringSession, saveMonitoringSessionToDb, currentCase, updateTarget, toast]
   );
 
+  // ── Restart stopped target ─────────────────────────────────────────────
+  const handleRestartTarget = useCallback(
+    (targetId: string) => {
+      const target = targets.find((t) => t.id === targetId);
+      if (!target || target.isMonitoring) return;
+
+      const activeCount = targets.filter((t) => t.isMonitoring).length;
+      if (activeCount >= MAX_TARGETS) {
+        toast({
+          title: 'Maximum Active Targets Reached',
+          description: `Stop one to restart another.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      updateTarget(targetId, { isMonitoring: true, isFetching: false, newActivityCount: 0 });
+      const cleanQuery = target.type === 'user' ? target.name.replace(/^u\//, '') : target.name.replace(/^r\//, '');
+      startInterval(targetId, cleanQuery, target.type);
+      toast({ title: 'Monitoring Restarted', description: `${target.name} is live again.` });
+    },
+    [targets, toast, updateTarget, startInterval]
+  );
+
   // ── Remove (dismiss) ─────────────────────────────────────────────────────
   const handleRemoveTarget = useCallback(
     (targetId: string) => {
@@ -423,6 +448,7 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
         isSearching,
         handleSearch,
         handleStopTarget,
+        handleRestartTarget,
         handleRemoveTarget,
         loadSavedSession,
       }}
