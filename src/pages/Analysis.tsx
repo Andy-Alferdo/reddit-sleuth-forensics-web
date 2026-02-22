@@ -486,62 +486,28 @@ const Analysis = () => {
         }))
         .sort((a, b) => b.totalActivity - a.totalActivity);
 
-      // Build community crossover from actual Reddit related communities data
-      const communityCrossover: { from: string; to: string; strength: number; relationType: string }[] = [];
-      const communityRelations = redditData.communityRelations || [];
-      
-      // Use real community relations from Reddit API (sidebar related subreddits)
-      communityRelations.forEach((relation: { subreddit: string; relatedTo: string[] }) => {
-        relation.relatedTo.forEach((relatedSub: string, index: number) => {
-          // Calculate strength based on position (higher position = stronger connection)
-          const strength = Math.max(20, 100 - (index * 15));
-          communityCrossover.push({
-            from: `r/${relation.subreddit}`,
-            to: `r/${relatedSub}`,
-            strength,
-            relationType: 'sidebar'
-          });
-        });
-      });
-
-      // If no sidebar relations found, calculate based on user's co-activity patterns
-      if (communityCrossover.length === 0) {
-        const topCommunities = sortedSubreddits.slice(0, 5);
-        for (let i = 0; i < Math.min(3, topCommunities.length); i++) {
-          for (let j = i + 1; j < Math.min(4, topCommunities.length); j++) {
-            const strength = Math.round(
-              ((topCommunities[i].totalActivity + topCommunities[j].totalActivity) / 
-              (allContent.length || 1)) * 100
-            );
-            communityCrossover.push({
-              from: topCommunities[i].community,
-              to: topCommunities[j].community,
-              strength: Math.min(100, strength),
-              relationType: 'user-activity'
-            });
-          }
-        }
-      }
-
       // Community distribution for chart
-      const communityDistribution = sortedSubreddits.slice(0, 6).map(s => ({
+      const communityDistribution = sortedSubreddits.slice(0, 10).map(s => ({
         name: s.community,
         value: s.totalActivity
       }));
 
+      // Calculate relative activity percentage
+      const maxAct = sortedSubreddits[0]?.totalActivity || 1;
+      sortedSubreddits.forEach(s => {
+        s.activity = Math.round((s.totalActivity / maxAct) * 100);
+      });
+
       const analysisResult = {
         primaryUser: cleanUsername,
         totalKarma: (redditData.user?.link_karma || 0) + (redditData.user?.comment_karma || 0),
-        userToCommunities: sortedSubreddits.slice(0, 5),
-        communityCrossover: communityCrossover.slice(0, 8),
+        userToCommunities: sortedSubreddits,
         communityDistribution,
-        communityRelations,
         networkMetrics: {
           totalCommunities: Object.keys(subredditActivity).length,
           avgActivityScore: allContent.length > 0 
             ? Math.round(allContent.reduce((sum, item) => sum + (item.score || 0), 0) / allContent.length)
             : 0,
-          crossCommunityLinks: communityCrossover.length,
           totalPosts: posts.length,
           totalComments: comments.length
         }
@@ -1063,8 +1029,8 @@ const Analysis = () => {
                     </div>
                     <div className="text-center p-4 rounded-lg bg-forensic-accent/10 border border-forensic-accent/30">
                       <Network className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
-                      <div className="font-bold text-forensic-accent">{linkData.networkMetrics.crossCommunityLinks}</div>
-                      <p className="text-sm text-muted-foreground">Cross-Links</p>
+                      <div className="font-bold text-forensic-accent">{linkData.networkMetrics.avgActivityScore ?? 0}</div>
+                      <p className="text-sm text-muted-foreground">Avg Score</p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-card border border-border">
                       <div className="font-bold text-foreground">{linkData.networkMetrics.totalPosts}</div>
@@ -1082,84 +1048,40 @@ const Analysis = () => {
                 </CardContent>
               </Card>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* User to Communities */}
-                <Card className="border-primary/20 shadow-glow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Share2 className="h-5 w-5 text-primary" />
-                      <span>Community Connections</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {linkData.userToCommunities.map((item: any, index: number) => (
-                        <div key={index} className="p-3 rounded-lg border border-border">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-medium">{item.community}</span>
-                            <Badge variant="secondary">{item.totalActivity} activities</Badge>
+              <Card className="border-primary/20 shadow-glow">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Share2 className="h-5 w-5 text-primary" />
+                    <span>Community Activity ({(linkData.userToCommunities || []).length} communities)</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {linkData.userToCommunities.map((item: any, index: number) => (
+                      <div key={index} className="p-3 rounded-lg border border-border">
+                        <div className="flex justify-between items-center mb-2">
+                          <div>
+                            <p className="font-medium">{item.community}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {item.posts} posts • {item.comments} comments
+                            </p>
                           </div>
-                          <div className="flex gap-2 text-xs text-muted-foreground">
-                            <span>{item.posts} posts</span>
-                            <span>•</span>
-                            <span>{item.comments} comments</span>
-                            <span>•</span>
-                            <span>▲ {item.engagement}</span>
-                          </div>
-                          <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-primary rounded-full transition-all"
-                              style={{ width: `${item.activity}%` }}
-                            />
+                          <div className="text-right">
+                            <p className="font-bold text-primary">{item.totalActivity}</p>
+                            <p className="text-xs text-muted-foreground">Activity</p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Community Crossover */}
-                <Card className="border-primary/20 shadow-glow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Network className="h-5 w-5 text-primary" />
-                      <span>Community Crossover</span>
-                    </CardTitle>
-                    <CardDescription>Communities connected to other communities (from subreddit sidebars)</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {linkData.communityCrossover.length > 0 ? (
-                        linkData.communityCrossover.map((item: any, index: number) => (
-                          <div key={index} className="p-3 rounded-lg border border-border">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="bg-primary/10">{item.from}</Badge>
-                                <span className="text-muted-foreground">→</span>
-                                <Badge variant="outline" className="bg-forensic-accent/10">{item.to}</Badge>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">
-                                  {item.relationType === 'sidebar' ? 'Related' : 'Co-activity'}
-                                </span>
-                                <span className="text-sm font-medium">{item.strength}%</span>
-                              </div>
-                            </div>
-                            <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-forensic-accent rounded-full transition-all"
-                                style={{ width: `${item.strength}%` }}
-                              />
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-muted-foreground text-center py-4">No related communities found in subreddit sidebars</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                        <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary rounded-full transition-all"
+                            style={{ width: `${item.activity}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Community Distribution Pie Chart */}
               {linkData.communityDistribution && linkData.communityDistribution.length > 0 && (
@@ -1175,132 +1097,19 @@ const Analysis = () => {
               <UserCommunityNetworkGraph
                 title="User to Community Network Graph"
                 primaryUserId="user1"
-                nodes={(() => {
-                  // Build nodes: user + their communities + interests (from crossover destinations)
-                  const userNode = { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' as const };
-                  
-                  const communityNodes = linkData.userToCommunities.slice(0, 6).map((item: any, index: number) => ({
+                nodes={[
+                  { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' as const },
+                  ...(linkData.userToCommunities || []).slice(0, 10).map((item: any, index: number) => ({
                     id: `community-${index}`,
                     label: item.community,
-                    type: 'community' as const
-                  }));
-                  
-                  // Build interests from both communityRelations and communityCrossover
-                  const userCommunityNames = linkData.userToCommunities.map((c: any) => c.community);
-                  const interestSet = new Set<string>();
-                  
-                  // Use communityRelations if available (live data from Reddit sidebar)
-                  if (linkData.communityRelations && linkData.communityRelations.length > 0) {
-                    linkData.communityRelations.forEach((rel: { subreddit: string; relatedTo: string[] }) => {
-                      (rel.relatedTo || []).forEach((related: string) => {
-                        const formattedRelated = related.startsWith('r/') ? related : `r/${related}`;
-                        if (!userCommunityNames.includes(formattedRelated) && !userCommunityNames.includes(related)) {
-                          interestSet.add(formattedRelated);
-                        }
-                      });
-                    });
-                  }
-                  
-                  // Also use communityCrossover destinations as interests
-                  linkData.communityCrossover.forEach((item: any) => {
-                    const toFormatted = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
-                    if (!userCommunityNames.includes(toFormatted) && !userCommunityNames.includes(item.to)) {
-                      interestSet.add(toFormatted);
-                    }
-                  });
-                  
-                  const interestNodes = Array.from(interestSet).slice(0, 8).map((name: string, index: number) => ({
-                    id: `interest-${index}`,
-                    label: name,
-                    type: 'interest' as const
-                  }));
-                  
-                  return [userNode, ...communityNodes, ...interestNodes];
-                })()}
-                links={(() => {
-                  // User to their communities
-                  const userLinks = linkData.userToCommunities.slice(0, 6).map((item: any, index: number) => ({
-                    source: 'user1',
-                    target: `community-${index}`,
-                    weight: Math.min(4, Math.ceil(item.totalActivity / 10))
-                  }));
-                  
-                  // Build the interest list the same way as nodes
-                  const userCommunityNames = linkData.userToCommunities.map((c: any) => c.community);
-                  const interestSet = new Set<string>();
-                  
-                  if (linkData.communityRelations && linkData.communityRelations.length > 0) {
-                    linkData.communityRelations.forEach((rel: { subreddit: string; relatedTo: string[] }) => {
-                      (rel.relatedTo || []).forEach((related: string) => {
-                        const formattedRelated = related.startsWith('r/') ? related : `r/${related}`;
-                        if (!userCommunityNames.includes(formattedRelated) && !userCommunityNames.includes(related)) {
-                          interestSet.add(formattedRelated);
-                        }
-                      });
-                    });
-                  }
-                  
-                  linkData.communityCrossover.forEach((item: any) => {
-                    const toFormatted = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
-                    if (!userCommunityNames.includes(toFormatted) && !userCommunityNames.includes(item.to)) {
-                      interestSet.add(toFormatted);
-                    }
-                  });
-                  
-                  const interestList = Array.from(interestSet).slice(0, 8);
-                  
-                  // Community to interest links from communityRelations (live)
-                  const crossoverLinks: { source: string; target: string; weight: number }[] = [];
-                  
-                  if (linkData.communityRelations && linkData.communityRelations.length > 0) {
-                    linkData.communityRelations.forEach((rel: { subreddit: string; relatedTo: string[] }) => {
-                      const fromCommunity = rel.subreddit.startsWith('r/') ? rel.subreddit : `r/${rel.subreddit}`;
-                      const fromIdx = linkData.userToCommunities.findIndex((c: any) => c.community === fromCommunity);
-                      
-                      if (fromIdx !== -1) {
-                        (rel.relatedTo || []).forEach((related: string, relIdx: number) => {
-                          const formattedRelated = related.startsWith('r/') ? related : `r/${related}`;
-                          const toIdx = interestList.indexOf(formattedRelated);
-                          
-                          if (toIdx !== -1) {
-                            crossoverLinks.push({
-                              source: `community-${fromIdx}`,
-                              target: `interest-${toIdx}`,
-                              weight: Math.max(1, 3 - relIdx)
-                            });
-                          }
-                        });
-                      }
-                    });
-                  }
-                  
-                  // Community to interest links from communityCrossover
-                  linkData.communityCrossover.forEach((item: any) => {
-                    const fromCommunity = item.from.startsWith('r/') ? item.from : `r/${item.from}`;
-                    const toCommunity = item.to.startsWith('r/') ? item.to : `r/${item.to}`;
-                    
-                    const fromIdx = linkData.userToCommunities.findIndex((c: any) => 
-                      c.community === fromCommunity || c.community === item.from
-                    );
-                    const toIdx = interestList.indexOf(toCommunity);
-                    
-                    // Only add if this link doesn't already exist
-                    if (fromIdx !== -1 && toIdx !== -1) {
-                      const exists = crossoverLinks.some(l => 
-                        l.source === `community-${fromIdx}` && l.target === `interest-${toIdx}`
-                      );
-                      if (!exists) {
-                        crossoverLinks.push({
-                          source: `community-${fromIdx}`,
-                          target: `interest-${toIdx}`,
-                          weight: Math.ceil(item.strength / 30)
-                        });
-                      }
-                    }
-                  });
-                  
-                  return [...userLinks, ...crossoverLinks];
-                })()}
+                    type: 'community' as const,
+                  })),
+                ]}
+                links={(linkData.userToCommunities || []).slice(0, 10).map((item: any, index: number) => ({
+                  source: 'user1',
+                  target: `community-${index}`,
+                  weight: Math.min(4, Math.ceil((item.totalActivity || 1) / 10)),
+                }))}
               />
             </div>
           )}
