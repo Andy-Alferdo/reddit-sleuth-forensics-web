@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { User, Users, Calendar, TrendingUp, FileText, Activity, MessageSquare, ExternalLink, StopCircle, ArrowLeft } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
@@ -10,6 +12,7 @@ interface RedditActivity {
   id: string;
   type: 'post' | 'comment';
   title: string;
+  body?: string;
   subreddit: string;
   timestamp: string;
   created_utc: number;
@@ -65,6 +68,7 @@ export const MonitoringDetailView = ({
   onStop,
   onBack,
 }: MonitoringDetailViewProps) => {
+  const [previewActivity, setPreviewActivity] = useState<RedditActivity | null>(null);
 
   const getActivityBreakdownData = () => {
     if (profileData?.communityName) {
@@ -257,14 +261,15 @@ export const MonitoringDetailView = ({
                   <ScrollArea className="h-80">
                     <div className="space-y-2 pr-4">
                       {activities.filter(a => a.type === 'post').map(activity => (
-                        <a key={activity.id} href={activity.url} target="_blank" rel="noopener noreferrer"
-                          className="block p-3 rounded-lg border hover:bg-accent transition-colors">
-                          <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
+                        <div key={activity.id} onClick={() => setPreviewActivity(activity)}
+                          className="block p-3 rounded-lg border hover:bg-accent transition-colors cursor-pointer">
+                          <p className="text-sm font-medium line-clamp-2">{activity.title}</p>
+                          {activity.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{activity.body}</p>}
                           <div className="flex flex-col gap-1 mt-1">
                             <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
                             <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
                           </div>
-                        </a>
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
@@ -277,14 +282,15 @@ export const MonitoringDetailView = ({
                   <ScrollArea className="h-80">
                     <div className="space-y-2 pr-4">
                       {activities.filter(a => a.type === 'comment').map(activity => (
-                        <a key={activity.id} href={activity.url} target="_blank" rel="noopener noreferrer"
-                          className="block p-3 rounded-lg border hover:bg-accent transition-colors">
-                          <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
+                        <div key={activity.id} onClick={() => setPreviewActivity(activity)}
+                          className="block p-3 rounded-lg border hover:bg-accent transition-colors cursor-pointer">
+                          <p className="text-sm font-medium line-clamp-2">{activity.title}</p>
+                          {activity.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{activity.body}</p>}
                           <div className="flex flex-col gap-1 mt-1">
                             <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
                             <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
                           </div>
-                        </a>
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
@@ -335,14 +341,15 @@ export const MonitoringDetailView = ({
                   <ScrollArea className="h-80">
                     <div className="space-y-2 pr-4">
                       {activities.filter(a => a.type === 'post').map(activity => (
-                        <a key={activity.id} href={activity.url} target="_blank" rel="noopener noreferrer"
-                          className="block p-3 rounded-lg border hover:bg-accent transition-colors">
-                          <p className="text-sm font-medium line-clamp-1">{activity.title}</p>
+                        <div key={activity.id} onClick={() => setPreviewActivity(activity)}
+                          className="block p-3 rounded-lg border hover:bg-accent transition-colors cursor-pointer">
+                          <p className="text-sm font-medium line-clamp-2">{activity.title}</p>
+                          {activity.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{activity.body}</p>}
                           <div className="flex flex-col gap-1 mt-1">
                             <Badge variant="outline" className="text-xs w-fit">{activity.subreddit}</Badge>
                             <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
                           </div>
-                        </a>
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
@@ -406,6 +413,39 @@ export const MonitoringDetailView = ({
           </Card>
         </div>
       )}
+      {/* Preview Dialog */}
+      <Dialog open={!!previewActivity} onOpenChange={(open) => !open && setPreviewActivity(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-base leading-snug">
+              {previewActivity?.type === 'post' ? '📄 Post' : '💬 Comment'} Preview
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-2 pt-1">
+              <Badge variant="outline" className="text-xs">{previewActivity?.subreddit}</Badge>
+              <span className="text-xs">{previewActivity?.timestamp}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-1 max-h-[50vh]">
+            <div className="space-y-3 pr-4">
+              <h3 className="font-semibold text-sm">{previewActivity?.title}</h3>
+              {previewActivity?.body && (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{previewActivity.body}</p>
+              )}
+              {!previewActivity?.body && (
+                <p className="text-sm text-muted-foreground italic">No additional content available.</p>
+              )}
+            </div>
+          </ScrollArea>
+          <div className="pt-3 border-t">
+            <a href={previewActivity?.url} target="_blank" rel="noopener noreferrer" className="w-full">
+              <Button className="w-full gap-2">
+                <ExternalLink className="h-4 w-4" />
+                View on Reddit
+              </Button>
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
