@@ -455,7 +455,8 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
           .from('monitoring_sessions')
           .select('*')
           .eq('case_id', caseId)
-          .order('ended_at', { ascending: false });
+          .order('ended_at', { ascending: false })
+          .limit(MAX_TARGETS);
 
         if (error || !data || data.length === 0) return;
 
@@ -491,7 +492,10 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
           });
 
         if (newTargets.length > 0) {
-          setTargets(prev => [...prev, ...newTargets]);
+          setTargets(prev => {
+            const combined = [...prev, ...newTargets];
+            return combined.slice(0, MAX_TARGETS);
+          });
         }
       } catch (err) {
         console.error('Failed to auto-load monitoring sessions:', err);
