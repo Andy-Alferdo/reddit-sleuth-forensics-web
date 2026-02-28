@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X, Loader2, ExternalLink, Eye, UserPlus, MoreVertical } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
@@ -42,6 +44,7 @@ const Analysis = () => {
   const [savedKeyword, setSavedKeyword] = useState<any[]>([]);
   const [savedCommunity, setSavedCommunity] = useState<any[]>([]);
   const [savedLink, setSavedLink] = useState<any[]>([]);
+  const [previewPost, setPreviewPost] = useState<any>(null);
 
   const fetchSavedAnalyses = useCallback(async () => {
     if (!currentCase?.id) { setSavedKeyword([]); setSavedCommunity([]); setSavedLink([]); return; }
@@ -722,10 +725,19 @@ const Analysis = () => {
                     <div className="space-y-3">
                       {keywordData.topSubreddits.length > 0 ? (
                         keywordData.topSubreddits.map((sub: any, index: number) => (
-                          <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border border-border">
-                            <span className="font-medium">{sub.name}</span>
+                          <a
+                            key={index}
+                            href={`https://www.reddit.com/${sub.name}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex justify-between items-center p-3 rounded-lg bg-card border border-border hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+                          >
+                            <span className="font-medium group-hover:text-primary transition-colors flex items-center gap-1.5">
+                              {sub.name}
+                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </span>
                             <Badge variant="secondary">{sub.mentions} mentions</Badge>
-                          </div>
+                          </a>
                         ))
                       ) : (
                         <p className="text-muted-foreground text-center py-4">No subreddit data available</p>
@@ -746,8 +758,24 @@ const Analysis = () => {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {keywordData.recentPosts.map((post: any, index: number) => (
-                      <div key={index} className="border border-border/50 rounded-lg p-3 space-y-2">
-                        <h4 className="font-medium text-sm leading-tight">{post.title}</h4>
+                      <div
+                        key={index}
+                        className="border border-border/50 rounded-lg p-3 space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+                        onClick={() => setPreviewPost({
+                          title: post.title,
+                          body: post.selftext || post.body || post.content || '',
+                          subreddit: `r/${post.subreddit}`,
+                          author: post.author,
+                          timestamp: formatActivityTime(post.created_utc),
+                          score: post.score,
+                          url: post.permalink ? `https://www.reddit.com${post.permalink}` : `https://www.reddit.com/r/${post.subreddit}`,
+                          type: 'post',
+                        })}
+                      >
+                        <h4 className="font-medium text-sm leading-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
+                          {post.title}
+                          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                        </h4>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           <span>{formatActivityTime(post.created_utc)}</span>
@@ -1310,6 +1338,43 @@ const Analysis = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Post Preview Dialog - like Monitoring */}
+      <Dialog open={!!previewPost} onOpenChange={(open) => !open && setPreviewPost(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-base leading-snug">
+              📄 Post Preview
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-2 pt-1">
+              <Badge variant="outline" className="text-xs">{previewPost?.subreddit}</Badge>
+              <span className="text-xs">{previewPost?.timestamp}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-1 max-h-[50vh]">
+            <div className="space-y-3 pr-4">
+              <h3 className="font-semibold text-sm">{previewPost?.title}</h3>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>by u/{previewPost?.author}</span>
+                <Badge variant="secondary" className="text-xs">▲ {previewPost?.score}</Badge>
+              </div>
+              {previewPost?.body ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{previewPost.body}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No additional content available.</p>
+              )}
+            </div>
+          </ScrollArea>
+          <div className="pt-3 border-t">
+            <a href={previewPost?.url} target="_blank" rel="noopener noreferrer" className="w-full">
+              <Button className="w-full gap-2">
+                <ExternalLink className="h-4 w-4" />
+                View on Reddit
+              </Button>
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
