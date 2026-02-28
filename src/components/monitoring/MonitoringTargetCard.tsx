@@ -57,8 +57,9 @@ export const MonitoringTargetCard = ({
         {/* Top row: prefix + name + karma */}
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-white/70 text-xs font-medium">{prefix}</span>
-            <span className="text-white font-bold text-sm truncate">{name}</span>
+            <span className="text-white font-bold text-sm truncate">
+              {name.startsWith('u/') || name.startsWith('r/') ? name : `${prefix}${name}`}
+            </span>
           </div>
           {type === 'user' && karma !== undefined && (
             <span className="flex items-center gap-1 text-white/90 text-[11px] font-semibold bg-white/20 rounded-full px-2 py-0.5 backdrop-blur-sm shrink-0">
