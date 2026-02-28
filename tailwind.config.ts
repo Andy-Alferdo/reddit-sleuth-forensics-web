@@ -99,17 +99,22 @@ export default {
 					'50%': { opacity: '0.6' },
 					'100%': { transform: 'translate(calc(100vw + 100px), -100px) rotate(360deg)', opacity: '0.3' }
 				},
-				'glow-pulse': {
-					'0%, 100%': { boxShadow: '0 0 20px hsl(197 100% 50% / 0.3)' },
-					'50%': { boxShadow: '0 0 40px hsl(197 100% 50% / 0.6)' }
-				}
+			'glow-pulse': {
+				'0%, 100%': { boxShadow: '0 0 20px hsl(197 100% 50% / 0.3)' },
+				'50%': { boxShadow: '0 0 40px hsl(197 100% 50% / 0.6)' }
 			},
-			animation: {
-				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out',
-				'float-diagonal': 'float-diagonal 15s linear infinite',
-				'glow-pulse': 'glow-pulse 2s ease-in-out infinite'
+			'fade-in-up': {
+				'0%': { opacity: '0', transform: 'translateY(20px)' },
+				'100%': { opacity: '1', transform: 'translateY(0)' }
 			}
+		},
+		animation: {
+			'accordion-down': 'accordion-down 0.2s ease-out',
+			'accordion-up': 'accordion-up 0.2s ease-out',
+			'float-diagonal': 'float-diagonal 15s linear infinite',
+			'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
+			'fade-in-up': 'fade-in-up 0.6s ease-out both'
+		}
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
