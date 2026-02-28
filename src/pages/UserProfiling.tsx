@@ -87,7 +87,20 @@ const UserProfiling = () => {
     }
   };
 
-  // Prefill username from navigation state (e.g., from Analysis page)
+  const deleteSavedProfile = async (profileId: string) => {
+    try {
+      const { error: err } = await supabase
+        .from('user_profiles_analyzed')
+        .delete()
+        .eq('id', profileId);
+      if (err) throw err;
+      setSavedProfiles(prev => prev.filter(p => p.id !== profileId));
+      toast({ title: 'Profile removed', description: 'Saved profile has been deleted' });
+    } catch (e: any) {
+      toast({ title: 'Delete failed', description: e?.message || 'Could not delete profile', variant: 'destructive' });
+    }
+  };
+
   useEffect(() => {
     const prefillUsername = (location.state as any)?.prefillUsername as string | undefined;
     if (prefillUsername) {
@@ -771,6 +784,7 @@ const UserProfiling = () => {
                     analyzedAt={p.analyzed_at}
                     icon={User}
                     onClick={() => loadSavedProfile(p.id)}
+                    onDelete={() => deleteSavedProfile(p.id)}
                   />
                 ))}
               </div>

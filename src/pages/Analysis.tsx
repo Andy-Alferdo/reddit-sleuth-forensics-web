@@ -94,6 +94,23 @@ const Analysis = () => {
     }
   };
 
+  const deleteSavedAnalysis = async (id: string, type: string) => {
+    try {
+      const { error: err } = await supabase
+        .from('analysis_results')
+        .delete()
+        .eq('id', id);
+      if (err) throw err;
+      if (type === 'keyword') setSavedKeyword(prev => prev.filter(i => i.id !== id));
+      else if (type === 'community') setSavedCommunity(prev => prev.filter(i => i.id !== id));
+      else if (type === 'link') setSavedLink(prev => prev.filter(i => i.id !== id));
+      toast({ title: 'Analysis removed', description: 'Saved analysis has been deleted' });
+    } catch (e: any) {
+      toast({ title: 'Delete failed', description: e?.message || 'Could not delete analysis', variant: 'destructive' });
+    }
+  };
+
+  // Load saved analysis when navigating from Dashboard
   useEffect(() => {
     const loadAnalysisId = (location.state as any)?.loadAnalysisId as string | undefined;
     const analysisType = (location.state as any)?.analysisType as string | undefined;
@@ -817,6 +834,7 @@ const Analysis = () => {
                         analyzedAt={item.analyzed_at}
                         icon={BarChart3}
                         onClick={() => loadSavedAnalysis(item)}
+                        onDelete={() => deleteSavedAnalysis(item.id, 'keyword')}
                       />
                     ))}
                   </div>
@@ -1089,6 +1107,7 @@ const Analysis = () => {
                         analyzedAt={item.analyzed_at}
                         icon={Users}
                         onClick={() => loadSavedAnalysis(item)}
+                        onDelete={() => deleteSavedAnalysis(item.id, 'community')}
                       />
                     ))}
                   </div>
@@ -1275,6 +1294,7 @@ const Analysis = () => {
                         analyzedAt={item.analyzed_at}
                         icon={Network}
                         onClick={() => loadSavedAnalysis(item)}
+                        onDelete={() => deleteSavedAnalysis(item.id, 'link')}
                       />
                     ))}
                   </div>
