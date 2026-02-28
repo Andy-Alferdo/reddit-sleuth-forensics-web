@@ -265,6 +265,7 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
             accountAge: `${years} years, ${months} months`,
             totalKarma: user.link_karma + user.comment_karma,
             activeSubreddits: subreddits.size,
+            iconImg: user.icon_img || user.snoovatar_img || '',
           };
         } else {
           const sub = redditData.subreddit;
