@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, Tre
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { UserCommunityNetworkGraph } from '@/components/UserCommunityNetworkGraph';
+import { SavedAnalysisCard } from '@/components/SavedAnalysisCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatActivityTime } from '@/lib/dateUtils';
@@ -38,7 +39,61 @@ const Analysis = () => {
   const { toast } = useToast();
   const { addKeywordAnalysis, addCommunityAnalysis, addLinkAnalysis, saveKeywordAnalysisToDb, saveCommunityAnalysisToDb, saveLinkAnalysisToDb, currentCase } = useInvestigation();
 
-  // Load saved analysis when navigating from Dashboard
+  const [savedKeyword, setSavedKeyword] = useState<any[]>([]);
+  const [savedCommunity, setSavedCommunity] = useState<any[]>([]);
+  const [savedLink, setSavedLink] = useState<any[]>([]);
+
+  const fetchSavedAnalyses = useCallback(async () => {
+    if (!currentCase?.id) { setSavedKeyword([]); setSavedCommunity([]); setSavedLink([]); return; }
+    try {
+      const { data } = await supabase
+        .from('analysis_results')
+        .select('id, analysis_type, target, result_data, analyzed_at')
+        .eq('case_id', currentCase.id)
+        .order('analyzed_at', { ascending: false });
+      if (data) {
+        setSavedKeyword(data.filter(d => d.analysis_type === 'keyword'));
+        setSavedCommunity(data.filter(d => d.analysis_type === 'community'));
+        setSavedLink(data.filter(d => d.analysis_type === 'link'));
+      }
+    } catch { /* ignore */ }
+  }, [currentCase?.id]);
+
+  useEffect(() => { fetchSavedAnalyses(); }, [fetchSavedAnalyses]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.caseId === currentCase?.id && ['keywordAnalyses', 'communityAnalyses', 'linkAnalyses'].includes(detail?.kind)) {
+        fetchSavedAnalyses();
+      }
+    };
+    window.addEventListener('case-data-updated', handler);
+    return () => window.removeEventListener('case-data-updated', handler);
+  }, [currentCase?.id, fetchSavedAnalyses]);
+
+  const loadSavedAnalysis = async (item: any) => {
+    setIsLoading(true);
+    try {
+      const rd = item.result_data as any;
+      if (item.analysis_type === 'keyword') {
+        setActiveTab('keyword');
+        setKeyword(item.target);
+        setKeywordData(rd);
+      } else if (item.analysis_type === 'community') {
+        setActiveTab('community');
+        setSubreddit(item.target);
+        setCommunityData(rd);
+      } else if (item.analysis_type === 'link') {
+        setActiveTab('link');
+        setUsername(item.target);
+        setLinkData(rd);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const loadAnalysisId = (location.state as any)?.loadAnalysisId as string | undefined;
     const analysisType = (location.state as any)?.analysisType as string | undefined;
@@ -749,12 +804,31 @@ const Analysis = () => {
           )}
 
           {!keywordData && !isLoading && (
-            <Card className="border-dashed border-muted-foreground/30">
-              <CardContent className="py-12 text-center">
-                <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Enter a keyword to perform detailed analysis</p>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              {savedKeyword.length > 0 && (
+                <>
+                  <h3 className="text-sm font-medium text-muted-foreground">Previously Analyzed Keywords</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {savedKeyword.map((item) => (
+                      <SavedAnalysisCard
+                        key={item.id}
+                        title={item.target}
+                        subtitle={`${((item.result_data as any)?.totalMentions ?? 0).toLocaleString()} mentions`}
+                        analyzedAt={item.analyzed_at}
+                        icon={BarChart3}
+                        onClick={() => loadSavedAnalysis(item)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+              <Card className="border-dashed border-muted-foreground/30">
+                <CardContent className="py-12 text-center">
+                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Enter a keyword to perform detailed analysis</p>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </TabsContent>
 
@@ -1002,12 +1076,31 @@ const Analysis = () => {
           )}
 
           {!communityData && !isLoading && (
-            <Card className="border-dashed border-muted-foreground/30">
-              <CardContent className="py-12 text-center">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Enter a subreddit name above to begin community analysis</p>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              {savedCommunity.length > 0 && (
+                <>
+                  <h3 className="text-sm font-medium text-muted-foreground">Previously Analyzed Communities</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {savedCommunity.map((item) => (
+                      <SavedAnalysisCard
+                        key={item.id}
+                        title={`r/${item.target}`}
+                        subtitle={`${((item.result_data as any)?.subscribers ?? 0).toLocaleString()} subscribers`}
+                        analyzedAt={item.analyzed_at}
+                        icon={Users}
+                        onClick={() => loadSavedAnalysis(item)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+              <Card className="border-dashed border-muted-foreground/30">
+                <CardContent className="py-12 text-center">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Enter a subreddit name above to begin community analysis</p>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </TabsContent>
 
@@ -1169,12 +1262,31 @@ const Analysis = () => {
           )}
 
           {!linkData && !isLoading && (
-            <Card className="border-dashed border-muted-foreground/30">
-              <CardContent className="py-12 text-center">
-                <Network className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Enter a username to analyze their community connections</p>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              {savedLink.length > 0 && (
+                <>
+                  <h3 className="text-sm font-medium text-muted-foreground">Previously Analyzed Links</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {savedLink.map((item) => (
+                      <SavedAnalysisCard
+                        key={item.id}
+                        title={`u/${item.target}`}
+                        subtitle={`${((item.result_data as any)?.totalKarma ?? 0).toLocaleString()} karma`}
+                        analyzedAt={item.analyzed_at}
+                        icon={Network}
+                        onClick={() => loadSavedAnalysis(item)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+              <Card className="border-dashed border-muted-foreground/30">
+                <CardContent className="py-12 text-center">
+                  <Network className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Enter a username to analyze their community connections</p>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </TabsContent>
       </Tabs>

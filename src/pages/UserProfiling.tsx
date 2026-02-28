@@ -7,11 +7,13 @@ import { Label } from '@/components/ui/label';
 import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle, Search, X, Loader2, ExternalLink, ChevronDown } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
+import { SavedAnalysisCard } from '@/components/SavedAnalysisCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toZonedTime } from 'date-fns-tz';
 import { useInvestigation } from '@/contexts/InvestigationContext';
+import { useCallback } from 'react';
 
 const INITIAL_VISIBLE = 10;
 
@@ -25,6 +27,65 @@ const UserProfiling = () => {
   const [visibleComments, setVisibleComments] = useState(INITIAL_VISIBLE);
   const { toast } = useToast();
   const { addUserProfile, saveUserProfileToDb, currentCase } = useInvestigation();
+  const [savedProfiles, setSavedProfiles] = useState<any[]>([]);
+
+  // Fetch saved profiles for current case
+  const fetchSavedProfiles = useCallback(async () => {
+    if (!currentCase?.id) { setSavedProfiles([]); return; }
+    try {
+      const { data } = await supabase
+        .from('user_profiles_analyzed')
+        .select('id, username, total_karma, account_age, analyzed_at')
+        .eq('case_id', currentCase.id)
+        .order('analyzed_at', { ascending: false });
+      setSavedProfiles(data || []);
+    } catch { /* ignore */ }
+  }, [currentCase?.id]);
+
+  useEffect(() => { fetchSavedProfiles(); }, [fetchSavedProfiles]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.caseId === currentCase?.id && detail?.kind === 'userProfiles') fetchSavedProfiles();
+    };
+    window.addEventListener('case-data-updated', handler);
+    return () => window.removeEventListener('case-data-updated', handler);
+  }, [currentCase?.id, fetchSavedProfiles]);
+
+  const loadSavedProfile = async (profileId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data, error: err } = await supabase
+        .from('user_profiles_analyzed')
+        .select('*')
+        .eq('id', profileId)
+        .maybeSingle();
+      if (err) throw err;
+      if (!data) throw new Error('Profile not found');
+      setUsername(data.username || '');
+      setProfileData({
+        username: data.username,
+        accountAge: data.account_age,
+        totalKarma: data.total_karma,
+        postKarma: data.post_karma,
+        commentKarma: data.comment_karma,
+        activeSubreddits: data.active_subreddits || [],
+        activityPattern: data.activity_pattern || {},
+        sentimentAnalysis: data.sentiment_analysis || {},
+        postSentiments: data.post_sentiments || [],
+        commentSentiments: data.comment_sentiments || [],
+        locationIndicators: data.location_indicators || [],
+        behaviorPatterns: data.behavior_patterns || [],
+        wordCloud: data.word_cloud || [],
+      });
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load profile');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Prefill username from navigation state (e.g., from Analysis page)
   useEffect(() => {
@@ -697,13 +758,32 @@ const UserProfiling = () => {
       )}
 
       {!profileData && !isLoading && !error && (
-        <Card className="border-dashed border-muted-foreground/30">
-          <CardContent className="py-12 text-center">
-            <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Enter a username to perform detailed profile analysis</p>
-            <p className="text-xs text-muted-foreground mt-2">Real-time data fetched from Reddit API</p>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          {savedProfiles.length > 0 && (
+            <>
+              <h3 className="text-sm font-medium text-muted-foreground">Previously Analyzed Profiles</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {savedProfiles.map((p) => (
+                  <SavedAnalysisCard
+                    key={p.id}
+                    title={`u/${p.username}`}
+                    subtitle={`${(p.total_karma ?? 0).toLocaleString()} karma · ${p.account_age || 'Unknown age'}`}
+                    analyzedAt={p.analyzed_at}
+                    icon={User}
+                    onClick={() => loadSavedProfile(p.id)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+          <Card className="border-dashed border-muted-foreground/30">
+            <CardContent className="py-12 text-center">
+              <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Enter a username to perform detailed profile analysis</p>
+              <p className="text-xs text-muted-foreground mt-2">Real-time data fetched from Reddit API</p>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
