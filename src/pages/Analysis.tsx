@@ -459,6 +459,8 @@ const Analysis = () => {
           month: 'long', 
           day: 'numeric' 
         }),
+        iconImg: subredditInfo.icon_img || subredditInfo.community_icon?.split('?')[0] || '',
+        bannerImg: subredditInfo.banner_background_image?.split('?')[0] || subredditInfo.banner_img || '',
         wordCloud: wordCloudData,
         topAuthors,
         activityData,
@@ -928,26 +930,64 @@ const Analysis = () => {
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Community Information */}
-                <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-forensic-accent" />
-                      Community Information
-                    </CardTitle>
+                <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] overflow-hidden">
+                  {communityData.bannerImg && (
+                    <div className="relative h-24 w-full bg-muted">
+                      <img 
+                        src={communityData.bannerImg} 
+                        alt={`${communityData.name} banner`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                  )}
+                  <CardHeader className="relative">
+                    <div className={`flex items-start gap-4 ${communityData.bannerImg ? '' : ''}`}>
+                      {/* Community Avatar */}
+                      <div className={`shrink-0 ${communityData.bannerImg ? '-mt-10' : ''}`}>
+                        <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg overflow-hidden">
+                          {communityData.iconImg ? (
+                            <img 
+                              src={communityData.iconImg} 
+                              alt={`${communityData.name} icon`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).parentElement!.innerHTML = `<div class="w-full h-full bg-primary/20 flex items-center justify-center"><span class="text-primary font-bold text-xl">r/</span></div>`;
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                              <Users className="h-6 w-6 text-primary" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1 pt-1">
+                        <CardTitle className="flex items-center gap-2">
+                          <a
+                            href={`https://www.reddit.com/${communityData.name}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-primary transition-colors flex items-center gap-1.5 group"
+                          >
+                            {communityData.name}
+                            <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                          </a>
+                        </CardTitle>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <Badge variant="secondary">
+                            {communityData.subscribers.toLocaleString()} members
+                          </Badge>
+                          {communityData.activeUsers > 0 && (
+                            <Badge variant="outline">
+                              {communityData.activeUsers.toLocaleString()} online
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-lg">{communityData.name}</h3>
-                      <Badge variant="secondary" className="mt-1">
-                        {communityData.subscribers.toLocaleString()} members
-                      </Badge>
-                      {communityData.activeUsers > 0 && (
-                        <Badge variant="outline" className="ml-2 mt-1">
-                          {communityData.activeUsers.toLocaleString()} online
-                        </Badge>
-                      )}
-                    </div>
-                    
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
                       Created: {communityData.created}
