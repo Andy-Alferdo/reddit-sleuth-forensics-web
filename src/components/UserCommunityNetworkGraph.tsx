@@ -69,6 +69,10 @@ export const UserCommunityNetworkGraph = ({
   const isPanningRef = useRef(false);
   const panStartRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
 
+  // Tooltip / context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; node: SimulatedNode } | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<SimulatedNode | null>(null);
+
   // Convert screen coords to world coords
   const screenToWorld = useCallback((sx: number, sy: number) => {
     const t = transformRef.current;
@@ -118,6 +122,20 @@ export const UserCommunityNetworkGraph = ({
     transformRef.current = { x: 0, y: 0, scale: 1 };
   }, []);
 
+  const openNodeInReddit = useCallback((node: SimulatedNode) => {
+    const label = node.label;
+    if (node.type === 'community') {
+      window.open(`https://www.reddit.com/r/${label.replace(/^r\//, '')}`, '_blank');
+    } else if (node.type === 'user') {
+      window.open(`https://www.reddit.com/user/${label.replace(/^u\//, '')}`, '_blank');
+    }
+  }, []);
+
+  const unpinNode = useCallback((node: SimulatedNode) => {
+    node.fixed = false;
+    frameCountRef.current = 0;
+  }, []);
+
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
@@ -142,6 +160,8 @@ export const UserCommunityNetworkGraph = ({
     };
 
     const handleMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      setContextMenu(null); // close any open menu
       const screenPos = getCanvasCoords(e);
       const worldPos = screenToWorld(screenPos.x, screenPos.y);
       const node = getNodeAtPosition(worldPos.x, worldPos.y);
@@ -150,7 +170,7 @@ export const UserCommunityNetworkGraph = ({
         isDraggingNodeRef.current = false;
         dragNodeRef.current = node;
         mouseDownPosRef.current = screenPos;
-        frameCountRef.current = 0; // keep rendering
+        frameCountRef.current = 0; // keep simulation alive
       } else {
         // Start panning
         isPanningRef.current = true;
@@ -185,15 +205,16 @@ export const UserCommunityNetworkGraph = ({
         }
       }
 
-      // Cursor
+      // Track hovered node for tooltip
       const worldPos = screenToWorld(screenPos.x, screenPos.y);
       const hovered = getNodeAtPosition(worldPos.x, worldPos.y);
-      canvas.style.cursor = hovered ? 'grab' : (isPanningRef.current ? 'grabbing' : 'default');
+      setHoveredNode(hovered);
+      canvas.style.cursor = dragNodeRef.current && isDraggingNodeRef.current ? 'grabbing' : hovered ? 'grab' : (isPanningRef.current ? 'grabbing' : 'default');
     };
 
     const handleMouseUp = () => {
       if (dragNodeRef.current && isDraggingNodeRef.current) {
-        // Node stays where dropped (fixed = true persists)
+        // Node stays pinned where dropped
         dragNodeRef.current = null;
         frameCountRef.current = 150;
       }
@@ -204,21 +225,24 @@ export const UserCommunityNetworkGraph = ({
       panStartRef.current = null;
     };
 
-    const handleClick = (e: MouseEvent) => {
-      if (isDraggingNodeRef.current || isPanningRef.current) return;
+    // Double-click to open Reddit
+    const handleDblClick = (e: MouseEvent) => {
       const screenPos = getCanvasCoords(e);
       const worldPos = screenToWorld(screenPos.x, screenPos.y);
       const node = getNodeAtPosition(worldPos.x, worldPos.y);
       if (!node) return;
+      openNodeInReddit(node);
+    };
 
-      const label = node.label;
-      if (node.type === 'community') {
-        const sub = label.replace(/^r\//, '');
-        window.open(`https://www.reddit.com/r/${sub}`, '_blank');
-      } else if (node.type === 'user') {
-        const user = label.replace(/^u\//, '');
-        window.open(`https://www.reddit.com/user/${user}`, '_blank');
-      }
+    // Right-click context menu
+    const handleContextMenu = (e: MouseEvent) => {
+      const screenPos = getCanvasCoords(e);
+      const worldPos = screenToWorld(screenPos.x, screenPos.y);
+      const node = getNodeAtPosition(worldPos.x, worldPos.y);
+      if (!node) return;
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      setContextMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top, node });
     };
 
     canvas.addEventListener('wheel', handleWheel, { passive: false });
@@ -226,7 +250,8 @@ export const UserCommunityNetworkGraph = ({
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
     canvas.addEventListener('mouseleave', handleMouseUp);
-    canvas.addEventListener('click', handleClick);
+    canvas.addEventListener('dblclick', handleDblClick);
+    canvas.addEventListener('contextmenu', handleContextMenu);
 
     return () => {
       canvas.removeEventListener('wheel', handleWheel);
@@ -234,7 +259,8 @@ export const UserCommunityNetworkGraph = ({
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mouseup', handleMouseUp);
       canvas.removeEventListener('mouseleave', handleMouseUp);
-      canvas.removeEventListener('click', handleClick);
+      canvas.removeEventListener('dblclick', handleDblClick);
+      canvas.removeEventListener('contextmenu', handleContextMenu);
     };
   }, [getCanvasCoords, getNodeAtPosition, screenToWorld, handleZoom]);
 
@@ -504,16 +530,44 @@ export const UserCommunityNetworkGraph = ({
             </Button>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">Scroll to zoom • Drag background to pan • Drag nodes to reposition • Click nodes to open Reddit</p>
+        <p className="text-xs text-muted-foreground">Drag nodes freely • Scroll to zoom • Double-click or right-click to open Reddit</p>
       </CardHeader>
       <CardContent ref={containerRef} className="p-4">
-        <div className="rounded-xl overflow-hidden shadow-inner border border-border/50">
+        <div className="rounded-xl overflow-hidden shadow-inner border border-border/50 relative">
           <canvas
             ref={canvasRef}
             width={dimensions.width}
             height={dimensions.height}
             className="w-full"
           />
+          {/* Context menu */}
+          {contextMenu && (
+            <div
+              className="absolute z-50 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[160px]"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+            >
+              <button
+                className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                onClick={() => { openNodeInReddit(contextMenu.node); setContextMenu(null); }}
+              >
+                🔗 Open in Reddit
+              </button>
+              {contextMenu.node.fixed && (
+                <button
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                  onClick={() => { unpinNode(contextMenu.node); setContextMenu(null); }}
+                >
+                  📌 Unpin node
+                </button>
+              )}
+              <button
+                className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                onClick={() => setContextMenu(null)}
+              >
+                ✕ Close
+              </button>
+            </div>
+          )}
         </div>
         <div className="mt-4 flex flex-wrap gap-4 justify-center text-sm">
           <div className="flex items-center gap-2">
