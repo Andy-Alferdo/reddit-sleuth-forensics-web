@@ -113,10 +113,11 @@ const CommunityAnalysis = () => {
   return (
     <div className="min-h-screen bg-background p-6 relative">
       {isSearching && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <p className="text-lg font-medium text-foreground">Analyzing community...</p>
-          <p className="text-sm text-muted-foreground mt-1">This may take a moment</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60">
+          <div className="flex flex-col items-center gap-3 bg-card border border-border rounded-xl shadow-2xl px-8 py-6">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-medium text-foreground">Analyzing community...</p>
+          </div>
         </div>
       )}
       <div className="mx-auto max-w-6xl space-y-6">
