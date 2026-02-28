@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle, Search, X, Loader2, ExternalLink, ChevronDown, Zap, Trash2 } from 'lucide-react';
+import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle, Search, X, Loader2, ExternalLink, ChevronDown, Zap, Trash2, ArrowLeft } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { SavedAnalysisCard } from '@/components/SavedAnalysisCard';
@@ -449,6 +449,10 @@ const UserProfiling = () => {
 
       {profileData && (
         <div className="space-y-6">
+          <Button variant="ghost" size="sm" className="gap-2" onClick={() => { setProfileData(null); setError(null); }}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to User Profiling Overview
+          </Button>
           {/* Basic Profile Info */}
           <Card className="border-primary/20">
             <CardHeader>
