@@ -446,7 +446,13 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const caseId = currentCase?.id;
-    if (!caseId || loadedCaseRef.current === caseId) return;
+    if (!caseId) {
+      // Reset on logout / case cleared so re-login triggers a fresh load
+      loadedCaseRef.current = null;
+      setTargets([]);
+      return;
+    }
+    if (loadedCaseRef.current === caseId) return;
     loadedCaseRef.current = caseId;
 
     const loadAllSaved = async () => {
@@ -469,36 +475,38 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
           return true;
         }).slice(0, MAX_TARGETS);
 
-        const existingNames = new Set(targets.map(t => t.name.toLowerCase()));
+        // Use functional update so we don't rely on stale closure for `targets`
+        setTargets(prev => {
+          const existingNames = new Set(prev.map(t => t.name.toLowerCase()));
 
-        const newTargets: MonitoringTarget[] = uniqueSessions
-          .filter(session => !existingNames.has((session.target_name || '').toLowerCase()))
-          .map(session => {
-            const loadedProfile = session.profile_data as ProfileData | null;
-            const parsedProfile: ProfileData = loadedProfile
-              ? { ...loadedProfile, username: loadedProfile.username || session.target_name }
-              : session.search_type === 'user'
-                ? { username: session.target_name, accountAge: 'N/A', totalKarma: 0, activeSubreddits: 0 }
-                : { communityName: session.target_name, memberCount: 'N/A', description: '', createdDate: 'N/A' };
+          const newTargets: MonitoringTarget[] = uniqueSessions
+            .filter(session => !existingNames.has((session.target_name || '').toLowerCase()))
+            .map(session => {
+              const loadedProfile = session.profile_data as ProfileData | null;
+              const parsedProfile: ProfileData = loadedProfile
+                ? { ...loadedProfile, username: loadedProfile.username || session.target_name }
+                : session.search_type === 'user'
+                  ? { username: session.target_name, accountAge: 'N/A', totalKarma: 0, activeSubreddits: 0 }
+                  : { communityName: session.target_name, memberCount: 'N/A', description: '', createdDate: 'N/A' };
 
-            return {
-              id: crypto.randomUUID(),
-              name: session.target_name || '',
-              type: (session.search_type as 'user' | 'community') || 'user',
-              profileData: parsedProfile,
-              activities: Array.isArray(session.activities) ? (session.activities as unknown as RedditActivity[]) : [],
-              wordCloudData: Array.isArray(session.word_cloud_data) ? (session.word_cloud_data as any) : [],
-              isMonitoring: false,
-              isFetching: false,
-              lastFetchTime: '',
-              newActivityCount: session.new_activity_count || 0,
-              startedAt: session.started_at || '',
-            };
-          });
+              return {
+                id: crypto.randomUUID(),
+                name: session.target_name || '',
+                type: (session.search_type as 'user' | 'community') || 'user',
+                profileData: parsedProfile,
+                activities: Array.isArray(session.activities) ? (session.activities as unknown as RedditActivity[]) : [],
+                wordCloudData: Array.isArray(session.word_cloud_data) ? (session.word_cloud_data as any) : [],
+                isMonitoring: false,
+                isFetching: false,
+                lastFetchTime: '',
+                newActivityCount: session.new_activity_count || 0,
+                startedAt: session.started_at || '',
+              };
+            });
 
-        if (newTargets.length > 0) {
-          setTargets(prev => [...prev, ...newTargets].slice(0, MAX_TARGETS));
-        }
+          if (newTargets.length === 0) return prev;
+          return [...prev, ...newTargets].slice(0, MAX_TARGETS);
+        });
       } catch (err) {
         console.error('Failed to auto-load monitoring sessions:', err);
       }
