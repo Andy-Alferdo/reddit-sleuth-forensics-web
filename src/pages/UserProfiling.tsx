@@ -449,61 +449,30 @@ const UserProfiling = () => {
 
       {profileData && (
         <div className="space-y-6">
-          {/* Basic Profile Info - Vibrant Card */}
-          <Card className="border-0 shadow-lg overflow-hidden">
-            {/* Gradient Header */}
-            <div className="relative bg-gradient-to-br from-orange-500 via-red-500 to-rose-600 px-6 pt-5 pb-12">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <a
-                    href={`https://www.reddit.com/user/${profileData.username}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-white font-bold text-lg hover:underline truncate flex items-center gap-1.5 group"
-                  >
-                    u/{profileData.username}
-                    <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                  </a>
+          {/* Basic Profile Info */}
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle>Profile Overview - u/{profileData.username}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 rounded-lg bg-primary/10">
+                  <Calendar className="h-6 w-6 text-primary mx-auto mb-2" />
+                  <div className="font-bold text-primary">{profileData.accountAge}</div>
+                  <p className="text-sm text-muted-foreground">Account Age</p>
                 </div>
-                <span className="flex items-center gap-1 text-white/90 text-xs font-semibold bg-white/20 rounded-full px-3 py-1 backdrop-blur-sm shrink-0">
-                  <ThumbsUp className="h-3.5 w-3.5" />
-                  {profileData.totalKarma.toLocaleString()} karma
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="flex items-center gap-1 text-white/80 text-xs bg-white/10 rounded-full px-2 py-0.5">
-                  <Calendar className="h-3 w-3" />
-                  {profileData.accountAge}
-                </span>
-              </div>
-              {/* Decorative circles */}
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-10 translate-x-10" />
-              <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-6 -translate-x-4" />
-            </div>
-
-            {/* Avatar - overlapping */}
-            <div className="flex justify-center -mt-8 relative z-10">
-              <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg overflow-hidden">
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-500 to-rose-600">
-                  <User className="h-7 w-7 text-white" />
+                <div className="text-center p-4 rounded-lg bg-forensic-accent/10">
+                  <ThumbsUp className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
+                  <div className="font-bold text-forensic-accent">{profileData.totalKarma.toLocaleString()}</div>
+                  <p className="text-sm text-muted-foreground">Total Karma</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Stats Grid */}
-            <CardContent className="pt-3 pb-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center p-3 rounded-lg bg-muted/50 border border-border/40">
-                  <p className="text-lg font-extrabold text-foreground leading-none">{profileData.totalKarma.toLocaleString()}</p>
-                  <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Total Karma</p>
+                <div className="text-center p-4 rounded-lg bg-card border">
+                  <div className="font-bold text-foreground">{profileData.postKarma.toLocaleString()}</div>
+                  <p className="text-sm text-muted-foreground">Post Karma</p>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-muted/50 border border-border/40">
-                  <p className="text-lg font-extrabold text-foreground leading-none">{profileData.postKarma.toLocaleString()}</p>
-                  <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Post Karma</p>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-muted/50 border border-border/40">
-                  <p className="text-lg font-extrabold text-foreground leading-none">{profileData.commentKarma.toLocaleString()}</p>
-                  <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Comment Karma</p>
+                <div className="text-center p-4 rounded-lg bg-card border">
+                  <div className="font-bold text-foreground">{profileData.commentKarma.toLocaleString()}</div>
+                  <p className="text-sm text-muted-foreground">Comment Karma</p>
                 </div>
               </div>
             </CardContent>
