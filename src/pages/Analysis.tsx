@@ -222,7 +222,7 @@ const Analysis = () => {
 
       const wordCloudData = Object.entries(wordFreq)
         .sort(([,a], [,b]) => b - a)
-        .slice(0, 12)
+        .slice(0, 60)
         .map(([word, freq]) => ({
           word,
           frequency: freq,
@@ -391,7 +391,7 @@ const Analysis = () => {
 
       const wordCloudData = Object.entries(wordFreq)
         .sort(([,a], [,b]) => b - a)
-        .slice(0, 12)
+        .slice(0, 60)
         .map(([word, freq]) => ({
           word,
           frequency: freq,
