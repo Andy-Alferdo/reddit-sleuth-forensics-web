@@ -545,10 +545,16 @@ const UserProfiling = () => {
               <CardContent>
                 <div className="space-y-3">
                   {profileData.activeSubreddits.map((subreddit: any, index: number) => (
-                    <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-card border">
-                      <span className="font-medium">{subreddit.name}</span>
-                      <span className="text-primary font-semibold">{subreddit.activity} posts</span>
-                    </div>
+                    <a
+                      key={index}
+                      href={`https://www.reddit.com/r/${subreddit.name}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center p-3 rounded-lg bg-card border hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+                    >
+                      <span className="font-medium group-hover:text-primary transition-colors">{subreddit.name}</span>
+                      <ExternalLink className="h-3 w-3 ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                    </a>
                   ))}
                 </div>
               </CardContent>
