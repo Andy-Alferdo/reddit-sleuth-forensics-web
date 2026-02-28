@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrentTimePakistan, formatActivityTime } from '@/lib/dateUtils';
 import { useToast } from '@/hooks/use-toast';
@@ -440,6 +440,66 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
     },
     [toast]
   );
+
+  // ── Auto-load saved sessions from DB on case change ────────────────────────
+  const loadedCaseRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const caseId = currentCase?.id;
+    if (!caseId || loadedCaseRef.current === caseId) return;
+    loadedCaseRef.current = caseId;
+
+    const loadAllSaved = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('monitoring_sessions')
+          .select('*')
+          .eq('case_id', caseId)
+          .order('ended_at', { ascending: false });
+
+        if (error || !data || data.length === 0) return;
+
+        // Only load sessions that aren't already in targets
+        const existingNames = new Set(targets.map(t => t.name.toLowerCase()));
+
+        const newTargets: MonitoringTarget[] = data
+          .filter(session => {
+            const name = session.target_name?.toLowerCase() || '';
+            return !existingNames.has(name);
+          })
+          .map(session => {
+            const loadedProfile = session.profile_data as ProfileData | null;
+            const parsedProfile: ProfileData = loadedProfile
+              ? { ...loadedProfile, username: loadedProfile.username || session.target_name }
+              : session.search_type === 'user'
+                ? { username: session.target_name, accountAge: 'N/A', totalKarma: 0, activeSubreddits: 0 }
+                : { communityName: session.target_name, memberCount: 'N/A', description: '', createdDate: 'N/A' };
+
+            return {
+              id: crypto.randomUUID(),
+              name: session.target_name || '',
+              type: (session.search_type as 'user' | 'community') || 'user',
+              profileData: parsedProfile,
+              activities: Array.isArray(session.activities) ? (session.activities as unknown as RedditActivity[]) : [],
+              wordCloudData: Array.isArray(session.word_cloud_data) ? (session.word_cloud_data as any) : [],
+              isMonitoring: false,
+              isFetching: false,
+              lastFetchTime: '',
+              newActivityCount: session.new_activity_count || 0,
+              startedAt: session.started_at || '',
+            };
+          });
+
+        if (newTargets.length > 0) {
+          setTargets(prev => [...prev, ...newTargets]);
+        }
+      } catch (err) {
+        console.error('Failed to auto-load monitoring sessions:', err);
+      }
+    };
+
+    loadAllSaved();
+  }, [currentCase?.id]);
 
   return (
     <MonitoringContext.Provider
