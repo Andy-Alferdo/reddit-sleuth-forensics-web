@@ -103,16 +103,17 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const minFont = Math.max(9, W * 0.018);
-    const maxFont = Math.min(48, W * 0.09);
+    const minFont = Math.max(8, W * 0.016);
+    const maxFont = Math.min(64, W * 0.14);
     const rng = seededRandom(42);
 
     const placed: PlacedWord[] = [];
 
     for (const word of sortedWords) {
-      const fontSize = minFont + (maxFont - minFont) * Math.pow(word.ratio, 0.55);
-      const fontWeight = word.ratio > 0.5 ? 900 : word.ratio > 0.25 ? 700 : 500;
-      const vertical = rng() < 0.25; // ~25% vertical words
+      // Aggressive power curve: top words are MUCH bigger
+      const fontSize = minFont + (maxFont - minFont) * Math.pow(word.ratio, 0.35);
+      const fontWeight = word.ratio > 0.6 ? 900 : word.ratio > 0.3 ? 700 : 400;
+      const vertical = rng() < 0.25;
 
       ctx.font = `${fontWeight} ${fontSize}px Arial, Helvetica, sans-serif`;
       const metrics = ctx.measureText(word.word.toUpperCase());
