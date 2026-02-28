@@ -702,20 +702,37 @@ const Analysis = () => {
           {keywordData && (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="border-primary/20 shadow-glow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <BarChart3 className="h-5 w-5 text-primary" />
-                      <span>Keyword Overview: "{keywordData.keyword}"</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center p-6 rounded-lg bg-primary/10 border border-primary/30">
-                      <div className="text-4xl font-bold text-primary">{keywordData.totalMentions}</div>
-                      <p className="text-muted-foreground">Mentions Found</p>
+              <Card className="border-0 shadow-lg overflow-hidden">
+                {/* Gradient Header */}
+                <div className="relative bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 px-6 pt-5 pb-12">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white font-bold text-lg truncate">"{keywordData.keyword}"</span>
+                    <span className="flex items-center gap-1 text-white/90 text-xs font-semibold bg-white/20 rounded-full px-3 py-1 backdrop-blur-sm shrink-0">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      {keywordData.totalMentions} mentions
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-white/80 text-xs bg-white/10 rounded-full px-2 py-0.5">Keyword Analysis</span>
+                  </div>
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-10 translate-x-10" />
+                  <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-6 -translate-x-4" />
+                </div>
+                {/* Avatar - overlapping */}
+                <div className="flex justify-center -mt-8 relative z-10">
+                  <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg overflow-hidden">
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-cyan-600">
+                      <Search className="h-7 w-7 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
+                <CardContent className="pt-3 pb-4">
+                  <div className="text-center">
+                    <p className="text-3xl font-extrabold text-foreground">{keywordData.totalMentions}</p>
+                    <p className="text-xs text-muted-foreground font-semibold uppercase tracking-widest mt-1">Mentions Found</p>
+                  </div>
+                </CardContent>
+              </Card>
 
                 <Card className="border-primary/20 shadow-glow">
                   <CardHeader>
@@ -930,88 +947,81 @@ const Analysis = () => {
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Community Information */}
-                <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] overflow-hidden">
-                  {communityData.bannerImg && (
-                    <div className="relative h-24 w-full bg-muted">
+                <Card className="border-0 shadow-lg overflow-hidden">
+                  {/* Gradient Header - uses banner or blue gradient */}
+                  <div className="relative bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 px-6 pt-5 pb-12">
+                    {communityData.bannerImg && (
                       <img 
                         src={communityData.bannerImg} 
                         alt={`${communityData.name} banner`}
-                        className="w-full h-full object-cover"
+                        className="absolute inset-0 w-full h-full object-cover opacity-40"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
-                    </div>
-                  )}
-                  <CardHeader className="relative">
-                    <div className={`flex items-start gap-4 ${communityData.bannerImg ? '' : ''}`}>
-                      {/* Community Avatar */}
-                      <div className={`shrink-0 ${communityData.bannerImg ? '-mt-10' : ''}`}>
-                        <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg overflow-hidden">
-                          {communityData.iconImg ? (
-                            <img 
-                              src={communityData.iconImg} 
-                              alt={`${communityData.name} icon`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).parentElement!.innerHTML = `<div class="w-full h-full bg-primary/20 flex items-center justify-center"><span class="text-primary font-bold text-xl">r/</span></div>`;
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-primary/20 flex items-center justify-center">
-                              <Users className="h-6 w-6 text-primary" />
-                            </div>
-                          )}
-                        </div>
+                    )}
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between">
+                        <a
+                          href={`https://www.reddit.com/${communityData.name}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white font-bold text-lg hover:underline truncate flex items-center gap-1.5 group"
+                        >
+                          {communityData.name}
+                          <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                        </a>
+                        <span className="flex items-center gap-1 text-white/90 text-xs font-semibold bg-white/20 rounded-full px-3 py-1 backdrop-blur-sm shrink-0">
+                          <Users className="h-3.5 w-3.5" />
+                          {communityData.subscribers.toLocaleString()}
+                        </span>
                       </div>
-                      <div className="min-w-0 flex-1 pt-1">
-                        <CardTitle className="flex items-center gap-2">
-                          <a
-                            href={`https://www.reddit.com/${communityData.name}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:text-primary transition-colors flex items-center gap-1.5 group"
-                          >
-                            {communityData.name}
-                            <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                          </a>
-                        </CardTitle>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <Badge variant="secondary">
-                            {communityData.subscribers.toLocaleString()} members
-                          </Badge>
-                          {communityData.activeUsers > 0 && (
-                            <Badge variant="outline">
-                              {communityData.activeUsers.toLocaleString()} online
-                            </Badge>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-white/80 text-xs bg-white/10 rounded-full px-2 py-0.5">
+                          <Calendar className="h-3 w-3 inline mr-1" />
+                          {communityData.created}
+                        </span>
+                        {communityData.activeUsers > 0 && (
+                          <span className="text-white/80 text-xs bg-white/10 rounded-full px-2 py-0.5">
+                            {communityData.activeUsers.toLocaleString()} online
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      Created: {communityData.created}
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-10 translate-x-10" />
+                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-6 -translate-x-4" />
+                  </div>
+
+                  {/* Avatar - overlapping */}
+                  <div className="flex justify-center -mt-8 relative z-10">
+                    <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg overflow-hidden">
+                      {communityData.iconImg ? (
+                        <img 
+                          src={communityData.iconImg} 
+                          alt={`${communityData.name} icon`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).parentElement!.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>`;
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
+                          <Users className="h-7 w-7 text-white" />
+                        </div>
+                      )}
                     </div>
+                  </div>
 
-                    <Separator />
-
-                    <div>
-                      <h4 className="font-medium mb-2">Description</h4>
-                      <p className="text-sm text-muted-foreground line-clamp-3">
-                        {communityData.description}
-                      </p>
-                    </div>
-
-                    <Separator />
-
+                  <CardContent className="pt-3 pb-4 space-y-3">
+                    <p className="text-sm text-muted-foreground line-clamp-3 text-center">
+                      {communityData.description}
+                    </p>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="text-center p-3 rounded-lg bg-primary/10 border border-primary/30">
-                        <div className="font-bold text-primary">{communityData.stats.totalPosts}</div>
-                        <p className="text-xs text-muted-foreground">Recent Posts</p>
+                      <div className="text-center p-3 rounded-lg bg-muted/50 border border-border/40">
+                        <p className="text-lg font-extrabold text-foreground leading-none">{communityData.stats.totalPosts}</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Recent Posts</p>
                       </div>
-                      <div className="text-center p-3 rounded-lg bg-forensic-accent/10 border border-forensic-accent/30">
-                        <div className="font-bold text-forensic-accent">{communityData.stats.avgUpvotes}</div>
-                        <p className="text-xs text-muted-foreground">Avg Upvotes</p>
+                      <div className="text-center p-3 rounded-lg bg-muted/50 border border-border/40">
+                        <p className="text-lg font-extrabold text-foreground leading-none">{communityData.stats.avgUpvotes}</p>
+                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Avg Upvotes</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1240,33 +1250,56 @@ const Analysis = () => {
 
           {linkData && (
             <div className="space-y-6">
-              <Card className="border-primary/20 shadow-glow">
-                <CardHeader>
-                  <CardTitle>Network Overview - u/{linkData.primaryUser}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
-                      <Share2 className="h-6 w-6 text-primary mx-auto mb-2" />
-                      <div className="font-bold text-primary">{linkData.networkMetrics.totalCommunities}</div>
-                      <p className="text-sm text-muted-foreground">Communities</p>
+              <Card className="border-0 shadow-lg overflow-hidden">
+                {/* Gradient Header */}
+                <div className="relative bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600 px-6 pt-5 pb-12">
+                  <div className="flex items-center justify-between">
+                    <a
+                      href={`https://www.reddit.com/user/${linkData.primaryUser}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white font-bold text-lg hover:underline truncate flex items-center gap-1.5 group"
+                    >
+                      u/{linkData.primaryUser}
+                      <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </a>
+                    <span className="flex items-center gap-1 text-white/90 text-xs font-semibold bg-white/20 rounded-full px-3 py-1 backdrop-blur-sm shrink-0">
+                      <Network className="h-3.5 w-3.5" />
+                      {linkData.totalKarma.toLocaleString()} karma
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-white/80 text-xs bg-white/10 rounded-full px-2 py-0.5">Link Analysis</span>
+                    <span className="text-white/80 text-xs bg-white/10 rounded-full px-2 py-0.5">{linkData.networkMetrics.totalCommunities} communities</span>
+                  </div>
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-10 translate-x-10" />
+                  <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-6 -translate-x-4" />
+                </div>
+                {/* Avatar - overlapping */}
+                <div className="flex justify-center -mt-8 relative z-10">
+                  <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg overflow-hidden">
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-600">
+                      <Network className="h-7 w-7 text-white" />
                     </div>
-                    <div className="text-center p-4 rounded-lg bg-forensic-accent/10 border border-forensic-accent/30">
-                      <Network className="h-6 w-6 text-forensic-accent mx-auto mb-2" />
-                      <div className="font-bold text-forensic-accent">{linkData.networkMetrics.avgActivityScore ?? 0}</div>
-                      <p className="text-sm text-muted-foreground">Avg Score</p>
+                  </div>
+                </div>
+                <CardContent className="pt-3 pb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="text-center p-3 rounded-lg bg-muted/50 border border-border/40">
+                      <p className="text-lg font-extrabold text-foreground leading-none">{linkData.networkMetrics.totalCommunities}</p>
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Communities</p>
                     </div>
-                    <div className="text-center p-4 rounded-lg bg-card border border-border">
-                      <div className="font-bold text-foreground">{linkData.networkMetrics.totalPosts}</div>
-                      <p className="text-sm text-muted-foreground">Total Posts</p>
+                    <div className="text-center p-3 rounded-lg bg-muted/50 border border-border/40">
+                      <p className="text-lg font-extrabold text-foreground leading-none">{linkData.networkMetrics.avgActivityScore ?? 0}</p>
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Avg Score</p>
                     </div>
-                    <div className="text-center p-4 rounded-lg bg-card border border-border">
-                      <div className="font-bold text-foreground">{linkData.networkMetrics.totalComments}</div>
-                      <p className="text-sm text-muted-foreground">Total Comments</p>
+                    <div className="text-center p-3 rounded-lg bg-muted/50 border border-border/40">
+                      <p className="text-lg font-extrabold text-foreground leading-none">{linkData.networkMetrics.totalPosts}</p>
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Posts</p>
                     </div>
-                    <div className="text-center p-4 rounded-lg bg-card border border-border">
-                      <div className="font-bold text-foreground">{linkData.totalKarma.toLocaleString()}</div>
-                      <p className="text-sm text-muted-foreground">Total Karma</p>
+                    <div className="text-center p-3 rounded-lg bg-muted/50 border border-border/40">
+                      <p className="text-lg font-extrabold text-foreground leading-none">{linkData.networkMetrics.totalComments}</p>
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-widest mt-1">Comments</p>
                     </div>
                   </div>
                 </CardContent>
