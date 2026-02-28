@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
-import { FolderOpen, Loader2, Search, Shield, Activity, Archive, Clock } from 'lucide-react';
+import { FolderOpen, Loader2, Search, Shield, Activity, Archive, Clock, ArrowRight } from 'lucide-react';
 import folderSearchIcon from '@/assets/folder-search-icon.png';
-import mascotLogo from '@/assets/reddit-sleuth-mascot.png';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -102,63 +101,73 @@ const Home = () => {
 
   return (
     <div className="relative min-h-[90vh] flex flex-col">
-      {/* Animated Background */}
       <MovingBackground />
-      <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/90 to-background pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background pointer-events-none" />
 
-      {/* Content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-3xl space-y-10">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 md:p-10">
+        <div className="w-full max-w-4xl space-y-8">
 
-          {/* Hero Section */}
-          <div className="flex flex-col items-center text-center space-y-4 animate-fade-in-up">
-            <div className="relative">
-              <img
-                src={mascotLogo}
-                alt="Intel Reddit"
-                className="h-20 w-20 drop-shadow-[0_0_20px_hsl(var(--primary)/0.4)]"
-              />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Intel Reddit</h1>
-              <p className="text-sm text-muted-foreground mt-1">Open-Source Intelligence Platform</p>
-            </div>
-            <div className="w-32 h-0.5 rounded-full bg-gradient-to-r from-primary to-forensic-cyan opacity-60" />
+          {/* Stats Bar */}
+          <div className="animate-fade-in-up">
+            <Card className="rounded-2xl border-border/40 backdrop-blur-md bg-card/70 shadow-sm">
+              <CardContent className="p-0">
+                <div className="grid grid-cols-3 divide-x divide-border/50">
+                  {[
+                    { icon: Shield, label: 'Total Cases', value: totalCount, color: 'primary' },
+                    { icon: Activity, label: 'Active', value: activeCount, color: 'forensic-success' },
+                    { icon: Archive, label: 'Closed', value: closedCount, color: 'muted-foreground' },
+                  ].map(({ icon: Icon, label, value, color }) => (
+                    <div key={label} className="flex items-center gap-3 p-5 md:p-6">
+                      <div className={`h-10 w-1 rounded-full bg-${color}`} />
+                      <Icon className={`h-5 w-5 text-${color} shrink-0`} />
+                      <div>
+                        <div className="text-2xl font-bold text-foreground">{isLoading ? '–' : value}</div>
+                        <p className="text-xs text-muted-foreground">{label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Action Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-            {/* Create New Case */}
             <Card
-              className="relative overflow-hidden rounded-2xl border-border/50 backdrop-blur-sm bg-card/80 hover:shadow-lg hover:shadow-primary/10 hover:scale-[1.02] transition-all duration-300 cursor-pointer group"
+              className="relative overflow-hidden rounded-2xl border-border/40 backdrop-blur-md bg-card/70 hover:shadow-xl hover:shadow-primary/8 hover:scale-[1.02] transition-all duration-300 cursor-pointer group"
               onClick={() => navigate('/new-case')}
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-primary/40 opacity-60 group-hover:opacity-100 transition-opacity" />
-              <CardContent className="pt-10 pb-10 flex flex-col items-center text-center space-y-4">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
-                  <img src={folderSearchIcon} alt="New Investigation" className="h-8 w-8" />
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+              <CardContent className="pt-10 pb-10 flex flex-col items-center text-center space-y-5">
+                <div className="h-18 w-18 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 group-hover:scale-110 transition-all duration-300 p-4">
+                  <img src={folderSearchIcon} alt="New Investigation" className="h-10 w-10" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg mb-1">Create New Case</CardTitle>
+                  <CardTitle className="text-lg mb-1.5">Create New Case</CardTitle>
                   <CardDescription>Start a new investigation</CardDescription>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                  Get started <ArrowRight className="h-3 w-3" />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Open Existing Case */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Card className="relative overflow-hidden rounded-2xl border-border/50 backdrop-blur-sm bg-card/80 hover:shadow-lg hover:shadow-forensic-cyan/10 hover:scale-[1.02] transition-all duration-300 cursor-pointer group">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-forensic-cyan to-forensic-cyan/40 opacity-60 group-hover:opacity-100 transition-opacity" />
-                  <CardContent className="pt-10 pb-10 flex flex-col items-center text-center space-y-4">
-                    <div className="h-16 w-16 rounded-full bg-forensic-cyan/10 flex items-center justify-center group-hover:bg-forensic-cyan/20 group-hover:scale-110 transition-all duration-300">
-                      <FolderOpen className="h-8 w-8 text-forensic-cyan" />
+                <Card className="relative overflow-hidden rounded-2xl border-border/40 backdrop-blur-md bg-card/70 hover:shadow-xl hover:shadow-forensic-cyan/8 hover:scale-[1.02] transition-all duration-300 cursor-pointer group">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-forensic-cyan via-forensic-cyan/60 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+                  <CardContent className="pt-10 pb-10 flex flex-col items-center text-center space-y-5">
+                    <div className="h-18 w-18 rounded-2xl bg-forensic-cyan/10 flex items-center justify-center group-hover:bg-forensic-cyan/15 group-hover:scale-110 transition-all duration-300 p-4">
+                      <FolderOpen className="h-10 w-10 text-forensic-cyan" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg mb-1">Open Existing Case</CardTitle>
+                      <CardTitle className="text-lg mb-1.5">Open Existing Case</CardTitle>
                       <CardDescription>
                         {isLoading ? 'Loading...' : `${cases.length} cases available`}
                       </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-forensic-cyan opacity-0 group-hover:opacity-100 transition-opacity">
+                      Browse cases <ArrowRight className="h-3 w-3" />
                     </div>
                   </CardContent>
                 </Card>
@@ -167,7 +176,6 @@ const Home = () => {
                 <DialogHeader>
                   <DialogTitle>Select a Case</DialogTitle>
                 </DialogHeader>
-
                 <div className="relative mb-4">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -177,7 +185,6 @@ const Home = () => {
                     className="pl-9"
                   />
                 </div>
-
                 <ScrollArea className="h-[400px] pr-4">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
@@ -218,43 +225,9 @@ const Home = () => {
             </Dialog>
           </div>
 
-          {/* Stats Bar */}
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-            <Card className="rounded-2xl border-border/50 backdrop-blur-sm bg-card/80">
-              <CardContent className="p-0">
-                <div className="grid grid-cols-3 divide-x divide-border">
-                  <div className="flex items-center gap-3 p-5">
-                    <div className="h-10 w-1 rounded-full bg-primary" />
-                    <Shield className="h-5 w-5 text-primary" />
-                    <div>
-                      <div className="text-xl font-bold text-foreground">{isLoading ? '–' : totalCount}</div>
-                      <p className="text-xs text-muted-foreground">Total Cases</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-5">
-                    <div className="h-10 w-1 rounded-full bg-forensic-success" />
-                    <Activity className="h-5 w-5 text-forensic-success" />
-                    <div>
-                      <div className="text-xl font-bold text-foreground">{isLoading ? '–' : activeCount}</div>
-                      <p className="text-xs text-muted-foreground">Active</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-5">
-                    <div className="h-10 w-1 rounded-full bg-muted-foreground" />
-                    <Archive className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <div className="text-xl font-bold text-foreground">{isLoading ? '–' : closedCount}</div>
-                      <p className="text-xs text-muted-foreground">Closed</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* Recent Cases */}
           {!isLoading && recentCases.length > 0 && (
-            <div className="space-y-3 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+            <div className="space-y-3 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
               <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Clock className="h-4 w-4" /> Recent Cases
               </h2>
@@ -262,7 +235,7 @@ const Home = () => {
                 {recentCases.map((c) => (
                   <Card
                     key={c.id}
-                    className="rounded-2xl border-border/50 backdrop-blur-sm bg-card/80 hover:bg-muted/40 hover:scale-[1.02] transition-all duration-200 cursor-pointer"
+                    className="rounded-2xl border-border/40 backdrop-blur-md bg-card/70 hover:bg-muted/30 hover:scale-[1.02] transition-all duration-200 cursor-pointer group"
                     onClick={() => handleSelectCase(c)}
                   >
                     <CardContent className="p-4 space-y-2">
@@ -273,7 +246,10 @@ const Home = () => {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground truncate">{c.case_name}</p>
-                      <p className="text-[10px] text-muted-foreground/70">{new Date(c.created_at).toLocaleDateString()}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] text-muted-foreground/70">{new Date(c.created_at).toLocaleDateString()}</p>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -281,8 +257,7 @@ const Home = () => {
             </div>
           )}
 
-          {/* Footer Tagline */}
-          <p className="text-center text-xs text-muted-foreground/50 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+          <p className="text-center text-xs text-muted-foreground/40 animate-fade-in-up pt-4" style={{ animationDelay: '0.3s' }}>
             Powered by Open-Source Intelligence
           </p>
         </div>
