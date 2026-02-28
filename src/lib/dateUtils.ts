@@ -16,7 +16,13 @@ export const formatToPakistanTime = (date: Date | string | number, formatStr: st
  * Format timestamp for activity display (e.g., "Jan 15, 2024, 2:30:45 PM PKT")
  */
 export const formatActivityTime = (timestamp: number): string => {
-  return formatToPakistanTime(timestamp * 1000, 'PPpp') + ' PKT';
+  const dateObj = new Date(timestamp * 1000);
+  const pktStr = formatToPakistanTime(dateObj, 'PPpp');
+  const utcStr = format(dateObj, 'h:mm:ss a', { timeZone: 'UTC' } as any);
+  // date-fns doesn't support timeZone in format, so compute UTC manually
+  const utcDate = new Date(dateObj.toISOString());
+  const utcFormatted = format(toZonedTime(utcDate, 'UTC'), 'h:mm:ss a');
+  return `${pktStr} PKT (${utcFormatted} UTC)`;
 };
 
 /**
@@ -30,12 +36,18 @@ export const formatDateShort = (date: Date | string): string => {
  * Format current time for live monitoring (e.g., "2:30:45 PM")
  */
 export const formatCurrentTimePakistan = (): string => {
-  return formatToPakistanTime(new Date(), 'p');
+  const now = new Date();
+  const pktStr = formatToPakistanTime(now, 'p');
+  const utcStr = format(toZonedTime(now, 'UTC'), 'p');
+  return `${pktStr} PKT (${utcStr} UTC)`;
 };
 
 /**
  * Format full date and time (e.g., "Jan 15, 2024, 2:30:45 PM")
  */
 export const formatFullDateTime = (date: Date | string): string => {
-  return formatToPakistanTime(date, 'PPpp');
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const pktStr = formatToPakistanTime(dateObj, 'PPpp');
+  const utcStr = format(toZonedTime(dateObj, 'UTC'), 'h:mm:ss a');
+  return `${pktStr} PKT (${utcStr} UTC)`;
 };
