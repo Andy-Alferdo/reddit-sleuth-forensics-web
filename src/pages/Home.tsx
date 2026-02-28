@@ -257,9 +257,6 @@ const Home = () => {
             </div>
           )}
 
-          <p className="text-center text-xs text-muted-foreground/40 animate-fade-in-up pt-4" style={{ animationDelay: '0.3s' }}>
-            Powered by Open-Source Intelligence
-          </p>
         </div>
       </div>
     </div>
