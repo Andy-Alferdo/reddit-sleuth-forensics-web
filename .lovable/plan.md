@@ -1,66 +1,53 @@
 
 
-# Add Previously Analyzed Cards to All Modules
+# Home Page Redesign - Professional OSINT Dashboard
 
 ## Overview
-Replace the empty-state placeholder messages in User Profiling and Analysis tabs with clickable cards showing all previously analyzed items for the current case -- similar to how Monitoring shows target cards.
+Transform the current minimal Home page into a polished, professional landing experience that matches the quality of established intelligence tools. The redesign adds a hero section with branding, animated background elements, better visual hierarchy, and richer information display.
 
-## What Changes
+## Changes
 
-### 1. User Profiling Page (`src/pages/UserProfiling.tsx`)
-- When no profile is being viewed (empty state area, lines 699-706), fetch all `user_profiles_analyzed` records for the current case from the database
-- Display a grid of cards, each showing:
-  - Username
-  - Total karma
-  - Account age
-  - Analyzed date
-- Clicking a card loads that profile's data into the view (same as the existing `loadProfileId` flow)
-- Keep the "Enter a username..." message but move it below the cards grid, or show it only when there are no saved profiles
+### 1. Add Hero Section with Branding
+- Display the mascot logo prominently at the top center with a subtle glow effect
+- Show "Intel Reddit" title and "Open-Source Intelligence Platform" subtitle with refined typography
+- Add a gradient accent line below the header for visual separation
 
-### 2. Analysis Page - Keyword Tab (`src/pages/Analysis.tsx`)
-- In the keyword empty state (lines 751-757), fetch `analysis_results` where `analysis_type = 'keyword'` for the current case
-- Show cards with: keyword name, total mentions, analyzed date
-- Clicking loads the saved keyword analysis data
+### 2. Animated Background
+- Integrate the existing `MovingBackground` component (floating mascot logos) behind the Home page content for visual depth, similar to how the Login page uses it
+- Add a subtle gradient overlay so content remains readable
 
-### 3. Analysis Page - Community Tab
-- In the community empty state (lines 1004-1010), fetch `analysis_results` where `analysis_type = 'community'` for the current case
-- Show cards with: subreddit name, subscriber count (from result_data), analyzed date
-- Clicking loads the saved community analysis data
+### 3. Redesigned Action Cards
+- Make the two cards (Create New Case / Open Existing Case) larger with hover lift effects (shadow + slight scale transform)
+- Add gradient borders on hover instead of flat color borders
+- Include subtle icon animations on hover (scale up)
+- Add a decorative gradient line/glow at the top of each card
 
-### 4. Analysis Page - Link Tab
-- In the link empty state (lines 1171-1177), fetch `analysis_results` where `analysis_type = 'link'` for the current case
-- Show cards with: primary username, total karma, analyzed date
-- Clicking loads the saved link analysis data
+### 4. Enhanced Stats Section
+- Redesign the 3 stat cards into a single glassmorphism-style bar with icon indicators for each stat (Shield icon for total, Activity icon for active, Archive icon for closed)
+- Add animated count-up effect when numbers load
+- Use subtle colored left-border accents for each stat
 
-## Technical Approach
+### 5. Additional Sections
+- Add a "Recent Cases" quick-access row showing the 3 most recent cases as small preview cards (case number, name, date, status badge) - clickable to open directly
+- Add a footer tagline: "Powered by Open-Source Intelligence" with a subtle opacity
 
-### Data Fetching
-- Use `useEffect` to query the database when the component mounts and `currentCase` is set
-- Query `user_profiles_analyzed` filtered by `case_id` for user profiling
-- Query `analysis_results` filtered by `case_id` and `analysis_type` for each analysis tab
-- Listen for `case-data-updated` custom events to refresh cards after new analyses are saved
+### 6. Visual Polish
+- Cards get `backdrop-blur-sm` and semi-transparent backgrounds for glassmorphism feel
+- Hover states include `transform scale-[1.02]` and enhanced shadow
+- Smooth entrance animations using CSS (fade-in-up on mount)
+- Consistent use of `rounded-2xl` for modern card feel
 
-### Card Component
-- Create a reusable `SavedAnalysisCard` component (`src/components/SavedAnalysisCard.tsx`) that accepts:
-  - `title` (username/keyword/subreddit)
-  - `subtitle` (karma/mentions/subscribers)
-  - `analyzedAt` (date string)
-  - `icon` (User/BarChart3/Users/Network)
-  - `onClick` handler
-- Style similar to `MonitoringTargetCard`: bordered card with hover effect, compact layout
+## Technical Details
 
-### Loading Saved Data
-- For User Profiling: clicking a card sets the `profileData` state directly from the DB record (reuse existing transform logic from `loadProfileId`)
-- For Analysis tabs: clicking a card sets the respective tab data (`keywordData`, `communityData`, `linkData`) from the `result_data` JSON column
+### Files Modified
+- **`src/pages/Home.tsx`** - Complete redesign of the layout with hero section, animated background, redesigned cards, enhanced stats bar, and recent cases section. Add count-up animation hook, entrance animations via CSS classes.
+- **`src/index.css`** - Add keyframes for `fade-in-up` entrance animation and glassmorphism utility classes.
+- **`tailwind.config.ts`** - Add `fade-in-up` animation to the animation config.
 
-### Empty State
-- When there are saved items: show the card grid with a subtle "analyze more" prompt
-- When there are no saved items: show the current empty state (icon + message)
-
-## Files to Create
-1. `src/components/SavedAnalysisCard.tsx` -- reusable card component
-
-## Files to Modify
-2. `src/pages/UserProfiling.tsx` -- add saved profiles grid in empty state
-3. `src/pages/Analysis.tsx` -- add saved analysis grids in each tab's empty state
+### Key Implementation Notes
+- Reuse existing `MovingBackground` component (already built for Login page)
+- Reuse existing mascot logo asset (`reddit-sleuth-mascot.png`)
+- All existing functionality (case fetching, dialog, search, navigation) stays intact
+- No database changes needed
+- No new dependencies required
 
