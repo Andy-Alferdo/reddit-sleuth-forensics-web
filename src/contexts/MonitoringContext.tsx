@@ -460,14 +460,19 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
 
         if (error || !data || data.length === 0) return;
 
-        // Only load sessions that aren't already in targets
+        // Deduplicate by target_name, keeping only the latest (already sorted by ended_at desc)
+        const seen = new Set<string>();
+        const uniqueSessions = data.filter(session => {
+          const key = session.target_name?.toLowerCase() || '';
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).slice(0, MAX_TARGETS);
+
         const existingNames = new Set(targets.map(t => t.name.toLowerCase()));
 
-        const newTargets: MonitoringTarget[] = data
-          .filter(session => {
-            const name = session.target_name?.toLowerCase() || '';
-            return !existingNames.has(name);
-          })
+        const newTargets: MonitoringTarget[] = uniqueSessions
+          .filter(session => !existingNames.has((session.target_name || '').toLowerCase()))
           .map(session => {
             const loadedProfile = session.profile_data as ProfileData | null;
             const parsedProfile: ProfileData = loadedProfile
@@ -492,10 +497,7 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
           });
 
         if (newTargets.length > 0) {
-          setTargets(prev => {
-            const combined = [...prev, ...newTargets];
-            return combined.slice(0, MAX_TARGETS);
-          });
+          setTargets(prev => [...prev, ...newTargets].slice(0, MAX_TARGETS));
         }
       } catch (err) {
         console.error('Failed to auto-load monitoring sessions:', err);
