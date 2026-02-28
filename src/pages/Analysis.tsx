@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X, Loader2, ExternalLink, Eye, UserPlus, MoreVertical } from 'lucide-react';
+import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X, Loader2, ExternalLink, Eye, UserPlus, MoreVertical, ArrowLeft } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { UserCommunityNetworkGraph } from '@/components/UserCommunityNetworkGraph';
@@ -701,6 +701,10 @@ const Analysis = () => {
 
           {keywordData && (
             <>
+              <Button variant="ghost" size="sm" className="gap-2" onClick={() => setKeywordData(null)}>
+                <ArrowLeft className="h-4 w-4" />
+                Back to Keyword Analysis Overview
+              </Button>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card className="border-primary/20 shadow-glow">
                   <CardHeader>
@@ -928,6 +932,10 @@ const Analysis = () => {
 
           {communityData && (
             <div className="space-y-6">
+              <Button variant="ghost" size="sm" className="gap-2" onClick={() => setCommunityData(null)}>
+                <ArrowLeft className="h-4 w-4" />
+                Back to Community Analysis Overview
+              </Button>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Community Information */}
                 <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] overflow-hidden">
@@ -1274,6 +1282,10 @@ const Analysis = () => {
 
           {linkData && (
             <div className="space-y-6">
+              <Button variant="ghost" size="sm" className="gap-2" onClick={() => setLinkData(null)}>
+                <ArrowLeft className="h-4 w-4" />
+                Back to Link Analysis Overview
+              </Button>
               <Card className="border-primary/20 shadow-glow">
                 <CardHeader>
                   <CardTitle>Network Overview - u/{linkData.primaryUser}</CardTitle>
