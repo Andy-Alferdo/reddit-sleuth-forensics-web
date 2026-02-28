@@ -142,26 +142,27 @@ export const MonitoringDetailView = ({
             />
           </div>
         )}
-        <CardHeader className={profileData.communityName && profileData.iconImg ? 'relative' : ''}>
-          {profileData.communityName && profileData.iconImg && (
-            <div className={`absolute ${profileData.bannerImg ? '-top-8' : 'top-4'} left-6`}>
+        <CardHeader className={profileData.iconImg ? 'relative' : ''}>
+          {profileData.iconImg && (
+            <div className={`absolute ${profileData.communityName && profileData.bannerImg ? '-top-8' : 'top-4'} left-6`}>
               <div className="w-16 h-16 rounded-full border-4 border-background bg-background overflow-hidden shadow-lg">
                 <img 
                   src={profileData.iconImg} 
-                  alt={`${profileData.communityName} icon`}
+                  alt={`${profileData.username || profileData.communityName} avatar`}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="w-full h-full bg-primary/20 flex items-center justify-center"><span class="text-primary font-bold text-xl">r/</span></div>';
+                    const fallback = profileData.username ? 'u/' : 'r/';
+                    (e.target as HTMLImageElement).parentElement!.innerHTML = `<div class="w-full h-full bg-primary/20 flex items-center justify-center"><span class="text-primary font-bold text-xl">${fallback}</span></div>`;
                   }}
                 />
               </div>
             </div>
           )}
-          <CardTitle className={`flex items-center gap-2 ${profileData.communityName && profileData.iconImg ? 'ml-20' : ''}`}>
-            {profileData.username ? <User className="h-5 w-5" /> : !profileData.iconImg ? <Users className="h-5 w-5" /> : null}
+          <CardTitle className={`flex items-center gap-2 ${profileData.iconImg ? 'ml-20' : ''}`}>
+            {!profileData.iconImg && (profileData.username ? <User className="h-5 w-5" /> : <Users className="h-5 w-5" />)}
             {profileData.username || profileData.communityName}
           </CardTitle>
-          <CardDescription className={profileData.communityName && profileData.iconImg ? 'ml-20' : ''}>
+          <CardDescription className={profileData.iconImg ? 'ml-20' : ''}>
             {profileData.username ? 'User Profile' : 'Community Information'}
           </CardDescription>
         </CardHeader>
