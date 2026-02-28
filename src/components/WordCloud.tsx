@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 
 interface WordData {
   word: string;
@@ -12,157 +12,158 @@ interface WordCloudProps {
   title?: string;
 }
 
+interface PlacedWord {
+  word: string;
+  frequency: number;
+  x: number;
+  y: number;
+  fontSize: number;
+  color: string;
+  fontWeight: number;
+}
+
+const COLORS = {
+  high: ['#b91c1c', '#dc2626', '#991b1b'],
+  medium: ['#1a1a1a', '#374151', '#4b5563'],
+  low: ['#6b7280', '#9ca3af', '#78716c'],
+};
+
 export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
-  const styledWords = useMemo(() => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [placedWords, setPlacedWords] = useState<PlacedWord[]>([]);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Observe container size
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) setDimensions({ width, height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const sortedWords = useMemo(() => {
     if (words.length === 0) return [];
-    
-    // Sort by frequency descending
     const sorted = [...words].sort((a, b) => b.frequency - a.frequency);
     const maxFreq = sorted[0]?.frequency || 1;
-    
-    // Divide into thirds for color distribution
-    const highThreshold = Math.ceil(sorted.length / 3);
-    const mediumThreshold = Math.ceil((sorted.length * 2) / 3);
-    
-    return sorted.map((wordData, index) => {
-      // Assign category based on position (ensures all 3 colors present)
-      let category: 'high' | 'medium' | 'low';
-      if (index < highThreshold) {
-        category = 'high';
-      } else if (index < mediumThreshold) {
-        category = 'medium';
-      } else {
-        category = 'low';
-      }
-      
-      // Calculate font size based on frequency - wider range for more visual impact
-      const ratio = wordData.frequency / maxFreq;
-      let fontSize: number;
-      let fontWeight: string;
-      
-      if (ratio > 0.85) {
-        fontSize = 48;
-        fontWeight = 'font-black';
-      } else if (ratio > 0.7) {
-        fontSize = 38;
-        fontWeight = 'font-extrabold';
-      } else if (ratio > 0.55) {
-        fontSize = 30;
-        fontWeight = 'font-bold';
-      } else if (ratio > 0.4) {
-        fontSize = 24;
-        fontWeight = 'font-bold';
-      } else if (ratio > 0.25) {
-        fontSize = 18;
-        fontWeight = 'font-semibold';
-      } else if (ratio > 0.12) {
-        fontSize = 14;
-        fontWeight = 'font-medium';
-      } else {
-        fontSize = 11;
-        fontWeight = 'font-medium';
-      }
+    const highT = Math.ceil(sorted.length / 3);
+    const medT = Math.ceil((sorted.length * 2) / 3);
 
-      // Colors: Red for high, Green for medium, Blue for low
-      let color: string;
-      switch (category) {
-        case 'high':
-          color = '#dc2626'; // red-600
-          break;
-        case 'medium':
-          color = '#16a34a'; // green-600
-          break;
-        case 'low':
-          color = '#0369a1'; // sky-700
-          break;
-      }
-
-      // Varied rotations for organic cloud look
-      const rotations = [-15, -8, -3, 0, 0, 0, 0, 3, 8, 12];
-      const rotation = rotations[index % rotations.length];
-
-      return {
-        ...wordData,
-        category,
-        fontSize,
-        fontWeight,
-        color,
-        rotation,
-      };
+    return sorted.map((w, i) => {
+      const category = i < highT ? 'high' : i < medT ? 'medium' : 'low';
+      const palette = COLORS[category];
+      const color = palette[i % palette.length];
+      const ratio = w.frequency / maxFreq;
+      return { ...w, ratio, color, category };
     });
   }, [words]);
 
-  // Create a more organic layout by interleaving sizes
-  const arrangedWords = useMemo(() => {
-    if (styledWords.length === 0) return [];
-    
-    const result: typeof styledWords = [];
-    const large = styledWords.filter(w => w.fontSize >= 30);
-    const medium = styledWords.filter(w => w.fontSize >= 18 && w.fontSize < 30);
-    const small = styledWords.filter(w => w.fontSize < 18);
-    
-    // Interleave: large words first, then mix medium and small around them
-    let li = 0, mi = 0, si = 0;
-    
-    while (li < large.length || mi < medium.length || si < small.length) {
-      if (li < large.length) result.push(large[li++]);
-      if (si < small.length) result.push(small[si++]);
-      if (mi < medium.length) result.push(medium[mi++]);
-      if (si < small.length) result.push(small[si++]);
-      if (mi < medium.length) result.push(medium[mi++]);
+  const layoutWords = useCallback(() => {
+    if (sortedWords.length === 0 || dimensions.width === 0) return;
+
+    const W = dimensions.width;
+    const H = dimensions.height;
+    const cx = W / 2;
+    const cy = H / 2;
+
+    // Font size range scaled to container
+    const minFont = Math.max(10, W * 0.022);
+    const maxFont = Math.min(52, W * 0.1);
+
+    const placed: PlacedWord[] = [];
+    const occupied: { x: number; y: number; w: number; h: number }[] = [];
+
+    const collides = (x: number, y: number, w: number, h: number) => {
+      for (const r of occupied) {
+        if (!(x + w < r.x || x > r.x + r.w || y + h < r.y || y > r.y + r.h)) return true;
+      }
+      return false;
+    };
+
+    for (const word of sortedWords) {
+      const fontSize = minFont + (maxFont - minFont) * Math.pow(word.ratio, 0.6);
+      const fontWeight = word.ratio > 0.6 ? 900 : word.ratio > 0.3 ? 700 : 500;
+
+      // Estimate bounding box
+      const charW = fontSize * 0.58;
+      const wordW = word.word.length * charW;
+      const wordH = fontSize * 1.1;
+
+      let bestX = cx - wordW / 2;
+      let bestY = cy - wordH / 2;
+      let found = false;
+
+      // Spiral placement
+      for (let r = 0; r < Math.max(W, H); r += 3) {
+        const steps = Math.max(6, Math.floor(r * 0.8));
+        for (let a = 0; a < steps; a++) {
+          const angle = (a / steps) * Math.PI * 2;
+          const tx = cx + r * Math.cos(angle) * 1.3 - wordW / 2;
+          const ty = cy + r * Math.sin(angle) * 0.85 - wordH / 2;
+
+          if (tx < 2 || tx + wordW > W - 2 || ty < 2 || ty + wordH > H - 2) continue;
+          if (!collides(tx, ty, wordW, wordH)) {
+            bestX = tx;
+            bestY = ty;
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+
+      if (found) {
+        occupied.push({ x: bestX, y: bestY, w: wordW, h: wordH });
+        placed.push({
+          word: word.word,
+          frequency: word.frequency,
+          x: bestX,
+          y: bestY,
+          fontSize,
+          color: word.color,
+          fontWeight,
+        });
+      }
     }
-    
-    return result;
-  }, [styledWords]);
+
+    setPlacedWords(placed);
+  }, [sortedWords, dimensions]);
+
+  useEffect(() => { layoutWords(); }, [layoutWords]);
 
   return (
     <Card className="border-primary/20">
       <CardHeader className="pb-2">
         <CardTitle className="text-center text-lg">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="px-3">
-        <div 
-          className="flex flex-wrap items-center justify-center min-h-[220px] py-4 leading-none"
-          style={{ 
-            gap: '2px 6px',
-            wordSpacing: '-2px',
-          }}
+      <CardContent className="px-3 pb-4">
+        <div
+          ref={containerRef}
+          className="relative w-full overflow-hidden"
+          style={{ height: 280 }}
         >
-          {arrangedWords.map((wordData, index) => (
+          {placedWords.map((w, i) => (
             <span
-              key={`${wordData.word}-${index}`}
-              className={`
-                ${wordData.fontWeight}
-                cursor-default transition-opacity duration-150
-                hover:opacity-60 select-none
-              `}
+              key={`${w.word}-${i}`}
+              className="absolute cursor-default select-none hover:opacity-60 transition-opacity whitespace-nowrap"
               style={{
-                fontSize: `${wordData.fontSize}px`,
-                color: wordData.color,
-                transform: `rotate(${wordData.rotation}deg)`,
-                lineHeight: '1',
-                display: 'inline-block',
-                margin: `${Math.abs(wordData.rotation) > 5 ? 4 : 0}px 0`,
+                left: w.x,
+                top: w.y,
+                fontSize: w.fontSize,
+                fontWeight: w.fontWeight,
+                color: w.color,
+                lineHeight: 1,
+                fontFamily: "'Arial', 'Helvetica Neue', sans-serif",
+                textTransform: w.fontSize > 30 ? 'uppercase' : 'none',
               }}
-              title={`${wordData.word}: ${wordData.frequency}`}
+              title={`${w.word}: ${w.frequency}`}
             >
-              {wordData.word}
+              {w.word}
             </span>
           ))}
-        </div>
-        <div className="flex justify-center gap-5 mt-2 text-xs border-t pt-3">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#dc2626' }}></div>
-            <span className="text-muted-foreground">High</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#16a34a' }}></div>
-            <span className="text-muted-foreground">Medium</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#0369a1' }}></div>
-            <span className="text-muted-foreground">Low</span>
-          </div>
         </div>
       </CardContent>
     </Card>
