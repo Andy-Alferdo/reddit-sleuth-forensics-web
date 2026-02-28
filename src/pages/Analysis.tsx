@@ -1168,17 +1168,51 @@ const Analysis = () => {
                 <>
                   <h3 className="text-sm font-medium text-muted-foreground">Previously Analyzed Communities</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {savedCommunity.map((item) => (
-                      <SavedAnalysisCard
-                        key={item.id}
-                        title={`r/${item.target}`}
-                        subtitle={`${((item.result_data as any)?.subscribers ?? 0).toLocaleString()} subscribers`}
-                        analyzedAt={item.analyzed_at}
-                        icon={Users}
-                        onClick={() => loadSavedAnalysis(item)}
-                        onDelete={() => deleteSavedAnalysis(item.id, 'community')}
-                      />
-                    ))}
+                    {savedCommunity.map((item) => {
+                      const rd = item.result_data as any;
+                      const displayName = item.target?.startsWith('r/') ? item.target : `r/${item.target}`;
+                      const subscribers = rd?.subscribers ?? 0;
+                      const iconImg = rd?.iconImg || '';
+                      return (
+                        <Card key={item.id} className="overflow-hidden hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 cursor-pointer group border-border">
+                          <div className="relative bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 px-4 pt-4 pb-10">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-white font-bold text-sm truncate">{displayName}</span>
+                              <span className="flex items-center gap-1 text-white/90 text-[11px] font-semibold bg-white/20 rounded-full px-2 py-0.5 backdrop-blur-sm">
+                                <Users className="h-3 w-3" />
+                                {subscribers.toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-white/60 text-[10px]">{item.analyzed_at ? new Date(item.analyzed_at).toLocaleString() : ''}</p>
+                          </div>
+                          <div className="flex justify-center -mt-8 relative z-10">
+                            <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg overflow-hidden">
+                              {iconImg ? (
+                                <img src={iconImg} alt={displayName} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling && ((e.target as HTMLImageElement).nextElementSibling as HTMLElement).classList.remove('hidden'); }} />
+                              ) : null}
+                              <div className={`w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center ${iconImg ? 'hidden' : ''}`}>
+                                <Users className="h-7 w-7 text-white" />
+                              </div>
+                            </div>
+                          </div>
+                          <CardContent className="pt-3 pb-3 text-center space-y-2">
+                            <a href={`https://www.reddit.com/${displayName}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-sm hover:text-primary transition-colors flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              {displayName}
+                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </a>
+                            <p className="text-xs text-muted-foreground">{subscribers.toLocaleString()} subscribers</p>
+                            <div className="flex gap-2 pt-1">
+                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8" onClick={() => loadSavedAnalysis(item)}>
+                                <Eye className="h-3 w-3 mr-1" /> View
+                              </Button>
+                              <Button variant="outline" size="sm" className="h-8 text-xs text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteSavedAnalysis(item.id, 'community'); }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -1355,17 +1389,45 @@ const Analysis = () => {
                 <>
                   <h3 className="text-sm font-medium text-muted-foreground">Previously Analyzed Links</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {savedLink.map((item) => (
-                      <SavedAnalysisCard
-                        key={item.id}
-                        title={`u/${item.target}`}
-                        subtitle={`${((item.result_data as any)?.totalKarma ?? 0).toLocaleString()} karma`}
-                        analyzedAt={item.analyzed_at}
-                        icon={Network}
-                        onClick={() => loadSavedAnalysis(item)}
-                        onDelete={() => deleteSavedAnalysis(item.id, 'link')}
-                      />
-                    ))}
+                    {savedLink.map((item) => {
+                      const rd = item.result_data as any;
+                      const displayName = item.target?.startsWith('u/') ? item.target : `u/${item.target}`;
+                      const totalKarma = rd?.totalKarma ?? 0;
+                      return (
+                        <Card key={item.id} className="overflow-hidden hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 cursor-pointer group border-border">
+                          <div className="relative bg-gradient-to-br from-orange-500 via-red-500 to-rose-600 px-4 pt-4 pb-10">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-white font-bold text-sm truncate">{displayName}</span>
+                              <span className="flex items-center gap-1 text-white/90 text-[11px] font-semibold bg-white/20 rounded-full px-2 py-0.5 backdrop-blur-sm">
+                                <Network className="h-3 w-3" />
+                                {totalKarma.toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-white/60 text-[10px]">{item.analyzed_at ? new Date(item.analyzed_at).toLocaleString() : ''}</p>
+                          </div>
+                          <div className="flex justify-center -mt-8 relative z-10">
+                            <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg flex items-center justify-center bg-gradient-to-br from-orange-500 via-red-500 to-rose-600">
+                              <Network className="h-7 w-7 text-white" />
+                            </div>
+                          </div>
+                          <CardContent className="pt-3 pb-3 text-center space-y-2">
+                            <a href={`https://www.reddit.com/user/${item.target?.replace(/^u\//, '')}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-sm hover:text-primary transition-colors flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              {displayName}
+                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </a>
+                            <p className="text-xs text-muted-foreground">{totalKarma.toLocaleString()} karma</p>
+                            <div className="flex gap-2 pt-1">
+                              <Button variant="outline" size="sm" className="flex-1 text-xs h-8" onClick={() => loadSavedAnalysis(item)}>
+                                <Eye className="h-3 w-3 mr-1" /> View
+                              </Button>
+                              <Button variant="outline" size="sm" className="h-8 text-xs text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); deleteSavedAnalysis(item.id, 'link'); }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </>
               )}
