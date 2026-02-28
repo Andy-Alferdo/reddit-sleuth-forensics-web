@@ -107,7 +107,7 @@ const buildWordCloud = (posts: any[], comments: any[]) => {
   });
   const sorted = Object.entries(wordFreq)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 15)
+    .slice(0, 60)
     .map(([word, freq]) => ({ word, frequency: freq }));
   return generateWordCloudWithCategories(sorted);
 };

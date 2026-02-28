@@ -23,9 +23,16 @@ interface PlacedWord {
   vertical: boolean;
 }
 
-const PALETTE_HIGH = ['#b91c1c', '#dc2626', '#991b1b', '#c53030'];
-const PALETTE_MED = ['#1a1a1a', '#292524', '#44403c', '#1c1917'];
-const PALETTE_LOW = ['#78716c', '#a8a29e', '#6b7280', '#9ca3af'];
+// Rich color palette like the reference image
+const COLORS = [
+  '#b91c1c', '#dc2626', '#991b1b',   // reds (high)
+  '#c2410c', '#ea580c',               // orange-red
+  '#1a1a1a', '#292524', '#374151',     // dark (medium)
+  '#854d0e', '#a16207',               // gold/olive
+  '#15803d', '#166534',               // greens
+  '#0e7490', '#0369a1',               // teals/blues
+  '#78716c', '#6b7280', '#9ca3af',    // grays (low)
+];
 
 const seededRandom = (seed: number) => {
   let s = seed;
@@ -54,15 +61,7 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
 
   const sortedWords = useMemo(() => {
     if (!words.length) return [];
-    const sorted = [...words].sort((a, b) => b.frequency - a.frequency).slice(0, 60);
-    const maxFreq = sorted[0]?.frequency || 1;
-    const t1 = Math.ceil(sorted.length / 3);
-    const t2 = Math.ceil((sorted.length * 2) / 3);
-    return sorted.map((w, i) => {
-      const cat = i < t1 ? 'high' : i < t2 ? 'medium' : 'low';
-      const pal = cat === 'high' ? PALETTE_HIGH : cat === 'medium' ? PALETTE_MED : PALETTE_LOW;
-      return { ...w, ratio: w.frequency / maxFreq, color: pal[i % pal.length], category: cat };
-    });
+    return [...words].sort((a, b) => b.frequency - a.frequency).slice(0, 80);
   }, [words]);
 
   const layout = useCallback(() => {
@@ -73,105 +72,110 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
     const cx = W / 2;
     const cy = H / 2;
 
-    // Pixel grid for collision (1px resolution for tight packing)
-    const grid = new Uint8Array(W * H);
-
-    const isOccupied = (px: number, py: number, bw: number, bh: number): boolean => {
-      const x0 = Math.max(0, px);
-      const y0 = Math.max(0, py);
-      const x1 = Math.min(W, px + bw);
-      const y1 = Math.min(H, py + bh);
-      for (let y = y0; y < y1; y++) {
-        const row = y * W;
-        for (let x = x0; x < x1; x++) {
-          if (grid[row + x]) return true;
-        }
-      }
-      return false;
-    };
-
-    const markOccupied = (px: number, py: number, bw: number, bh: number) => {
-      const x0 = Math.max(0, px);
-      const y0 = Math.max(0, py);
-      const x1 = Math.min(W, px + bw);
-      const y1 = Math.min(H, py + bh);
-      for (let y = y0; y < y1; y++) {
-        const row = y * W;
-        for (let x = x0; x < x1; x++) {
-          grid[row + x] = 1;
-        }
-      }
-    };
-
     const canvas = canvasRef.current;
     if (!canvas) return;
+    canvas.width = W;
+    canvas.height = H;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Dramatic size range: biggest word ~3-4x the size of medium words
-    const minFont = Math.max(7, W * 0.014);
-    const maxFont = Math.min(72, W * 0.15);
-    const rng = seededRandom(42);
+    // Use ImageData for pixel-level collision detection
+    const imageData = ctx.createImageData(W, H);
+    const pixels = imageData.data;
 
+    const isAreaFree = (x: number, y: number, w: number, h: number): boolean => {
+      const x0 = Math.max(0, Math.floor(x));
+      const y0 = Math.max(0, Math.floor(y));
+      const x1 = Math.min(W, Math.ceil(x + w));
+      const y1 = Math.min(H, Math.ceil(y + h));
+      for (let py = y0; py < y1; py += 2) {
+        for (let px = x0; px < x1; px += 2) {
+          if (pixels[(py * W + px) * 4 + 3] > 0) return false;
+        }
+      }
+      return true;
+    };
+
+    const markArea = (x: number, y: number, w: number, h: number) => {
+      const x0 = Math.max(0, Math.floor(x));
+      const y0 = Math.max(0, Math.floor(y));
+      const x1 = Math.min(W, Math.ceil(x + w));
+      const y1 = Math.min(H, Math.ceil(y + h));
+      for (let py = y0; py < y1; py++) {
+        for (let px = x0; px < x1; px++) {
+          pixels[(py * W + px) * 4 + 3] = 255;
+        }
+      }
+    };
+
+    const maxFreq = sortedWords[0]?.frequency || 1;
+    const minFreq = sortedWords[sortedWords.length - 1]?.frequency || 1;
+
+    // Dramatic font range
+    const maxFont = Math.min(72, W * 0.16);
+    const minFont = Math.max(7, W * 0.013);
+
+    const rng = seededRandom(42);
     const placed: PlacedWord[] = [];
 
     for (let i = 0; i < sortedWords.length; i++) {
       const word = sortedWords[i];
-      // Very steep curve: index 0 gets full size, drops fast
-      const fontSize = Math.round(minFont + (maxFont - minFont) * Math.pow(word.ratio, 0.3));
-      const fontWeight = word.ratio > 0.6 ? 900 : word.ratio > 0.3 ? 700 : 400;
-      // More vertical words for smaller text, less for big words
-      const vertical = word.ratio < 0.8 && rng() < 0.3;
+      const ratio = maxFreq === minFreq ? 1 : (word.frequency - minFreq) / (maxFreq - minFreq);
+
+      // Very steep curve: biggest word is HUGE, small words are tiny
+      const fontSize = Math.round(minFont + (maxFont - minFont) * Math.pow(ratio, 0.25));
+      const fontWeight = ratio > 0.5 ? 900 : ratio > 0.2 ? 700 : ratio > 0.08 ? 500 : 400;
+
+      // Color assignment: high freq = reds, med = darks/warm, low = grays
+      let colorIdx: number;
+      if (ratio > 0.5) colorIdx = Math.floor(rng() * 5); // reds + oranges
+      else if (ratio > 0.15) colorIdx = 5 + Math.floor(rng() * 6); // darks + warm + greens
+      else colorIdx = 11 + Math.floor(rng() * 5); // teals + grays
+      const color = COLORS[colorIdx % COLORS.length];
+
+      // ~30% vertical for smaller words, less for big
+      const vertical = fontSize < maxFont * 0.4 && rng() < 0.3;
 
       ctx.font = `${fontWeight} ${fontSize}px Arial, Helvetica, sans-serif`;
-      const textLabel = word.word.toUpperCase();
-      const metrics = ctx.measureText(textLabel);
-      const rawW = Math.ceil(metrics.width);
-      const rawH = Math.ceil(fontSize * 1.05);
+      const label = word.word.toUpperCase();
+      const tm = ctx.measureText(label);
+      const textW = Math.ceil(tm.width);
+      const textH = Math.ceil(fontSize * 1.05);
 
-      // Padding: tighter for small words
-      const pad = fontSize < 14 ? 1 : 2;
-      const boxW = (vertical ? rawH : rawW) + pad * 2;
-      const boxH = (vertical ? rawW : rawH) + pad * 2;
+      const pad = fontSize < 12 ? 1 : fontSize < 20 ? 2 : 3;
+      const boxW = (vertical ? textH : textW) + pad * 2;
+      const boxH = (vertical ? textW : textH) + pad * 2;
 
-      let bestX = -1;
-      let bestY = -1;
       let found = false;
 
-      // Spiral from center, tighter steps for small words
-      const step = Math.max(1, Math.floor(fontSize * 0.15));
-      const maxR = Math.max(W, H) * 0.6;
+      // Spiral placement from center
+      const step = Math.max(1, Math.round(fontSize * 0.1));
+      const maxR = Math.max(W, H) * 0.55;
       for (let r = 0; r < maxR && !found; r += step) {
-        const steps = Math.max(12, Math.floor(r * 2));
-        const startAngle = rng() * Math.PI * 2;
-        for (let s = 0; s < steps && !found; s++) {
-          const angle = startAngle + (s / steps) * Math.PI * 2;
-          // Wider horizontal spread
-          const px = Math.round(cx + r * Math.cos(angle) * 1.5 - boxW / 2);
-          const py = Math.round(cy + r * Math.sin(angle) - boxH / 2);
+        const nSteps = Math.max(16, Math.floor(r * 2.5));
+        const startA = rng() * Math.PI * 2;
+        for (let s = 0; s < nSteps && !found; s++) {
+          const a = startA + (s / nSteps) * Math.PI * 2;
+          const px = Math.round(cx + r * Math.cos(a) * 1.6 - boxW / 2);
+          const py = Math.round(cy + r * Math.sin(a) * 0.85 - boxH / 2);
 
           if (px < 0 || py < 0 || px + boxW > W || py + boxH > H) continue;
 
-          if (!isOccupied(px, py, boxW, boxH)) {
-            bestX = px + pad;
-            bestY = py + pad;
+          if (isAreaFree(px, py, boxW, boxH)) {
+            markArea(px, py, boxW, boxH);
+            placed.push({
+              word: word.word,
+              frequency: word.frequency,
+              x: px + pad,
+              y: py + pad,
+              fontSize,
+              color,
+              fontWeight,
+              vertical,
+            });
             found = true;
-            markOccupied(px, py, boxW, boxH);
           }
         }
-      }
-
-      if (found) {
-        placed.push({
-          word: word.word,
-          frequency: word.frequency,
-          x: bestX,
-          y: bestY,
-          fontSize,
-          color: word.color,
-          fontWeight,
-          vertical,
-        });
       }
     }
 
@@ -180,13 +184,15 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
 
   useEffect(() => { layout(); }, [layout]);
 
+  if (!words.length) return null;
+
   return (
     <Card className="border-primary/20">
       <CardHeader className="pb-2">
         <CardTitle className="text-center text-lg">{title}</CardTitle>
       </CardHeader>
       <CardContent className="px-3 pb-4">
-        <canvas ref={canvasRef} width={0} height={0} className="hidden" />
+        <canvas ref={canvasRef} className="hidden" />
         <div
           ref={containerRef}
           className="relative w-full overflow-hidden"
@@ -205,7 +211,7 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
                 lineHeight: 1.05,
                 fontFamily: "'Arial', 'Helvetica Neue', sans-serif",
                 textTransform: 'uppercase',
-                letterSpacing: w.fontSize > 30 ? '-0.02em' : '0',
+                letterSpacing: w.fontSize > 40 ? '-0.03em' : w.fontSize > 20 ? '-0.01em' : '0',
                 ...(w.vertical
                   ? { writingMode: 'vertical-rl', textOrientation: 'mixed' }
                   : {}),
