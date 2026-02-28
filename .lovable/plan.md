@@ -1,59 +1,66 @@
 
 
-## Link Analysis Improvements
+# Add Previously Analyzed Cards to All Modules
 
-### 1. Community Activity - Show Top 5 with "See More" Pagination
+## Overview
+Replace the empty-state placeholder messages in User Profiling and Analysis tabs with clickable cards showing all previously analyzed items for the current case -- similar to how Monitoring shows target cards.
 
-**Current behavior:** All communities are displayed at once.
+## What Changes
 
-**New behavior:**
-- Initially show only the **top 5 communities** sorted by activity
-- Display a "See More" button below them
-- Each click loads **10 more** communities
-- Continue until all communities are shown, then hide the button
+### 1. User Profiling Page (`src/pages/UserProfiling.tsx`)
+- When no profile is being viewed (empty state area, lines 699-706), fetch all `user_profiles_analyzed` records for the current case from the database
+- Display a grid of cards, each showing:
+  - Username
+  - Total karma
+  - Account age
+  - Analyzed date
+- Clicking a card loads that profile's data into the view (same as the existing `loadProfileId` flow)
+- Keep the "Enter a username..." message but move it below the cards grid, or show it only when there are no saved profiles
 
-**Changes in `src/pages/Analysis.tsx`:**
-- Add a `visibleCommunities` state, initialized to 5
-- Slice `linkData.userToCommunities` to `visibleCommunities`
-- Add a "See More" button that increments by 10
-- Hide button when all communities are visible
+### 2. Analysis Page - Keyword Tab (`src/pages/Analysis.tsx`)
+- In the keyword empty state (lines 751-757), fetch `analysis_results` where `analysis_type = 'keyword'` for the current case
+- Show cards with: keyword name, total mentions, analyzed date
+- Clicking loads the saved keyword analysis data
 
-### 2. Network Graph - Make Interactive (Draggable + Clickable)
+### 3. Analysis Page - Community Tab
+- In the community empty state (lines 1004-1010), fetch `analysis_results` where `analysis_type = 'community'` for the current case
+- Show cards with: subreddit name, subscriber count (from result_data), analyzed date
+- Clicking loads the saved community analysis data
 
-**Current behavior:** The canvas graph is static (no mouse interaction). Nodes cannot be clicked or dragged.
+### 4. Analysis Page - Link Tab
+- In the link empty state (lines 1171-1177), fetch `analysis_results` where `analysis_type = 'link'` for the current case
+- Show cards with: primary username, total karma, analyzed date
+- Clicking loads the saved link analysis data
 
-**New behavior:**
-- **Clickable nodes:** Clicking a community node opens `https://www.reddit.com/r/{community}` in a new tab. Clicking a user node opens `https://www.reddit.com/user/{username}` in a new tab.
-- **Draggable nodes:** Users can click and drag nodes to reposition them.
-- **Cursor feedback:** Cursor changes to pointer when hovering over a node.
+## Technical Approach
 
-**Changes in `src/components/UserCommunityNetworkGraph.tsx`:**
-- Add mouse event listeners (`mousedown`, `mousemove`, `mouseup`, `click`) to the canvas
-- Implement hit-detection to determine which node the mouse is over
-- On drag: update the dragged node's position and restart simulation briefly
-- On click (without drag): open the appropriate Reddit URL in a new tab
-- Change cursor to `pointer` when hovering over a node
-- Remove `'interest'` from the icon map and color definitions
-- Remove the "Interests (Related Communities)" legend item
+### Data Fetching
+- Use `useEffect` to query the database when the component mounts and `currentCase` is set
+- Query `user_profiles_analyzed` filtered by `case_id` for user profiling
+- Query `analysis_results` filtered by `case_id` and `analysis_type` for each analysis tab
+- Listen for `case-data-updated` custom events to refresh cards after new analyses are saved
 
-### 3. Remove Interest Type from Graph
+### Card Component
+- Create a reusable `SavedAnalysisCard` component (`src/components/SavedAnalysisCard.tsx`) that accepts:
+  - `title` (username/keyword/subreddit)
+  - `subtitle` (karma/mentions/subscribers)
+  - `analyzedAt` (date string)
+  - `icon` (User/BarChart3/Users/Network)
+  - `onClick` handler
+- Style similar to `MonitoringTargetCard`: bordered card with hover effect, compact layout
 
-- Remove the `interest` entry from `nodeColors`, `nodeGradients`, and the icons map
-- Remove the "Interests" legend item from the bottom of the graph component
+### Loading Saved Data
+- For User Profiling: clicking a card sets the `profileData` state directly from the DB record (reuse existing transform logic from `loadProfileId`)
+- For Analysis tabs: clicking a card sets the respective tab data (`keywordData`, `communityData`, `linkData`) from the `result_data` JSON column
 
-### Technical Details
+### Empty State
+- When there are saved items: show the card grid with a subtle "analyze more" prompt
+- When there are no saved items: show the current empty state (icon + message)
 
-**State additions in Analysis.tsx:**
-```
-const [visibleCommunities, setVisibleCommunities] = useState(5);
-```
-Reset to 5 in `handleLinkAnalysis`.
+## Files to Create
+1. `src/components/SavedAnalysisCard.tsx` -- reusable card component
 
-**Mouse interaction in UserCommunityNetworkGraph.tsx:**
-- Track `isDragging`, `dragNode`, and `mouseDownPos` refs
-- `mousedown`: find node under cursor, start drag
-- `mousemove`: if dragging, update node position; always update cursor style
-- `mouseup`: end drag
-- `click`: if no significant drag occurred, open Reddit link for the clicked node
-- Helper: `getNodeAtPosition(x, y)` checks distance from mouse to each node center
+## Files to Modify
+2. `src/pages/UserProfiling.tsx` -- add saved profiles grid in empty state
+3. `src/pages/Analysis.tsx` -- add saved analysis grids in each tab's empty state
 
