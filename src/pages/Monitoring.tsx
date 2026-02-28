@@ -178,6 +178,7 @@ const Monitoring = () => {
                     lastFetchTime={target.lastFetchTime}
                     newActivityCount={target.newActivityCount}
                     totalActivities={target.activities.length}
+                    profileData={target.profileData}
                     onSelect={setSelectedTargetId}
                     onStop={handleStopTarget}
                     onRestart={handleRestartTarget}
