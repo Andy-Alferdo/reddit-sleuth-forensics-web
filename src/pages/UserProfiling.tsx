@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle, Search, X, Loader2, ExternalLink, ChevronDown } from 'lucide-react';
+import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle, Search, X, Loader2, ExternalLink, ChevronDown, Zap, Trash2 } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { SavedAnalysisCard } from '@/components/SavedAnalysisCard';
@@ -776,17 +776,73 @@ const UserProfiling = () => {
           {savedProfiles.length > 0 && (
             <>
               <h3 className="text-sm font-medium text-muted-foreground">Previously Analyzed Profiles</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {savedProfiles.map((p) => (
-                  <SavedAnalysisCard
+                  <Card
                     key={p.id}
-                    title={`u/${p.username}`}
-                    subtitle={`${(p.total_karma ?? 0).toLocaleString()} karma · ${p.account_age || 'Unknown age'}`}
-                    analyzedAt={p.analyzed_at}
-                    icon={User}
+                    className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:-translate-y-1"
                     onClick={() => loadSavedProfile(p.id)}
-                    onDelete={() => deleteSavedProfile(p.id)}
-                  />
+                  >
+                    {/* Gradient header */}
+                    <div className="relative bg-gradient-to-br from-orange-500 via-red-500 to-rose-600 px-4 pt-4 pb-10">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-white font-bold text-sm truncate">u/{p.username}</span>
+                        <span className="flex items-center gap-1 text-white/90 text-[11px] font-semibold bg-white/20 rounded-full px-2 py-0.5 backdrop-blur-sm shrink-0">
+                          <Zap className="h-3 w-3" />
+                          {(p.total_karma ?? 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-white/80 font-medium">{p.account_age || 'Unknown age'}</span>
+                      <div className="absolute top-0 right-0 w-20 h-20 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+                      <div className="absolute bottom-0 left-0 w-14 h-14 bg-white/5 rounded-full translate-y-6 -translate-x-4" />
+                    </div>
+
+                    {/* Avatar */}
+                    <div className="flex justify-center -mt-8 relative z-10">
+                      <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-orange-500 via-red-500 to-rose-600">
+                        <User className="h-7 w-7 text-white" />
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="px-4 pt-2 pb-3 text-center">
+                      <a
+                        href={`https://www.reddit.com/user/${p.username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-bold text-foreground hover:text-primary transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        u/{p.username}
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </a>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {p.analyzed_at ? new Date(p.analyzed_at).toLocaleString() : 'Unknown date'}
+                      </p>
+                    </div>
+
+                    {/* Delete button */}
+                    <div className="flex border-t border-border/50">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 rounded-none text-xs h-9 hover:bg-muted/80"
+                        onClick={(e) => { e.stopPropagation(); loadSavedProfile(p.id); }}
+                      >
+                        <Search className="h-3.5 w-3.5 mr-1" />
+                        View
+                      </Button>
+                      <div className="w-px bg-border/50" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-none text-xs h-9 px-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => { e.stopPropagation(); deleteSavedProfile(p.id); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </Card>
                 ))}
               </div>
             </>
