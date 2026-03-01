@@ -160,7 +160,17 @@ export const MonitoringDetailView = ({
           )}
           <CardTitle className={`flex items-center gap-2 ${profileData.iconImg ? 'ml-20' : ''}`}>
             {!profileData.iconImg && (profileData.username ? <User className="h-5 w-5" /> : <Users className="h-5 w-5" />)}
-            {profileData.username || profileData.communityName}
+            <a
+              href={profileData.username 
+                ? `https://www.reddit.com/user/${profileData.username.replace(/^u\//, '')}` 
+                : `https://www.reddit.com/${profileData.communityName}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-primary transition-colors flex items-center gap-1.5 group"
+            >
+              {profileData.username || profileData.communityName}
+              <ExternalLink className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </a>
           </CardTitle>
           <CardDescription className={profileData.iconImg ? 'ml-20' : ''}>
             {profileData.username ? 'User Profile' : 'Community Information'}
@@ -374,7 +384,7 @@ export const MonitoringDetailView = ({
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-base">Trending Keywords</CardTitle></CardHeader>
               <CardContent className="pt-0">
@@ -382,36 +392,15 @@ export const MonitoringDetailView = ({
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Weekly Contributions
-                </CardTitle>
-                <CardDescription className="text-xs">From Reddit community stats</CardDescription>
+              <CardHeader>
+                <CardTitle>Activity Breakdown</CardTitle>
+                <CardDescription>Daily post distribution</CardDescription>
               </CardHeader>
-              <CardContent className="flex items-center justify-center min-h-[220px]">
-                <div className="text-center text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm font-medium">Weekly contributions not available</p>
-                  <p className="text-xs mt-1 max-w-[200px]">Reddit's API doesn't expose this metric.</p>
-                  <a href={`https://reddit.com/${profileData.communityName}`} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-3">
-                    <ExternalLink className="h-3 w-3" />View on Reddit
-                  </a>
-                </div>
+              <CardContent>
+                <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
               </CardContent>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Posts (Last 3 Days)</CardTitle>
-              <CardDescription>Daily post distribution</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AnalyticsChart data={activityBreakdownData} title="" type="bar" height={250} />
-            </CardContent>
-          </Card>
         </div>
       )}
       {/* Preview Dialog */}
