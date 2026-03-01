@@ -706,15 +706,15 @@ const Analysis = () => {
                 Back to Keyword Analysis Overview
               </Button>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="border-primary/20 shadow-glow">
+                <Card className="border-primary/20 shadow-glow flex flex-col">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center space-x-2 text-base">
                       <BarChart3 className="h-5 w-5 text-primary" />
                       <span>Keyword Overview: "{keywordData.keyword}"</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                  <CardContent className="flex-1 flex items-center justify-center">
+                    <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30 w-full">
                       <div className="text-4xl font-bold text-primary">{keywordData.totalMentions}</div>
                       <p className="text-muted-foreground text-sm">Mentions Found</p>
                     </div>
