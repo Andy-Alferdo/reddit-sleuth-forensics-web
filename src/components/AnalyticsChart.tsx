@@ -23,8 +23,15 @@ export const AnalyticsChart = ({ data, title, type, height = 300 }: AnalyticsCha
     },
   };
 
-  // Neo4j/Talkwalker inspired colors
-  const neo4jColors = [
+  // Standard sentiment colors mapping
+  const sentimentColorMap: Record<string, string> = {
+    'Positive': '#28A745',
+    'Negative': '#DC3545',
+    'Neutral': '#9E9E9E',
+  };
+
+  // General chart colors for non-sentiment data
+  const chartColors = [
     'hsl(var(--primary))',
     'hsl(var(--forensic-success))',
     'hsl(var(--accent))',
@@ -124,12 +131,12 @@ export const AnalyticsChart = ({ data, title, type, height = 300 }: AnalyticsCha
               paddingAngle={2}
             >
               {data.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={neo4jColors[index % neo4jColors.length]}
-                  stroke="hsl(var(--background))"
-                  strokeWidth={2}
-                />
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={sentimentColorMap[entry.name] || chartColors[index % chartColors.length]}
+                    stroke="hsl(var(--background))"
+                    strokeWidth={2}
+                  />
               ))}
             </Pie>
             <ChartTooltip content={<ChartTooltipContent />} />

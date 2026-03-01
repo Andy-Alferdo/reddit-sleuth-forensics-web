@@ -176,7 +176,7 @@ const Analysis = () => {
       case 'negative':
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Negative</Badge>;
       default:
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Neutral</Badge>;
+        return <Badge className="bg-gray-500/20 text-gray-500 border-gray-500/30">Neutral</Badge>;
     }
   };
 
