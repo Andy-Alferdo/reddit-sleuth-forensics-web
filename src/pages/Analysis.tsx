@@ -705,31 +705,31 @@ const Analysis = () => {
                 <ArrowLeft className="h-4 w-4" />
                 Back to Keyword Analysis Overview
               </Button>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="border-primary/20 shadow-glow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center space-x-2 text-base">
                       <BarChart3 className="h-5 w-5 text-primary" />
                       <span>Keyword Overview: "{keywordData.keyword}"</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center p-6 rounded-lg bg-primary/10 border border-primary/30">
+                    <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
                       <div className="text-4xl font-bold text-primary">{keywordData.totalMentions}</div>
-                      <p className="text-muted-foreground">Mentions Found</p>
+                      <p className="text-muted-foreground text-sm">Mentions Found</p>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-primary/20 shadow-glow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
+                <Card className="border-primary/20 shadow-glow lg:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center space-x-2 text-base">
                       <Users className="h-5 w-5 text-primary" />
                       <span>Top Subreddits</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {keywordData.topSubreddits.length > 0 ? (
                         keywordData.topSubreddits.map((sub: any, index: number) => (
                           <a
@@ -737,17 +737,17 @@ const Analysis = () => {
                             href={`https://www.reddit.com/${sub.name}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex justify-between items-center p-3 rounded-lg bg-card border border-border hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+                            className="flex justify-between items-center p-2.5 rounded-lg bg-card border border-border hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
                           >
-                            <span className="font-medium group-hover:text-primary transition-colors flex items-center gap-1.5">
+                            <span className="font-medium text-sm group-hover:text-primary transition-colors flex items-center gap-1.5">
                               {sub.name}
                               <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </span>
-                            <Badge variant="secondary">{sub.mentions} mentions</Badge>
+                            <Badge variant="secondary" className="text-xs">{sub.mentions} mentions</Badge>
                           </a>
                         ))
                       ) : (
-                        <p className="text-muted-foreground text-center py-4">No subreddit data available</p>
+                        <p className="text-muted-foreground text-center py-4 col-span-2">No subreddit data available</p>
                       )}
                     </div>
                   </CardContent>
@@ -858,20 +858,68 @@ const Analysis = () => {
           {!keywordData && !isLoading && (
             <div className="space-y-4">
               {savedKeyword.length > 0 && (
-                <>
+             <>
                   <h3 className="text-sm font-medium text-muted-foreground">Previously Analyzed Keywords</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {savedKeyword.map((item) => (
-                      <SavedAnalysisCard
-                        key={item.id}
-                        title={item.target}
-                        subtitle={`${((item.result_data as any)?.totalMentions ?? 0).toLocaleString()} mentions`}
-                        analyzedAt={item.analyzed_at}
-                        icon={BarChart3}
-                        onClick={() => loadSavedAnalysis(item)}
-                        onDelete={() => deleteSavedAnalysis(item.id, 'keyword')}
-                      />
-                    ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                    {savedKeyword.map((item) => {
+                      const mentions = ((item.result_data as any)?.totalMentions ?? 0).toLocaleString();
+                      return (
+                        <Card
+                          key={item.id}
+                          className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:-translate-y-1"
+                          onClick={() => loadSavedAnalysis(item)}
+                        >
+                          {/* Gradient header */}
+                          <div className="relative bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 px-4 pt-4 pb-10">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-white font-bold text-sm truncate">{item.target}</span>
+                              <span className="flex items-center gap-1 text-white/90 text-[11px] font-semibold bg-white/20 rounded-full px-2 py-0.5 backdrop-blur-sm shrink-0">
+                                <TrendingUp className="h-3 w-3" />
+                                {mentions}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-white/70 bg-white/10 rounded-full px-2 py-0.5">
+                              KEYWORD
+                            </span>
+                            <div className="absolute top-0 right-0 w-20 h-20 bg-white/5 rounded-full -translate-y-8 translate-x-8" />
+                          </div>
+
+                          {/* Avatar */}
+                          <div className="flex justify-center -mt-8 relative z-10">
+                            <div className="w-16 h-16 rounded-full border-4 border-card bg-card shadow-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600">
+                              <BarChart3 className="h-7 w-7 text-white" />
+                            </div>
+                          </div>
+
+                          {/* Stats */}
+                          <div className="px-4 pt-2 pb-3">
+                            <div className="text-center p-2 rounded-lg bg-muted/50 border border-border/40 mb-2">
+                              <p className="text-lg font-extrabold text-foreground leading-none">{mentions}</p>
+                              <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest mt-0.5">Mentions</p>
+                            </div>
+                            {item.analyzed_at && (
+                              <p className="text-[10px] text-muted-foreground text-center">
+                                {new Date(item.analyzed_at).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Footer */}
+                          <div className="flex border-t border-border/50">
+                            <Button variant="ghost" size="sm" className="flex-1 rounded-none text-xs h-9 hover:bg-muted/80"
+                              onClick={(e) => { e.stopPropagation(); loadSavedAnalysis(item); }}>
+                              <Eye className="h-3.5 w-3.5 mr-1" /> View
+                            </Button>
+                            <div className="w-px bg-border/50" />
+                            <Button variant="ghost" size="sm"
+                              className="rounded-none text-xs h-9 px-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => { e.stopPropagation(); deleteSavedAnalysis(item.id, 'keyword'); }}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </>
               )}
