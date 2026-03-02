@@ -124,8 +124,8 @@ export const AnalyticsChart = ({ data, title, type, height = 300 }: AnalyticsCha
                 strokeWidth: 1
               }}
               label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              outerRadius={80}
-              innerRadius={40}
+              outerRadius={Math.min(height * 0.38, 100)}
+              innerRadius={Math.min(height * 0.2, 50)}
               fill="hsl(var(--primary))"
               dataKey="value"
               paddingAngle={2}

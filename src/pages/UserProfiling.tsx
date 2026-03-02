@@ -757,7 +757,7 @@ const UserProfiling = () => {
                   ]}
                   title="Post Sentiment Distribution" 
                   type="pie" 
-                  height={220}
+                  height={300}
                 />
               )}
               {profileData.commentSentimentBreakdown && (
@@ -769,7 +769,7 @@ const UserProfiling = () => {
                   ]}
                   title="Comment Sentiment Distribution" 
                   type="pie" 
-                  height={220}
+                  height={300}
                 />
               )}
             </div>
