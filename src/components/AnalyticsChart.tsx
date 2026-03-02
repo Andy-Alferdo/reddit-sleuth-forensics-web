@@ -150,11 +150,11 @@ export const AnalyticsChart = ({ data, title, type, height = 300 }: AnalyticsCha
 
   return (
     <Card className="border-primary/20 bg-card/50 backdrop-blur-sm shadow-lg">
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className={`h-[${height}px] w-full`}>
+      <CardContent className="pb-4">
+        <ChartContainer config={chartConfig} className="w-full !aspect-auto">
           <ResponsiveContainer width="100%" height={height}>
             {renderChart()}
           </ResponsiveContainer>
