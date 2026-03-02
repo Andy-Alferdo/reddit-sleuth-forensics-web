@@ -56,6 +56,8 @@ const UserProfiling = () => {
   const loadSavedProfile = async (profileId: string) => {
     setIsLoading(true);
     setError(null);
+    setVisiblePosts(INITIAL_VISIBLE);
+    setVisibleComments(INITIAL_VISIBLE);
     try {
       const { data, error: err } = await supabase
         .from('user_profiles_analyzed')
@@ -122,6 +124,8 @@ const UserProfiling = () => {
 
     (async () => {
       setIsLoading(true);
+      setVisiblePosts(INITIAL_VISIBLE);
+      setVisibleComments(INITIAL_VISIBLE);
       try {
         const { data, error } = await supabase
           .from('user_profiles_analyzed')
