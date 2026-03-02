@@ -661,18 +661,6 @@ const UserProfiling = () => {
                     </div>
                   )}
                 </div>
-                {profileData.postSentimentBreakdown && (
-                  <AnalyticsChart 
-                    data={[
-                      { name: 'Positive', value: Math.round(profileData.postSentimentBreakdown.positive * 100) },
-                      { name: 'Neutral', value: Math.round(profileData.postSentimentBreakdown.neutral * 100) },
-                      { name: 'Negative', value: Math.round(profileData.postSentimentBreakdown.negative * 100) },
-                    ]}
-                    title="Post Sentiment Distribution" 
-                    type="pie" 
-                    height={250}
-                  />
-                )}
               </CardContent>
             </Card>
           ) : profileData && (
@@ -746,18 +734,6 @@ const UserProfiling = () => {
                     </div>
                   )}
                 </div>
-                {profileData.commentSentimentBreakdown && (
-                  <AnalyticsChart 
-                    data={[
-                      { name: 'Positive', value: Math.round(profileData.commentSentimentBreakdown.positive * 100) },
-                      { name: 'Neutral', value: Math.round(profileData.commentSentimentBreakdown.neutral * 100) },
-                      { name: 'Negative', value: Math.round(profileData.commentSentimentBreakdown.negative * 100) },
-                    ]}
-                    title="Comment Sentiment Distribution" 
-                    type="pie" 
-                    height={250}
-                  />
-                )}
               </CardContent>
             </Card>
           ) : profileData && (
@@ -767,6 +743,36 @@ const UserProfiling = () => {
                 <p className="text-muted-foreground">No comments available for sentiment analysis</p>
               </CardContent>
             </Card>
+          )}
+
+          {/* Sentiment Distribution Charts - Side by Side */}
+          {(profileData.postSentimentBreakdown || profileData.commentSentimentBreakdown) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {profileData.postSentimentBreakdown && (
+                <AnalyticsChart 
+                  data={[
+                    { name: 'Positive', value: Math.round(profileData.postSentimentBreakdown.positive * 100) },
+                    { name: 'Neutral', value: Math.round(profileData.postSentimentBreakdown.neutral * 100) },
+                    { name: 'Negative', value: Math.round(profileData.postSentimentBreakdown.negative * 100) },
+                  ]}
+                  title="Post Sentiment Distribution" 
+                  type="pie" 
+                  height={220}
+                />
+              )}
+              {profileData.commentSentimentBreakdown && (
+                <AnalyticsChart 
+                  data={[
+                    { name: 'Positive', value: Math.round(profileData.commentSentimentBreakdown.positive * 100) },
+                    { name: 'Neutral', value: Math.round(profileData.commentSentimentBreakdown.neutral * 100) },
+                    { name: 'Negative', value: Math.round(profileData.commentSentimentBreakdown.negative * 100) },
+                  ]}
+                  title="Comment Sentiment Distribution" 
+                  type="pie" 
+                  height={220}
+                />
+              )}
+            </div>
           )}
         </div>
       )}
