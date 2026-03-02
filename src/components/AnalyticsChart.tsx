@@ -1,6 +1,6 @@
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, BarChart, Bar, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
 
 interface ChartData {
   name: string;
@@ -154,11 +154,11 @@ export const AnalyticsChart = ({ data, title, type, height = 300 }: AnalyticsCha
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent className="pb-4">
-        <ChartContainer config={chartConfig} className="w-full !aspect-auto">
-          <ResponsiveContainer width="100%" height={height}>
+        <div style={{ width: '100%', height }}>
+          <ChartContainer config={chartConfig} className="w-full h-full !aspect-auto">
             {renderChart()}
-          </ResponsiveContainer>
-        </ChartContainer>
+          </ChartContainer>
+        </div>
       </CardContent>
     </Card>
   );
