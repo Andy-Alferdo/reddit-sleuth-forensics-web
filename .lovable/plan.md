@@ -1,43 +1,43 @@
 
 
-## Fix: Behavior Patterns Empty in Local User Profiling
+## Local Version of `analyze-content` Edge Function
 
-### Problem
-The deployed (Lovable) version uses Gemini AI which analyzes posts/comments and returns `patterns.topicInterests` -- a list of topics the user is interested in based on their content. Your local Python model server only handles sentiment analysis and location extraction. It does **not** return any `patterns` data, so the edge function falls back to a near-empty default like `["General Reddit Activity"]`.
+### What Changes
+Convert the deployed `analyze-content/index.ts` from using Lovable AI to using your local Python model server at `http://host.docker.internal:5000/predict`, while keeping all the helper functions (`calcBreakdown`, `extractBehaviorPatterns`, `SUBREDDIT_CATEGORIES`, `categorizeSubreddit`) exactly as they are.
 
-### Solution
-Extract topic interests directly in the local `analyze-content` edge function by analyzing the subreddit names and post titles from the input data. This doesn't require any AI -- we can derive meaningful behavior patterns from:
-1. **Top subreddits** the user is active in (these ARE their interests)
-2. **Recurring keywords** from post titles
+### Specific Modifications
 
-### Changes to `supabase/functions/analyze-content/index.ts` (local version)
+**Keep unchanged:**
+- All imports, CORS headers, interfaces
+- `SUBREDDIT_CATEGORIES` mapping
+- `categorizeSubreddit()` function
+- `extractBehaviorPatterns()` function
+- `calcBreakdown()` function
+- Activity stats calculation (topSubreddits, stats)
+- Error handling structure
+- Response shape
 
-Add a `extractBehaviorPatterns` helper function that:
-- Groups activity by subreddit and identifies the top ones
-- Extracts common themes from post titles
-- Returns an array of human-readable pattern strings like:
-  - "Active in technology communities (r/programming, r/webdev)"
-  - "Frequently discusses gaming topics"
-  - "Posts primarily in discussion-based subreddits"
+**Replace the AI call section (lines 128-265) with local Python server call:**
+- Remove `LOVABLE_API_KEY` check
+- Remove Lovable AI `fetch` call and response parsing
+- Replace with a `fetch` to `http://host.docker.internal:5000/predict` sending `{ posts, comments }`
+- Add connection error handling with a helpful message about running the Python server
+- Parse the JSON response directly (no markdown extraction needed)
 
-Then in the response, replace the pass-through of `analysisResult.patterns` with:
-```typescript
-patterns: {
-  topicInterests: extractBehaviorPatterns(posts, comments)
-}
-```
+**Response remains identical** -- using `calcBreakdown()` on the Python server's `postSentiments`/`commentSentiments` arrays and `extractBehaviorPatterns()` for behavior patterns, so charts and patterns work correctly.
 
-### Helper Function Logic
+### Final Local Code Structure
 ```text
-1. Count subreddit frequency from posts + comments
-2. Group subreddits into categories (tech, gaming, news, etc.) using simple keyword matching
-3. Generate descriptive strings like:
-   - "Most active in: r/sub1, r/sub2, r/sub3"
-   - "Primary interest areas: Technology, Gaming"
-   - "Posting frequency: X posts, Y comments"
-   - "Engagement style: [commenter/poster/balanced]"
-4. Return array of 3-6 pattern strings
+1. Imports, CORS, interfaces (unchanged)
+2. SUBREDDIT_CATEGORIES (unchanged)
+3. categorizeSubreddit() (unchanged)
+4. extractBehaviorPatterns() (unchanged)
+5. calcBreakdown() (unchanged)
+6. serve() handler:
+   a. CORS preflight (unchanged)
+   b. Parse request (unchanged)
+   c. NEW: fetch('http://host.docker.internal:5000/predict', { posts, comments })
+   d. NEW: Simple JSON parse (no markdown extraction)
+   e. Calculate topSubreddits (unchanged)
+   f. Return response with calcBreakdown + extractBehaviorPatterns (unchanged)
 ```
-
-### No Python Server Changes Needed
-This is purely a TypeScript-side computation using the input data that's already available in the edge function.
