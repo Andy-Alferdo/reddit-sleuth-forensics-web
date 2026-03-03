@@ -10,6 +10,94 @@ interface AnalysisRequest {
   comments: Array<{ body: string; subreddit?: string }>;
 }
 
+const SUBREDDIT_CATEGORIES: Record<string, string[]> = {
+  'Technology': ['programming', 'webdev', 'javascript', 'python', 'coding', 'learnprogramming', 'computerscience', 'tech', 'software', 'linux', 'android', 'apple', 'ios', 'devops', 'machinelearning', 'artificial', 'datascience', 'cybersecurity', 'netsec', 'sysadmin', 'typescript', 'reactjs', 'node', 'rust', 'golang', 'cpp', 'java', 'csharp', 'php', 'ruby', 'swift', 'kotlin'],
+  'Gaming': ['gaming', 'games', 'pcgaming', 'ps5', 'xbox', 'nintendo', 'steam', 'valorant', 'leagueoflegends', 'minecraft', 'fortnite', 'genshinimpact', 'destinythegame', 'overwatch', 'apexlegends', 'csgo'],
+  'News & Politics': ['news', 'worldnews', 'politics', 'geopolitics', 'economics', 'neutralpolitics', 'politicaldiscussion', 'conservative', 'liberal'],
+  'Entertainment': ['movies', 'television', 'netflix', 'music', 'hiphopheads', 'popheads', 'anime', 'manga', 'books', 'comics', 'marvelstudios', 'starwars'],
+  'Science & Education': ['science', 'askscience', 'space', 'physics', 'biology', 'chemistry', 'math', 'engineering', 'eli5', 'todayilearned', 'education'],
+  'Sports': ['sports', 'nba', 'nfl', 'soccer', 'football', 'baseball', 'hockey', 'mma', 'boxing', 'tennis', 'formula1', 'cricket'],
+  'Finance': ['finance', 'personalfinance', 'investing', 'stocks', 'wallstreetbets', 'cryptocurrency', 'bitcoin', 'ethereum', 'economics', 'financialindependence'],
+  'Lifestyle': ['fitness', 'health', 'nutrition', 'cooking', 'food', 'travel', 'photography', 'fashion', 'diy', 'gardening', 'homeimprovement', 'cars', 'autos'],
+  'Social & Discussion': ['askreddit', 'casualconversation', 'unpopularopinion', 'changemyview', 'showerthoughts', 'tifu', 'amitheasshole', 'relationship_advice', 'advice', 'nostupidquestions'],
+  'Humor & Memes': ['funny', 'memes', 'dankmemes', 'jokes', 'comedyheaven', 'me_irl', 'wholesomememes'],
+};
+
+function categorizeSubreddit(sub: string): string | null {
+  const lower = sub.toLowerCase();
+  for (const [category, keywords] of Object.entries(SUBREDDIT_CATEGORIES)) {
+    if (keywords.some(k => lower.includes(k) || k.includes(lower))) {
+      return category;
+    }
+  }
+  return null;
+}
+
+function extractBehaviorPatterns(
+  posts: Array<{ title: string; selftext: string; subreddit?: string }>,
+  comments: Array<{ body: string; subreddit?: string }>
+): string[] {
+  const patterns: string[] = [];
+
+  // 1. Count subreddit frequency
+  const subCounts: Record<string, number> = {};
+  [...posts, ...comments].forEach((item: any) => {
+    const sub = item.subreddit;
+    if (sub) subCounts[sub] = (subCounts[sub] || 0) + 1;
+  });
+
+  const sortedSubs = Object.entries(subCounts)
+    .sort(([, a], [, b]) => b - a);
+
+  // 2. Top subreddits
+  if (sortedSubs.length > 0) {
+    const top = sortedSubs.slice(0, 5).map(([name]) => `r/${name}`);
+    patterns.push(`Most active in: ${top.join(', ')}`);
+  }
+
+  // 3. Category grouping
+  const categoryCounts: Record<string, number> = {};
+  for (const [sub, count] of sortedSubs) {
+    const cat = categorizeSubreddit(sub);
+    if (cat) categoryCounts[cat] = (categoryCounts[cat] || 0) + count;
+  }
+  const topCategories = Object.entries(categoryCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 3)
+    .map(([name]) => name);
+
+  if (topCategories.length > 0) {
+    patterns.push(`Primary interest areas: ${topCategories.join(', ')}`);
+  } else if (sortedSubs.length > 0) {
+    patterns.push('Interests span diverse topic areas');
+  }
+
+  // 4. Engagement style
+  const postCount = posts.length;
+  const commentCount = comments.length;
+  patterns.push(`Posting frequency: ${postCount} posts, ${commentCount} comments`);
+
+  if (commentCount > postCount * 3) {
+    patterns.push('Engagement style: Primarily a commenter');
+  } else if (postCount > commentCount * 2) {
+    patterns.push('Engagement style: Primarily a content creator');
+  } else {
+    patterns.push('Engagement style: Balanced between posting and commenting');
+  }
+
+  // 5. Subreddit diversity
+  const uniqueSubs = sortedSubs.length;
+  if (uniqueSubs > 10) {
+    patterns.push(`Active across ${uniqueSubs} different communities`);
+  } else if (uniqueSubs > 3) {
+    patterns.push(`Engages in ${uniqueSubs} communities`);
+  } else if (uniqueSubs >= 1) {
+    patterns.push('Focused activity in a small number of communities');
+  }
+
+  return patterns.length > 0 ? patterns : ['General Reddit Activity'];
+}
+
 function calcBreakdown(items: Array<{ sentiment: string }>) {
   if (!items || items.length === 0) {
     return { positive: 0.33, negative: 0.33, neutral: 0.34 };
@@ -199,7 +287,9 @@ Required format:
       },
       emotions: analysisResult.emotions,
       locations: analysisResult.locations,
-      patterns: analysisResult.patterns,
+      patterns: {
+        topicInterests: extractBehaviorPatterns(posts, comments),
+      },
       topSubreddits,
       stats: {
         totalPosts: posts.length,
