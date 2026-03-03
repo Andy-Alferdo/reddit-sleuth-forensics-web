@@ -1,56 +1,43 @@
 
 
-## Fix: Separate Post and Comment Sentiment Breakdowns in Local Edge Function
+## Fix: Behavior Patterns Empty in Local User Profiling
 
 ### Problem
-The local `analyze-content` edge function passes `analysisResult.sentiment` directly from the Python server, which returns identical values for `postBreakdown` and `commentBreakdown`. The deployed Lovable version calculates these independently, which is why the charts differ online vs locally.
+The deployed (Lovable) version uses Gemini AI which analyzes posts/comments and returns `patterns.topicInterests` -- a list of topics the user is interested in based on their content. Your local Python model server only handles sentiment analysis and location extraction. It does **not** return any `patterns` data, so the edge function falls back to a near-empty default like `["General Reddit Activity"]`.
 
 ### Solution
-Add a helper function in the edge function to compute breakdowns from the individual `postSentiments` and `commentSentiments` arrays, instead of relying on the Python server's combined output.
+Extract topic interests directly in the local `analyze-content` edge function by analyzing the subreddit names and post titles from the input data. This doesn't require any AI -- we can derive meaningful behavior patterns from:
+1. **Top subreddits** the user is active in (these ARE their interests)
+2. **Recurring keywords** from post titles
 
-### Changes to `supabase/functions/analyze-content/index.ts`
+### Changes to `supabase/functions/analyze-content/index.ts` (local version)
 
-1. Add a `calcBreakdown` helper function that counts positive/negative/neutral from an array of sentiment items and returns ratios.
+Add a `extractBehaviorPatterns` helper function that:
+- Groups activity by subreddit and identifies the top ones
+- Extracts common themes from post titles
+- Returns an array of human-readable pattern strings like:
+  - "Active in technology communities (r/programming, r/webdev)"
+  - "Frequently discusses gaming topics"
+  - "Posts primarily in discussion-based subreddits"
 
-2. Replace the direct pass-through of `analysisResult.sentiment` with computed breakdowns:
-
+Then in the response, replace the pass-through of `analysisResult.patterns` with:
 ```typescript
-function calcBreakdown(items: Array<{ sentiment: string }>) {
-  if (!items || items.length === 0) {
-    return { positive: 0.33, negative: 0.33, neutral: 0.34 };
-  }
-  const counts = { positive: 0, negative: 0, neutral: 0 };
-  items.forEach(item => {
-    const s = (item.sentiment || '').toLowerCase();
-    if (s in counts) counts[s as keyof typeof counts]++;
-    else counts.neutral++;
-  });
-  const total = items.length;
-  return {
-    positive: +(counts.positive / total).toFixed(2),
-    negative: +(counts.negative / total).toFixed(2),
-    neutral: +(counts.neutral / total).toFixed(2),
-  };
+patterns: {
+  topicInterests: extractBehaviorPatterns(posts, comments)
 }
 ```
 
-3. In the response section (step 6), change:
-```typescript
-// BEFORE (broken - identical charts):
-sentiment: analysisResult.sentiment || { ... }
-
-// AFTER (correct - independent charts):
-sentiment: {
-  postBreakdown: calcBreakdown(analysisResult.postSentiments || []),
-  commentBreakdown: calcBreakdown(analysisResult.commentSentiments || []),
-}
+### Helper Function Logic
+```text
+1. Count subreddit frequency from posts + comments
+2. Group subreddits into categories (tech, gaming, news, etc.) using simple keyword matching
+3. Generate descriptive strings like:
+   - "Most active in: r/sub1, r/sub2, r/sub3"
+   - "Primary interest areas: Technology, Gaming"
+   - "Posting frequency: X posts, Y comments"
+   - "Engagement style: [commenter/poster/balanced]"
+4. Return array of 3-6 pattern strings
 ```
 
-### Why This Works
-- The Python model server already returns individual `postSentiments` and `commentSentiments` arrays with per-item sentiment labels
-- By counting these independently, posts and comments will naturally have different distributions
-- This matches the behavior of the deployed Lovable version which uses the AI response's individual items to derive breakdowns
-
-### No Other Files Change
-This is a single-file fix to the local edge function only.
-
+### No Python Server Changes Needed
+This is purely a TypeScript-side computation using the input data that's already available in the edge function.
