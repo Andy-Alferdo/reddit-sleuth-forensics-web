@@ -10,6 +10,24 @@ interface AnalysisRequest {
   comments: Array<{ body: string; subreddit?: string }>;
 }
 
+function calcBreakdown(items: Array<{ sentiment: string }>) {
+  if (!items || items.length === 0) {
+    return { positive: 0.33, negative: 0.33, neutral: 0.34 };
+  }
+  const counts = { positive: 0, negative: 0, neutral: 0 };
+  items.forEach(item => {
+    const s = (item.sentiment || '').toLowerCase();
+    if (s in counts) counts[s as keyof typeof counts]++;
+    else counts.neutral++;
+  });
+  const total = items.length;
+  return {
+    positive: +(counts.positive / total).toFixed(2),
+    negative: +(counts.negative / total).toFixed(2),
+    neutral: +(counts.neutral / total).toFixed(2),
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -175,7 +193,10 @@ Required format:
     return new Response(JSON.stringify({
       postSentiments: analysisResult.postSentiments || [],
       commentSentiments: analysisResult.commentSentiments || [],
-      sentiment: analysisResult.sentiment,
+      sentiment: {
+        postBreakdown: calcBreakdown(analysisResult.postSentiments || []),
+        commentBreakdown: calcBreakdown(analysisResult.commentSentiments || []),
+      },
       emotions: analysisResult.emotions,
       locations: analysisResult.locations,
       patterns: analysisResult.patterns,
