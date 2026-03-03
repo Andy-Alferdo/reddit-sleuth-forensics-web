@@ -1,53 +1,56 @@
 
 
-# Home Page Redesign - Professional OSINT Dashboard
+## Fix: Separate Post and Comment Sentiment Breakdowns in Local Edge Function
 
-## Overview
-Transform the current minimal Home page into a polished, professional landing experience that matches the quality of established intelligence tools. The redesign adds a hero section with branding, animated background elements, better visual hierarchy, and richer information display.
+### Problem
+The local `analyze-content` edge function passes `analysisResult.sentiment` directly from the Python server, which returns identical values for `postBreakdown` and `commentBreakdown`. The deployed Lovable version calculates these independently, which is why the charts differ online vs locally.
 
-## Changes
+### Solution
+Add a helper function in the edge function to compute breakdowns from the individual `postSentiments` and `commentSentiments` arrays, instead of relying on the Python server's combined output.
 
-### 1. Add Hero Section with Branding
-- Display the mascot logo prominently at the top center with a subtle glow effect
-- Show "Intel Reddit" title and "Open-Source Intelligence Platform" subtitle with refined typography
-- Add a gradient accent line below the header for visual separation
+### Changes to `supabase/functions/analyze-content/index.ts`
 
-### 2. Animated Background
-- Integrate the existing `MovingBackground` component (floating mascot logos) behind the Home page content for visual depth, similar to how the Login page uses it
-- Add a subtle gradient overlay so content remains readable
+1. Add a `calcBreakdown` helper function that counts positive/negative/neutral from an array of sentiment items and returns ratios.
 
-### 3. Redesigned Action Cards
-- Make the two cards (Create New Case / Open Existing Case) larger with hover lift effects (shadow + slight scale transform)
-- Add gradient borders on hover instead of flat color borders
-- Include subtle icon animations on hover (scale up)
-- Add a decorative gradient line/glow at the top of each card
+2. Replace the direct pass-through of `analysisResult.sentiment` with computed breakdowns:
 
-### 4. Enhanced Stats Section
-- Redesign the 3 stat cards into a single glassmorphism-style bar with icon indicators for each stat (Shield icon for total, Activity icon for active, Archive icon for closed)
-- Add animated count-up effect when numbers load
-- Use subtle colored left-border accents for each stat
+```typescript
+function calcBreakdown(items: Array<{ sentiment: string }>) {
+  if (!items || items.length === 0) {
+    return { positive: 0.33, negative: 0.33, neutral: 0.34 };
+  }
+  const counts = { positive: 0, negative: 0, neutral: 0 };
+  items.forEach(item => {
+    const s = (item.sentiment || '').toLowerCase();
+    if (s in counts) counts[s as keyof typeof counts]++;
+    else counts.neutral++;
+  });
+  const total = items.length;
+  return {
+    positive: +(counts.positive / total).toFixed(2),
+    negative: +(counts.negative / total).toFixed(2),
+    neutral: +(counts.neutral / total).toFixed(2),
+  };
+}
+```
 
-### 5. Additional Sections
-- Add a "Recent Cases" quick-access row showing the 3 most recent cases as small preview cards (case number, name, date, status badge) - clickable to open directly
-- Add a footer tagline: "Powered by Open-Source Intelligence" with a subtle opacity
+3. In the response section (step 6), change:
+```typescript
+// BEFORE (broken - identical charts):
+sentiment: analysisResult.sentiment || { ... }
 
-### 6. Visual Polish
-- Cards get `backdrop-blur-sm` and semi-transparent backgrounds for glassmorphism feel
-- Hover states include `transform scale-[1.02]` and enhanced shadow
-- Smooth entrance animations using CSS (fade-in-up on mount)
-- Consistent use of `rounded-2xl` for modern card feel
+// AFTER (correct - independent charts):
+sentiment: {
+  postBreakdown: calcBreakdown(analysisResult.postSentiments || []),
+  commentBreakdown: calcBreakdown(analysisResult.commentSentiments || []),
+}
+```
 
-## Technical Details
+### Why This Works
+- The Python model server already returns individual `postSentiments` and `commentSentiments` arrays with per-item sentiment labels
+- By counting these independently, posts and comments will naturally have different distributions
+- This matches the behavior of the deployed Lovable version which uses the AI response's individual items to derive breakdowns
 
-### Files Modified
-- **`src/pages/Home.tsx`** - Complete redesign of the layout with hero section, animated background, redesigned cards, enhanced stats bar, and recent cases section. Add count-up animation hook, entrance animations via CSS classes.
-- **`src/index.css`** - Add keyframes for `fade-in-up` entrance animation and glassmorphism utility classes.
-- **`tailwind.config.ts`** - Add `fade-in-up` animation to the animation config.
-
-### Key Implementation Notes
-- Reuse existing `MovingBackground` component (already built for Login page)
-- Reuse existing mascot logo asset (`reddit-sleuth-mascot.png`)
-- All existing functionality (case fetching, dialog, search, navigation) stays intact
-- No database changes needed
-- No new dependencies required
+### No Other Files Change
+This is a single-file fix to the local edge function only.
 
