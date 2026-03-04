@@ -125,48 +125,18 @@ serve(async (req) => {
     const { posts, comments }: AnalysisRequest = await req.json();
     console.log(`Analyzing ${posts.length} posts and ${comments.length} comments`);
 
-    // Try local Python model server first, fall back to Lovable AI
-    console.log('Attempting local Python model server...');
-    let analysisResult;
-    let usedFallback = false;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      const modelResponse = await fetch('http://host.docker.internal:5000/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ posts, comments }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+    // Use Lovable AI for sentiment analysis
+    let analysisResult: any = { postSentiments: [], commentSentiments: [], locations: [] };
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    
+    if (!LOVABLE_API_KEY) {
+      console.error('No LOVABLE_API_KEY configured');
+    } else {
+      try {
+        const postTexts = posts.slice(0, 20).map((p, i) => `Post ${i+1}: ${p.title}${p.selftext ? ' - ' + p.selftext.slice(0, 200) : ''}`).join('\n');
+        const commentTexts = comments.slice(0, 20).map((c, i) => `Comment ${i+1}: ${c.body.slice(0, 200)}`).join('\n');
 
-      if (!modelResponse.ok) {
-        const errorText = await modelResponse.text();
-        console.error('Python model server error:', errorText);
-        throw new Error(`Model server returned ${modelResponse.status}: ${errorText}`);
-      }
-
-      analysisResult = await modelResponse.json();
-      console.log(`Python server: ${(analysisResult.postSentiments || []).length} post sentiments`);
-
-      if (!analysisResult.postSentiments) analysisResult.postSentiments = [];
-      if (!analysisResult.commentSentiments) analysisResult.commentSentiments = [];
-      if (!analysisResult.locations) analysisResult.locations = [];
-    } catch (fetchError) {
-      console.log('Python server unavailable, falling back to Lovable AI...');
-      usedFallback = true;
-      
-      // Fallback: Use Lovable AI for sentiment analysis
-      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-      if (!LOVABLE_API_KEY) {
-        console.error('No LOVABLE_API_KEY for fallback');
-        analysisResult = { postSentiments: [], commentSentiments: [], locations: [] };
-      } else {
-        try {
-          const postTexts = posts.slice(0, 20).map((p, i) => `Post ${i+1}: ${p.title}${p.selftext ? ' - ' + p.selftext.slice(0, 200) : ''}`).join('\n');
-          const commentTexts = comments.slice(0, 20).map((c, i) => `Comment ${i+1}: ${c.body.slice(0, 200)}`).join('\n');
-
-          const prompt = `Analyze the sentiment of these Reddit posts and comments. For each item, classify as "positive", "negative", or "neutral" and provide a brief explanation.
+        const prompt = `Analyze the sentiment of these Reddit posts and comments. For each item, classify as "positive", "negative", or "neutral" and provide a brief explanation.
 
 Posts:
 ${postTexts || 'None'}
@@ -181,45 +151,40 @@ Respond in this exact JSON format:
   "locations": ["any location mentions found"]
 }`;
 
-          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.5-flash',
-              messages: [{ role: 'user', content: prompt }],
-              temperature: 0.3,
-            }),
-          });
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.3,
+          }),
+        });
 
-          if (aiResponse.ok) {
-            const aiData = await aiResponse.json();
-            const content = aiData.choices?.[0]?.message?.content || '';
-            
-            // Extract JSON from response (may be wrapped in markdown code blocks)
-            const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
-            const jsonStr = (jsonMatch[1] || content).trim();
-            
-            try {
-              analysisResult = JSON.parse(jsonStr);
-              if (!analysisResult.postSentiments) analysisResult.postSentiments = [];
-              if (!analysisResult.commentSentiments) analysisResult.commentSentiments = [];
-              if (!analysisResult.locations) analysisResult.locations = [];
-              console.log(`Lovable AI: ${analysisResult.postSentiments.length} post sentiments`);
-            } catch (parseErr) {
-              console.error('Failed to parse AI response:', parseErr);
-              analysisResult = { postSentiments: [], commentSentiments: [], locations: [] };
-            }
-          } else {
-            console.error('Lovable AI error:', await aiResponse.text());
-            analysisResult = { postSentiments: [], commentSentiments: [], locations: [] };
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          const content = aiData.choices?.[0]?.message?.content || '';
+          const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, content];
+          const jsonStr = (jsonMatch[1] || content).trim();
+          
+          try {
+            analysisResult = JSON.parse(jsonStr);
+            if (!analysisResult.postSentiments) analysisResult.postSentiments = [];
+            if (!analysisResult.commentSentiments) analysisResult.commentSentiments = [];
+            if (!analysisResult.locations) analysisResult.locations = [];
+            console.log(`Lovable AI: ${analysisResult.postSentiments.length} post sentiments, ${analysisResult.commentSentiments.length} comment sentiments`);
+          } catch (parseErr) {
+            console.error('Failed to parse AI response:', parseErr);
           }
-        } catch (aiError) {
-          console.error('Lovable AI fallback error:', aiError);
-          analysisResult = { postSentiments: [], commentSentiments: [], locations: [] };
+        } else {
+          const errText = await aiResponse.text();
+          console.error(`Lovable AI error [${aiResponse.status}]:`, errText);
         }
+      } catch (aiError) {
+        console.error('Lovable AI error:', aiError);
       }
     }
 
