@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
-import { FolderOpen, Loader2, Search, Shield, Activity, Archive, Clock, ArrowRight } from 'lucide-react';
+import { FolderOpen, Loader2, Search, Briefcase, SearchCheck, CheckCircle2, Clock, ArrowRight } from 'lucide-react';
 import folderSearchIcon from '@/assets/folder-search-icon.png';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -113,9 +113,9 @@ const Home = () => {
               <CardContent className="p-0">
                 <div className="grid grid-cols-3 divide-x divide-border">
                   {[
-                    { icon: Shield, label: 'Total Cases', value: totalCount, colorClass: 'text-primary bg-primary/10' },
-                    { icon: Activity, label: 'Active', value: activeCount, colorClass: 'text-forensic-success bg-forensic-success/10' },
-                    { icon: Archive, label: 'Closed', value: closedCount, colorClass: 'text-muted-foreground bg-muted' },
+                    { icon: Briefcase, label: 'Total Cases', value: totalCount, colorClass: 'text-primary bg-primary/10' },
+                    { icon: SearchCheck, label: 'Active', value: activeCount, colorClass: 'text-forensic-success bg-forensic-success/10' },
+                    { icon: CheckCircle2, label: 'Closed', value: closedCount, colorClass: 'text-muted-foreground bg-muted' },
                   ].map(({ icon: Icon, label, value, colorClass }) => (
                     <div key={label} className="flex items-center gap-3.5 p-5 md:p-6">
                       <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${colorClass}`}>
