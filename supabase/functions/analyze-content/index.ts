@@ -130,11 +130,15 @@ serve(async (req) => {
     let analysisResult;
     let usedFallback = false;
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
       const modelResponse = await fetch('http://host.docker.internal:5000/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ posts, comments }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (!modelResponse.ok) {
         const errorText = await modelResponse.text();
