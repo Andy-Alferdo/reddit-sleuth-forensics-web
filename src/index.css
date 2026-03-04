@@ -8,65 +8,65 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Professional Light Cyber Forensic Theme */
-    --background: 0 0% 98%;  /* Light gray background */
+    /* Clean Professional White + Blue Theme */
+    --background: 210 40% 98%;  /* #F8FAFC soft light gray */
     --foreground: 222 47% 11%;  /* Dark text */
 
-    --card: 0 0% 100%;  /* White cards */
+    --card: 0 0% 100%;  /* Pure white cards */
     --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 199 100% 40%;  /* Darker cyan-blue for better contrast */
+    --primary: 224 76% 48%;  /* #2563EB blue accent */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 20% 92%;
+    --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 20% 95%;
+    --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 162 80% 45%;  /* Darker teal for better contrast */
+    --accent: 224 76% 48%;  /* Same blue for consistency */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 354 70% 54%;  /* #E63946 Crimson Red */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 214 32% 91%;  /* Subtle light border */
+    --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 199 100% 40%;
+    --ring: 224 76% 48%;
 
-    /* Custom forensic colors */
-    --forensic-blue: 199 100% 40%;  /* Darker cyan-blue */
-    --forensic-cyan: 162 80% 45%;  /* Darker teal */
-    --forensic-dark: 222 47% 11%;  /* Dark text */
-    --forensic-gray: 214 32% 91%;  /* Light gray */
-    --forensic-warning: 38 92% 50%;  /* Amber */
-    --forensic-critical: 354 70% 54%;  /* Crimson Red */
-    --forensic-success: 145 63% 42%;  /* Darker lime green */
+    /* Custom forensic colors – updated to blue family */
+    --forensic-blue: 224 76% 48%;
+    --forensic-cyan: 199 89% 48%;
+    --forensic-dark: 222 47% 11%;
+    --forensic-gray: 214 32% 91%;
+    --forensic-warning: 38 92% 50%;
+    --forensic-critical: 0 84% 60%;
+    --forensic-success: 142 71% 45%;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(90deg, hsl(199 100% 40%), hsl(162 80% 45%));
-    --gradient-dark: linear-gradient(180deg, hsl(210 20% 95%), hsl(0 0% 100%));
-    --gradient-glow: linear-gradient(135deg, hsl(199 100% 40% / 0.1), hsl(162 80% 45% / 0.1));
+    --gradient-primary: linear-gradient(90deg, hsl(224 76% 48%), hsl(199 89% 48%));
+    --gradient-dark: linear-gradient(180deg, hsl(210 40% 96%), hsl(0 0% 100%));
+    --gradient-glow: linear-gradient(135deg, hsl(224 76% 48% / 0.08), hsl(199 89% 48% / 0.08));
     
     /* Shadows & Effects */
-    --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.1);
-    --shadow-glow: 0 0 10px hsl(162 80% 45% / 0.15);
-    --shadow-glow-hover: 0 0 20px hsl(162 80% 45% / 0.25);
-    --shadow-glow-cyan: 0 0 15px hsl(162 80% 45% / 0.2);
+    --shadow-card: 0 1px 3px hsl(0 0% 0% / 0.06), 0 1px 2px hsl(0 0% 0% / 0.04);
+    --shadow-glow: 0 0 10px hsl(224 76% 48% / 0.1);
+    --shadow-glow-hover: 0 4px 16px hsl(224 76% 48% / 0.15);
+    --shadow-glow-cyan: 0 0 15px hsl(199 89% 48% / 0.12);
 
     --radius: 0.75rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 199 100% 40%;
+    --sidebar-primary: 224 76% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 95%;
+    --sidebar-accent: 210 40% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 199 100% 40%;
+    --sidebar-ring: 224 76% 48%;
   }
 
   .dark {
