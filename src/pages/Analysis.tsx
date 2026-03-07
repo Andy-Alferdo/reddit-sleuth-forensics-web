@@ -1413,6 +1413,7 @@ const Analysis = () => {
                   .filter((p: any) => p._sentiment)
                   .map((p: any) => ({
                     text: p.title || '',
+                    body: p.selftext || '',
                     sentiment: p._sentiment as 'positive' | 'negative' | 'neutral',
                     explanation: p._sentimentExplanation || '',
                   }));

@@ -154,7 +154,20 @@ Required JSON format (postSentiments array must have exactly ${formattedPosts.le
         text: postsToAnalyze[s.index ? s.index - 1 : idx]?.title || s.text || '',
       }));
       
-      console.log(`Parsed ${analysisResult.postSentiments.length} post sentiments`);
+      // Backfill missing sentiments - ensure every post has a sentiment entry
+      if (analysisResult.postSentiments.length < postsToAnalyze.length) {
+        console.log(`AI returned ${analysisResult.postSentiments.length} sentiments for ${postsToAnalyze.length} posts, backfilling...`);
+        for (let i = analysisResult.postSentiments.length; i < postsToAnalyze.length; i++) {
+          analysisResult.postSentiments.push({
+            index: i + 1,
+            sentiment: 'neutral',
+            explanation: 'Sentiment could not be determined',
+            text: postsToAnalyze[i]?.title || '',
+          });
+        }
+      }
+      
+      console.log(`Final: ${analysisResult.postSentiments.length} post sentiments for ${postsToAnalyze.length} posts`);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
       console.error('Raw AI content (first 1000):', aiContent.slice(0, 1000));
