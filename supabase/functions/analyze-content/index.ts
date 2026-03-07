@@ -72,15 +72,15 @@ serve(async (req) => {
             content: `You are a sentiment analyzer. Return ONLY raw valid JSON. NO markdown, NO code blocks, NO backticks.
 
 CRITICAL RULES:
-1. Analyze EVERY post individually in the EXACT ORDER given (POST1, POST2, ...).
-2. Base your sentiment on the FULL CONTENT of each post (both title and body text), not just the title.
-3. The postSentiments array MUST have exactly the same count as posts provided, in the same order.
-4. Use ONLY ASCII characters in your response. No emojis, no special unicode.
-5. Keep explanations short (under 30 words) but reference the actual content.
+1. You MUST return EXACTLY ${formattedPosts.length} items in postSentiments, one per post, in the EXACT same order (POST1, POST2, ..., POST${formattedPosts.length}).
+2. IMPORTANT: Read BOTH the TITLE and the BODY of each post. The BODY often contains the real sentiment. Do NOT judge sentiment from the title alone. If a post has body text, your sentiment MUST be based primarily on the body content.
+3. Use ONLY ASCII characters. No emojis or special unicode.
+4. Keep explanations under 30 words but reference specific body content when available.
+5. DO NOT skip any post. Every single post MUST have a corresponding entry.
 
-Required JSON format:
+Required JSON format (postSentiments array must have exactly ${formattedPosts.length} entries):
 {
-  "postSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "short reason based on full content"}],
+  "postSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "reason referencing body content"}],
   "commentSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "short reason"}],
   "locations": ["location1"],
   "patterns": {"topicInterests": ["topic1"]}
