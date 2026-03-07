@@ -45,9 +45,10 @@ serve(async (req) => {
     // Format posts - include title AND body for accurate sentiment analysis
     const postsToAnalyze = posts.slice(0, 40);
     const formattedPosts = postsToAnalyze.map((p, idx) => {
-      const title = (p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 150);
-      const body = (p.selftext || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 350);
-      return body ? `POST${idx + 1}: [Title: ${title}] [Content: ${body}]` : `POST${idx + 1}: ${title}`;
+      const title = (p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200);
+      const body = (p.selftext || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 500);
+      // Always include both title and body sections so the AI sees the full content
+      return `POST${idx + 1}: TITLE: ${title} | BODY: ${body || '(no body text)'}`;
     });
     const formattedComments = comments.slice(0, 15).map((c, idx) => 
       `COMMENT${idx + 1}: ${(c.body || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
