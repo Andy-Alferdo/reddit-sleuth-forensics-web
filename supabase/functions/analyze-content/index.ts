@@ -42,9 +42,9 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Format posts and comments for analysis
-    const formattedPosts = posts.slice(0, 10).map((p, idx) => 
-      `POST${idx + 1}: ${p.title} ${p.selftext}`.slice(0, 500)
+    // Format posts and comments for analysis - support up to 100 posts
+    const formattedPosts = posts.slice(0, 100).map((p, idx) => 
+      `POST${idx + 1}: ${p.title} ${p.selftext}`.slice(0, 300)
     );
     const formattedComments = comments.slice(0, 15).map((c, idx) => 
       `COMMENT${idx + 1}: ${c.body}`.slice(0, 300)
