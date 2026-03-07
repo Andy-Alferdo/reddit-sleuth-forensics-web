@@ -316,6 +316,11 @@ const Analysis = () => {
       );
       const allPostsSortedByScore = [...postsWithKeywordInTitle].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
 
+      // Re-attach sentiments to any posts that were in the analysis but got re-sorted
+      // Ensure ALL recent20 and top20 posts have sentiment from the analysis
+      const recent20 = allPostsSortedByTime.slice(0, 20);
+      const top20 = allPostsSortedByScore.slice(0, 20);
+
       const analysisResult = {
         keyword,
         totalMentions: matchingPosts.length,
