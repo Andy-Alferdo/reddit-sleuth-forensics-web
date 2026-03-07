@@ -266,7 +266,7 @@ const Analysis = () => {
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: {
-            posts: matchingPosts.slice(0, 20),
+            posts: matchingPosts.slice(0, 100),
             comments: []
           }
         });
@@ -288,8 +288,12 @@ const Analysis = () => {
 
       // Sort all posts by time (newest first) for "recent" views
       const allPostsSortedByTime = [...matchingPosts].sort((a: any, b: any) => (b.created_utc || 0) - (a.created_utc || 0));
-      // Sort by score (highest first) for "top" view
-      const allPostsSortedByScore = [...matchingPosts].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+      // Sort by score (highest first) for "top" view - ONLY posts that contain the keyword in the title
+      const kwLowerForFilter = keyword.toLowerCase();
+      const postsWithKeywordInTitle = matchingPosts.filter((p: any) => 
+        (p.title || '').toLowerCase().includes(kwLowerForFilter)
+      );
+      const allPostsSortedByScore = [...postsWithKeywordInTitle].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
 
       const analysisResult = {
         keyword,
@@ -858,34 +862,40 @@ const Analysis = () => {
                   }));
 
                 // Compute trend data from this view's posts
+                // For recent10/top10 cards, show only 2 recent days; for all100 show 7 days
                 const now = new Date();
-                const viewPast7Days: { [key: string]: number } = {};
-                for (let i = 6; i >= 0; i--) {
+                const daysToShow = selectedKeywordView === 'all100' ? 7 : 2;
+                const viewPastDays: { [key: string]: number } = {};
+                for (let i = daysToShow - 1; i >= 0; i--) {
                   const date = new Date(now);
                   date.setDate(date.getDate() - i);
                   const dayKey = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
-                  viewPast7Days[dayKey] = 0;
+                  viewPastDays[dayKey] = 0;
                 }
                 viewPosts.forEach((post: any) => {
                   const postDate = new Date(post.created_utc * 1000);
                   const daysDiff = Math.floor((now.getTime() - postDate.getTime()) / (1000 * 60 * 60 * 24));
-                  if (daysDiff < 7) {
+                  if (daysDiff < daysToShow) {
                     const dayKey = postDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
-                    if (viewPast7Days[dayKey] !== undefined) {
-                      viewPast7Days[dayKey]++;
+                    if (viewPastDays[dayKey] !== undefined) {
+                      viewPastDays[dayKey]++;
                     }
                   }
                 });
-                const viewTrendData = Object.entries(viewPast7Days).map(([name, value]) => ({ name, value }));
+                const viewTrendData = Object.entries(viewPastDays).map(([name, value]) => ({ name, value }));
 
-                // Compute sentiment from this view's posts using postSentiments
-                // Use substring matching since AI truncates text to ~100 chars
-                const viewSentiments = (keywordData.postSentiments || []).filter((s: SentimentItem) => {
-                  const sText = (s.text || '').toLowerCase().trim();
-                  return viewPosts.some((p: any) => {
-                    const pTitle = (p.title || '').toLowerCase().trim();
+                // Build sentiments ordered by viewPosts order
+                const allSentiments = keywordData.postSentiments || [];
+                const viewSentiments: SentimentItem[] = [];
+                viewPosts.forEach((p: any) => {
+                  const pTitle = (p.title || '').toLowerCase().trim();
+                  const match = allSentiments.find((s: SentimentItem) => {
+                    const sText = (s.text || '').toLowerCase().trim();
                     return pTitle === sText || pTitle.startsWith(sText) || sText.startsWith(pTitle) || pTitle.includes(sText) || sText.includes(pTitle);
                   });
+                  if (match) {
+                    viewSentiments.push(match);
+                  }
                 });
                 
                 let viewSentimentChart = null;
@@ -965,6 +975,7 @@ const Analysis = () => {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
+                          <ScrollArea className={viewSentiments.length > 10 ? "h-[600px]" : ""}>
                           <div className="overflow-x-auto">
                             <table className="w-full border-collapse">
                               <thead>
@@ -977,7 +988,7 @@ const Analysis = () => {
                               <tbody>
                                 {viewSentiments.map((item: SentimentItem, index: number) => (
                                   <tr key={index} className="border-b hover:bg-muted/50">
-                                    <td className="p-3 text-sm">{item.text}</td>
+                                    <td className="p-3 text-sm">{viewPosts[index]?.title || item.text}</td>
                                     <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
                                     <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
                                   </tr>
@@ -985,6 +996,7 @@ const Analysis = () => {
                               </tbody>
                             </table>
                           </div>
+                          </ScrollArea>
                         </CardContent>
                       </Card>
                     )}
