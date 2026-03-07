@@ -270,7 +270,7 @@ const Analysis = () => {
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: {
-            posts: postsForAnalysis,
+            posts: postsForAnalysis.map((p: any) => ({ title: p.title || '', selftext: p.selftext || '', subreddit: p.subreddit || '' })),
             comments: []
           }
         });
@@ -395,7 +395,7 @@ const Analysis = () => {
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: {
-            posts: postsForAnalysis,
+            posts: postsForAnalysis.map((p: any) => ({ title: p.title || '', selftext: p.selftext || '', subreddit: p.subreddit || '' })),
             comments: []
           }
         });
