@@ -874,10 +874,8 @@ const Analysis = () => {
                     category: (freq as number) > 10 ? 'high' as const : (freq as number) > 5 ? 'medium' as const : 'low' as const
                   }));
 
-                // Compute trend data from this view's posts
-                // For recent10/top10 cards, show only 2 recent days; for all100 show 7 days
                 const now = new Date();
-                const daysToShow = selectedKeywordView === 'all100' ? 7 : 2;
+                const daysToShow = 7;
                 const viewPastDays: { [key: string]: number } = {};
                 for (let i = daysToShow - 1; i >= 0; i--) {
                   const date = new Date(now);
