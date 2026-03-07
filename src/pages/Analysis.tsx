@@ -903,19 +903,14 @@ const Analysis = () => {
                 });
                 const viewTrendData = Object.entries(viewPastDays).map(([name, value]) => ({ name, value }));
 
-                // Build sentiments ordered by viewPosts order
-                const allSentiments = keywordData.postSentiments || [];
-                const viewSentiments: SentimentItem[] = [];
-                viewPosts.forEach((p: any) => {
-                  const pTitle = (p.title || '').toLowerCase().trim();
-                  const match = allSentiments.find((s: SentimentItem) => {
-                    const sText = (s.text || '').toLowerCase().trim();
-                    return pTitle === sText || pTitle.startsWith(sText) || sText.startsWith(pTitle) || pTitle.includes(sText) || sText.includes(pTitle);
-                  });
-                  if (match) {
-                    viewSentiments.push(match);
-                  }
-                });
+                // Build sentiments directly from posts (sentiment is attached to each post by index)
+                const viewSentiments = viewPosts
+                  .filter((p: any) => p._sentiment)
+                  .map((p: any) => ({
+                    text: p.title || '',
+                    sentiment: p._sentiment as 'positive' | 'negative' | 'neutral',
+                    explanation: p._sentimentExplanation || '',
+                  }));
                 
                 let viewSentimentChart = null;
                 if (viewSentiments.length > 0) {
