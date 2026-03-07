@@ -265,8 +265,18 @@ const Analysis = () => {
       let keywordSentimentData = null;
       let postSentiments: SentimentItem[] = [];
       
-      // Send only 40 posts for sentiment (20 recent + 20 top may overlap, but max 40)
-      const postsForAnalysis = matchingPosts.slice(0, 40);
+      // First, compute the actual posts we'll display (recent 20 + top 20)
+      const tempSortedByTime = [...matchingPosts].sort((a: any, b: any) => (b.created_utc || 0) - (a.created_utc || 0));
+      const kwLowerPre = keyword.toLowerCase();
+      const tempWithKeyword = matchingPosts.filter((p: any) => (p.title || '').toLowerCase().includes(kwLowerPre));
+      const tempSortedByScore = [...tempWithKeyword].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+      
+      // Deduplicate: combine recent20 + top20, removing duplicates
+      const recent20Pre = tempSortedByTime.slice(0, 20);
+      const top20Pre = tempSortedByScore.slice(0, 20);
+      const seenIds = new Set(recent20Pre.map((p: any) => p.id || p.name));
+      const uniqueTop = top20Pre.filter((p: any) => !seenIds.has(p.id || p.name));
+      const postsForAnalysis = [...recent20Pre, ...uniqueTop];
       
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
@@ -307,23 +317,14 @@ const Analysis = () => {
         console.error('Keyword sentiment analysis error:', sentimentErr);
       }
 
-      // Sort all posts by time (newest first) for "recent" views
-      const allPostsSortedByTime = [...matchingPosts].sort((a: any, b: any) => (b.created_utc || 0) - (a.created_utc || 0));
-      // Sort by score (highest first) for "top" view - ONLY posts that contain the keyword in the title
-      const kwLowerForFilter = keyword.toLowerCase();
-      const postsWithKeywordInTitle = matchingPosts.filter((p: any) => 
-        (p.title || '').toLowerCase().includes(kwLowerForFilter)
-      );
-      const allPostsSortedByScore = [...postsWithKeywordInTitle].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
-
       const analysisResult = {
         keyword,
         totalMentions: matchingPosts.length,
         topSubreddits,
         wordCloud: wordCloudData,
         trendData: trendData.length > 0 ? trendData : [{ name: 'Recent', value: matchingPosts.length }],
-        recent20Posts: allPostsSortedByTime.slice(0, 20),
-        top20Posts: allPostsSortedByScore.slice(0, 20),
+        recent20Posts: recent20Pre,
+        top20Posts: top20Pre,
         sentimentChartData: keywordSentimentData,
         postSentiments
       };
