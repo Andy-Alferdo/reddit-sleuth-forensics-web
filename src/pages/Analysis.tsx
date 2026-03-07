@@ -263,24 +263,43 @@ const Analysis = () => {
       let keywordSentimentData = null;
       let postSentiments: SentimentItem[] = [];
       
+      // Send posts in same order as matchingPosts (before any sorting)
+      const postsForAnalysis = matchingPosts.slice(0, 100);
+      
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: {
-            posts: matchingPosts.slice(0, 100),
+            posts: postsForAnalysis,
             comments: []
           }
         });
 
         if (!analysisError && analysisData) {
-          if (analysisData.sentiment?.postBreakdown) {
-            const breakdown = analysisData.sentiment.postBreakdown;
+          postSentiments = analysisData.postSentiments || [];
+          
+          // Attach sentiment to each post by index (AI returns in same order as sent)
+          postsForAnalysis.forEach((post: any, idx: number) => {
+            if (postSentiments[idx]) {
+              post._sentiment = postSentiments[idx].sentiment;
+              post._sentimentExplanation = postSentiments[idx].explanation;
+            }
+          });
+          
+          // Calculate chart data from sentiments
+          if (postSentiments.length > 0) {
+            const counts = { positive: 0, neutral: 0, negative: 0 };
+            postSentiments.forEach((s: any) => {
+              const label = (s.sentiment || 'neutral').toLowerCase();
+              if (label in counts) counts[label as keyof typeof counts]++;
+              else counts.neutral++;
+            });
+            const total = postSentiments.length;
             keywordSentimentData = [
-              { name: 'Positive', value: Math.round((breakdown.positive || 0) * 100) },
-              { name: 'Neutral', value: Math.round((breakdown.neutral || 0) * 100) },
-              { name: 'Negative', value: Math.round((breakdown.negative || 0) * 100) }
+              { name: 'Positive', value: Math.round((counts.positive / total) * 100) },
+              { name: 'Neutral', value: Math.round((counts.neutral / total) * 100) },
+              { name: 'Negative', value: Math.round((counts.negative / total) * 100) }
             ];
           }
-          postSentiments = analysisData.postSentiments || [];
         }
       } catch (sentimentErr) {
         console.error('Keyword sentiment analysis error:', sentimentErr);
@@ -884,19 +903,14 @@ const Analysis = () => {
                 });
                 const viewTrendData = Object.entries(viewPastDays).map(([name, value]) => ({ name, value }));
 
-                // Build sentiments ordered by viewPosts order
-                const allSentiments = keywordData.postSentiments || [];
-                const viewSentiments: SentimentItem[] = [];
-                viewPosts.forEach((p: any) => {
-                  const pTitle = (p.title || '').toLowerCase().trim();
-                  const match = allSentiments.find((s: SentimentItem) => {
-                    const sText = (s.text || '').toLowerCase().trim();
-                    return pTitle === sText || pTitle.startsWith(sText) || sText.startsWith(pTitle) || pTitle.includes(sText) || sText.includes(pTitle);
-                  });
-                  if (match) {
-                    viewSentiments.push(match);
-                  }
-                });
+                // Build sentiments directly from posts (sentiment is attached to each post by index)
+                const viewSentiments = viewPosts
+                  .filter((p: any) => p._sentiment)
+                  .map((p: any) => ({
+                    text: p.title || '',
+                    sentiment: p._sentiment as 'positive' | 'negative' | 'neutral',
+                    explanation: p._sentimentExplanation || '',
+                  }));
                 
                 let viewSentimentChart = null;
                 if (viewSentiments.length > 0) {

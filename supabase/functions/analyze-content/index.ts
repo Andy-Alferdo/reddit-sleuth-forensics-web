@@ -42,15 +42,16 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Format posts and comments for analysis - support up to 100 posts
-    const formattedPosts = posts.slice(0, 100).map((p, idx) => 
-      `POST${idx + 1}: ${p.title} ${p.selftext}`.slice(0, 300)
+    // Format posts - use only titles for cleaner JSON (avoids escape char issues in selftext)
+    const postsToAnalyze = posts.slice(0, 100);
+    const formattedPosts = postsToAnalyze.map((p, idx) => 
+      `POST${idx + 1}: ${(p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
     );
     const formattedComments = comments.slice(0, 15).map((c, idx) => 
-      `COMMENT${idx + 1}: ${c.body}`.slice(0, 300)
+      `COMMENT${idx + 1}: ${(c.body || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
     );
 
-    console.log('Calling Lovable AI for sentiment analysis...');
+    console.log(`Sending ${formattedPosts.length} posts for analysis`);
 
     // Analyze sentiment using Lovable AI
     const analysisResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -64,38 +65,28 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Analyze sentiment for each post and comment. Return ONLY valid JSON with NO markdown formatting.
+            content: `You are a sentiment analyzer. Return ONLY raw valid JSON. NO markdown, NO code blocks, NO backticks.
 
-CRITICAL: You must analyze EVERY post and comment individually and include them ALL in the arrays.
+CRITICAL RULES:
+1. Analyze EVERY post individually in the EXACT ORDER given (POST1, POST2, ...).
+2. The postSentiments array MUST have exactly the same count as posts provided, in the same order.
+3. Use ONLY ASCII characters in your response. No emojis, no special unicode.
+4. Keep explanations short (under 30 words).
 
-LOCATION EXTRACTION: Carefully scan ALL text for ANY location mentions including:
-- Cities, states, countries, regions (e.g., "New York", "California", "UK", "Europe")
-- Neighborhoods, districts, landmarks (e.g., "Brooklyn", "Silicon Valley", "Times Square")
-- Location-related phrases (e.g., "I live in...", "from...", "moved to...", "visiting...", "here in...")
-- Subreddit location references (e.g., if posting in r/nyc, r/london, r/australia)
-- Timezone references (e.g., "EST", "PST", "GMT")
-- Weather/climate references that indicate location
-- Local events, sports teams, or businesses that indicate location
-If no locations found, return ["No specific locations detected"]
-
-Required format:
+Required JSON format:
 {
-  "postSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "XAI reason"}],
-  "commentSentiments": [{"text": "first 100 chars", "sentiment": "positive/negative/neutral", "explanation": "XAI reason"}],
-  "sentiment": {
-    "postBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0},
-    "commentBreakdown": {"positive": 0.0-1.0, "negative": 0.0-1.0, "neutral": 0.0-1.0}
-  },
-  "locations": ["City, Country", "Region", "etc"],
-  "patterns": {"topicInterests": ["topic1", "topic2"]}
+  "postSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "short reason"}],
+  "commentSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "short reason"}],
+  "locations": ["location1"],
+  "patterns": {"topicInterests": ["topic1"]}
 }`
           },
           {
             role: 'user',
-            content: `POSTS:\n${formattedPosts.join('\n\n')}\n\nCOMMENTS:\n${formattedComments.join('\n\n')}`
+            content: `Analyze these ${formattedPosts.length} posts:\n${formattedPosts.join('\n')}\n\n${formattedComments.length > 0 ? `And these comments:\n${formattedComments.join('\n')}` : ''}`
           }
         ],
-        temperature: 0.3,
+        temperature: 0.1,
       }),
     });
 
@@ -131,48 +122,42 @@ Required format:
 
     // Parse the AI response
     const aiContent = aiResponse.choices[0].message.content;
-    console.log('AI response preview:', aiContent.slice(0, 500));
+    console.log('AI response length:', aiContent.length);
     
-    // Extract JSON from markdown code blocks if present
     let analysisResult;
     try {
-      const jsonMatch = aiContent.match(/```json\n([\s\S]*?)\n```/) || aiContent.match(/```\n([\s\S]*?)\n```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : aiContent.trim();
+      // Strip markdown code blocks if present
+      let jsonStr = aiContent.trim();
+      const jsonMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+      if (jsonMatch) jsonStr = jsonMatch[1].trim();
+      
+      // Remove any non-ASCII chars that could break JSON
+      jsonStr = jsonStr.replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+      
       analysisResult = JSON.parse(jsonStr);
       
-      // Ensure all required fields exist
       if (!analysisResult.postSentiments) analysisResult.postSentiments = [];
       if (!analysisResult.commentSentiments) analysisResult.commentSentiments = [];
-      if (!analysisResult.sentiment) {
-        analysisResult.sentiment = {
-          postBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 },
-          commentBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 }
-        };
-      }
-      if (!analysisResult.sentiment.postBreakdown) {
-        analysisResult.sentiment.postBreakdown = { positive: 0.33, negative: 0.33, neutral: 0.34 };
-      }
-      if (!analysisResult.sentiment.commentBreakdown) {
-        analysisResult.sentiment.commentBreakdown = { positive: 0.33, negative: 0.33, neutral: 0.34 };
-      }
       if (!analysisResult.locations) analysisResult.locations = [];
-      if (!analysisResult.patterns) {
-        analysisResult.patterns = { topicInterests: ['Unable to analyze'] };
-      }
+      if (!analysisResult.patterns) analysisResult.patterns = { topicInterests: [] };
       
-      console.log(`Parsed ${analysisResult.postSentiments.length} post sentiments and ${analysisResult.commentSentiments.length} comment sentiments`);
+      // Map index-based sentiments back to include post titles
+      analysisResult.postSentiments = analysisResult.postSentiments.map((s: any, idx: number) => ({
+        index: s.index || idx + 1,
+        sentiment: s.sentiment || 'neutral',
+        explanation: s.explanation || '',
+        text: postsToAnalyze[s.index ? s.index - 1 : idx]?.title || s.text || '',
+      }));
+      
+      console.log(`Parsed ${analysisResult.postSentiments.length} post sentiments`);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
-      console.error('Raw AI content:', aiContent);
+      console.error('Raw AI content (first 1000):', aiContent.slice(0, 1000));
       analysisResult = {
         postSentiments: [],
         commentSentiments: [],
-        sentiment: {
-          postBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 },
-          commentBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 }
-        },
-        locations: ['Unable to extract locations'],
-        patterns: { topicInterests: ['Unable to analyze patterns'] }
+        locations: [],
+        patterns: { topicInterests: [] }
       };
     }
 
