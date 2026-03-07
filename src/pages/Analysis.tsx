@@ -45,6 +45,8 @@ const Analysis = () => {
   const [savedCommunity, setSavedCommunity] = useState<any[]>([]);
   const [savedLink, setSavedLink] = useState<any[]>([]);
   const [previewPost, setPreviewPost] = useState<any>(null);
+  const [visibleKeywordPosts, setVisibleKeywordPosts] = useState(10);
+  const [visibleCommunityPosts, setVisibleCommunityPosts] = useState(10);
 
   const fetchSavedAnalyses = useCallback(async () => {
     if (!currentCase?.id) { setSavedKeyword([]); setSavedCommunity([]); setSavedLink([]); return; }
@@ -185,6 +187,7 @@ const Analysis = () => {
     
     setIsLoading(true);
     setKeywordData(null);
+    setVisibleKeywordPosts(10);
 
     try {
       // Search for keyword across Reddit using search API
@@ -290,7 +293,7 @@ const Analysis = () => {
         topSubreddits,
         wordCloud: wordCloudData,
         trendData: trendData.length > 0 ? trendData : [{ name: 'Recent', value: matchingPosts.length }],
-        recentPosts: matchingPosts.slice(0, 10),
+        recentPosts: matchingPosts.slice(0, 100),
         sentimentChartData: keywordSentimentData,
         postSentiments
       };
@@ -328,6 +331,7 @@ const Analysis = () => {
     
     setIsLoading(true);
     setCommunityData(null);
+    setVisibleCommunityPosts(10);
 
     try {
       const cleanSubreddit = subreddit.replace(/^r\//, '');
@@ -464,7 +468,7 @@ const Analysis = () => {
         wordCloud: wordCloudData,
         topAuthors,
         activityData,
-        recentPosts: posts.slice(0, 10),
+        recentPosts: posts.slice(0, 100),
         sentimentChartData,
         postSentiments,
         stats: {
@@ -764,7 +768,7 @@ const Analysis = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {keywordData.recentPosts.map((post: any, index: number) => (
+                    {keywordData.recentPosts.slice(0, visibleKeywordPosts).map((post: any, index: number) => (
                       <div
                         key={index}
                         className="border border-border/50 rounded-lg p-3 space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
@@ -793,6 +797,15 @@ const Analysis = () => {
                         </div>
                       </div>
                     ))}
+                    {visibleKeywordPosts < keywordData.recentPosts.length && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setVisibleKeywordPosts(prev => Math.min(prev + 10, keywordData.recentPosts.length))}
+                      >
+                        See More ({Math.min(visibleKeywordPosts + 10, keywordData.recentPosts.length) - visibleKeywordPosts} more)
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -1135,7 +1148,7 @@ const Analysis = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {communityData.recentPosts.map((post: any, index: number) => (
+                  {communityData.recentPosts.slice(0, visibleCommunityPosts).map((post: any, index: number) => (
                     <a
                       key={index}
                       href={post.permalink ? `https://www.reddit.com${post.permalink}` : `https://www.reddit.com/r/${subreddit.replace(/^r\//, '')}`}
@@ -1156,6 +1169,15 @@ const Analysis = () => {
                       </div>
                     </a>
                   ))}
+                  {visibleCommunityPosts < communityData.recentPosts.length && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setVisibleCommunityPosts(prev => Math.min(prev + 10, communityData.recentPosts.length))}
+                    >
+                      See More ({Math.min(visibleCommunityPosts + 10, communityData.recentPosts.length) - visibleCommunityPosts} more)
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
 
