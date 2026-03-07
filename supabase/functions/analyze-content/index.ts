@@ -42,11 +42,13 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Format posts - use only titles for cleaner JSON (avoids escape char issues in selftext)
+    // Format posts - include title AND body for accurate sentiment analysis
     const postsToAnalyze = posts.slice(0, 100);
-    const formattedPosts = postsToAnalyze.map((p, idx) => 
-      `POST${idx + 1}: ${(p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
-    );
+    const formattedPosts = postsToAnalyze.map((p, idx) => {
+      const title = (p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 150);
+      const body = (p.selftext || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 350);
+      return body ? `POST${idx + 1}: [Title: ${title}] [Content: ${body}]` : `POST${idx + 1}: ${title}`;
+    });
     const formattedComments = comments.slice(0, 15).map((c, idx) => 
       `COMMENT${idx + 1}: ${(c.body || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
     );
