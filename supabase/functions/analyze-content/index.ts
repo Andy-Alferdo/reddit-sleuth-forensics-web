@@ -53,7 +53,8 @@ serve(async (req) => {
       `COMMENT${idx + 1}: ${(c.body || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
     );
 
-    console.log(`Sending ${formattedPosts.length} posts for analysis`);
+    const postsWithBody = postsToAnalyze.filter(p => p.selftext && p.selftext.trim().length > 0).length;
+    console.log(`Sending ${formattedPosts.length} posts for analysis (${postsWithBody} have body text)`);
 
     // Analyze sentiment using Lovable AI
     const analysisResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
