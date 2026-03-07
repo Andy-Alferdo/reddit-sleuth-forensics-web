@@ -285,13 +285,20 @@ const Analysis = () => {
         console.error('Keyword sentiment analysis error:', sentimentErr);
       }
 
+      // Sort all posts by time (newest first) for "recent" views
+      const allPostsSortedByTime = [...matchingPosts].sort((a: any, b: any) => (b.created_utc || 0) - (a.created_utc || 0));
+      // Sort by score (highest first) for "top" view
+      const allPostsSortedByScore = [...matchingPosts].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+
       const analysisResult = {
         keyword,
         totalMentions: matchingPosts.length,
         topSubreddits,
         wordCloud: wordCloudData,
         trendData: trendData.length > 0 ? trendData : [{ name: 'Recent', value: matchingPosts.length }],
-        recentPosts: matchingPosts.slice(0, 10),
+        allPosts: allPostsSortedByTime.slice(0, 100),
+        recent10Posts: allPostsSortedByTime.slice(0, 10),
+        top10Posts: allPostsSortedByScore.slice(0, 10),
         sentimentChartData: keywordSentimentData,
         postSentiments
       };
