@@ -387,8 +387,8 @@ const Analysis = () => {
       const subredditInfo = redditData.subreddit;
       const posts = redditData.posts || [];
 
-      // Analyze content for sentiment - send up to 100 posts
-      const postsForAnalysis = posts.slice(0, 100);
+      // Analyze content for sentiment - send up to 40 posts
+      const postsForAnalysis = posts.slice(0, 40);
       let postSentiments: SentimentItem[] = [];
       
       try {
