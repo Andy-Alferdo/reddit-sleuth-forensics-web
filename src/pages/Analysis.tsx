@@ -266,7 +266,7 @@ const Analysis = () => {
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: {
-            posts: matchingPosts.slice(0, 20),
+            posts: matchingPosts.slice(0, 100),
             comments: []
           }
         });
