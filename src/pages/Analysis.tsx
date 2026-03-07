@@ -321,9 +321,8 @@ const Analysis = () => {
         topSubreddits,
         wordCloud: wordCloudData,
         trendData: trendData.length > 0 ? trendData : [{ name: 'Recent', value: matchingPosts.length }],
-        allPosts: allPostsSortedByTime.slice(0, 100),
-        recent10Posts: allPostsSortedByTime.slice(0, 10),
-        top10Posts: allPostsSortedByScore.slice(0, 10),
+        recent20Posts: allPostsSortedByTime.slice(0, 20),
+        top20Posts: allPostsSortedByScore.slice(0, 20),
         sentimentChartData: keywordSentimentData,
         postSentiments
       };
