@@ -802,63 +802,43 @@ const Analysis = () => {
               </div>
 
               {/* Three Post Category Cards */}
-              {keywordData.allPosts && keywordData.allPosts.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Card 1: 100 Recent Posts */}
+              {keywordData.recent20Posts && keywordData.recent20Posts.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Card 1: 20 Recent Posts */}
                   <Card
-                    className={`border-primary/20 shadow-glow cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedKeywordView === 'all100' ? 'ring-2 ring-primary border-primary' : ''}`}
-                    onClick={() => setSelectedKeywordView(selectedKeywordView === 'all100' ? null : 'all100')}
-                  >
-                    <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center space-x-2 text-base">
-                        <MessageSquare className="h-5 w-5 text-primary" />
-                        <span>{Math.min(keywordData.allPosts.length, 100)} Recent Posts Mentioning "{keywordData.keyword}"</span>
-                      </CardTitle>
-                      <CardDescription>All scraped posts sorted by time</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
-                        <div className="text-3xl font-bold text-primary">{Math.min(keywordData.allPosts.length, 100)}</div>
-                        <p className="text-muted-foreground text-sm">Posts</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Card 2: 10 Recent Posts */}
-                  <Card
-                    className={`border-primary/20 shadow-glow cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedKeywordView === 'recent10' ? 'ring-2 ring-primary border-primary' : ''}`}
-                    onClick={() => setSelectedKeywordView(selectedKeywordView === 'recent10' ? null : 'recent10')}
+                    className={`border-primary/20 shadow-glow cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedKeywordView === 'recent20' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedKeywordView(selectedKeywordView === 'recent20' ? null : 'recent20')}
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center space-x-2 text-base">
                         <Clock className="h-5 w-5 text-primary" />
-                        <span>10 Recent Posts Mentioning "{keywordData.keyword}"</span>
+                        <span>20 Recent Posts Mentioning "{keywordData.keyword}"</span>
                       </CardTitle>
-                      <CardDescription>Latest 10 posts by time</CardDescription>
+                      <CardDescription>Latest 20 posts by time</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
-                        <div className="text-3xl font-bold text-primary">{keywordData.recent10Posts?.length || 0}</div>
+                        <div className="text-3xl font-bold text-primary">{keywordData.recent20Posts?.length || 0}</div>
                         <p className="text-muted-foreground text-sm">Posts</p>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Card 3: Top 10 Posts */}
+                  {/* Card 2: Top 20 Posts */}
                   <Card
-                    className={`border-primary/20 shadow-glow cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedKeywordView === 'top10' ? 'ring-2 ring-primary border-primary' : ''}`}
-                    onClick={() => setSelectedKeywordView(selectedKeywordView === 'top10' ? null : 'top10')}
+                    className={`border-primary/20 shadow-glow cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedKeywordView === 'top20' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedKeywordView(selectedKeywordView === 'top20' ? null : 'top20')}
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center space-x-2 text-base">
                         <TrendingUp className="h-5 w-5 text-primary" />
-                        <span>Top 10 Posts Mentioning "{keywordData.keyword}"</span>
+                        <span>Top 20 Posts Mentioning "{keywordData.keyword}"</span>
                       </CardTitle>
                       <CardDescription>Highest upvoted posts</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
-                        <div className="text-3xl font-bold text-primary">{keywordData.top10Posts?.length || 0}</div>
+                        <div className="text-3xl font-bold text-primary">{keywordData.top20Posts?.length || 0}</div>
                         <p className="text-muted-foreground text-sm">Posts</p>
                       </div>
                     </CardContent>
