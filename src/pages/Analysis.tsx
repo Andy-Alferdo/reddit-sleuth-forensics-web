@@ -331,6 +331,7 @@ const Analysis = () => {
     
     setIsLoading(true);
     setCommunityData(null);
+    setVisibleCommunityPosts(10);
 
     try {
       const cleanSubreddit = subreddit.replace(/^r\//, '');
