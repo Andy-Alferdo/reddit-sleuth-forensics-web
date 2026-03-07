@@ -45,9 +45,10 @@ serve(async (req) => {
     // Format posts - include title AND body for accurate sentiment analysis
     const postsToAnalyze = posts.slice(0, 40);
     const formattedPosts = postsToAnalyze.map((p, idx) => {
-      const title = (p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 150);
-      const body = (p.selftext || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 350);
-      return body ? `POST${idx + 1}: [Title: ${title}] [Content: ${body}]` : `POST${idx + 1}: ${title}`;
+      const title = (p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200);
+      const body = (p.selftext || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 500);
+      // Always include both title and body sections so the AI sees the full content
+      return `POST${idx + 1}: TITLE: ${title} | BODY: ${body || '(no body text)'}`;
     });
     const formattedComments = comments.slice(0, 15).map((c, idx) => 
       `COMMENT${idx + 1}: ${(c.body || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
@@ -71,15 +72,15 @@ serve(async (req) => {
             content: `You are a sentiment analyzer. Return ONLY raw valid JSON. NO markdown, NO code blocks, NO backticks.
 
 CRITICAL RULES:
-1. Analyze EVERY post individually in the EXACT ORDER given (POST1, POST2, ...).
-2. Base your sentiment on the FULL CONTENT of each post (both title and body text), not just the title.
-3. The postSentiments array MUST have exactly the same count as posts provided, in the same order.
-4. Use ONLY ASCII characters in your response. No emojis, no special unicode.
-5. Keep explanations short (under 30 words) but reference the actual content.
+1. You MUST return EXACTLY ${formattedPosts.length} items in postSentiments, one per post, in the EXACT same order (POST1, POST2, ..., POST${formattedPosts.length}).
+2. IMPORTANT: Read BOTH the TITLE and the BODY of each post. The BODY often contains the real sentiment. Do NOT judge sentiment from the title alone. If a post has body text, your sentiment MUST be based primarily on the body content.
+3. Use ONLY ASCII characters. No emojis or special unicode.
+4. Keep explanations under 30 words but reference specific body content when available.
+5. DO NOT skip any post. Every single post MUST have a corresponding entry.
 
-Required JSON format:
+Required JSON format (postSentiments array must have exactly ${formattedPosts.length} entries):
 {
-  "postSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "short reason based on full content"}],
+  "postSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "reason referencing body content"}],
   "commentSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "short reason"}],
   "locations": ["location1"],
   "patterns": {"topicInterests": ["topic1"]}
@@ -153,7 +154,20 @@ Required JSON format:
         text: postsToAnalyze[s.index ? s.index - 1 : idx]?.title || s.text || '',
       }));
       
-      console.log(`Parsed ${analysisResult.postSentiments.length} post sentiments`);
+      // Backfill missing sentiments - ensure every post has a sentiment entry
+      if (analysisResult.postSentiments.length < postsToAnalyze.length) {
+        console.log(`AI returned ${analysisResult.postSentiments.length} sentiments for ${postsToAnalyze.length} posts, backfilling...`);
+        for (let i = analysisResult.postSentiments.length; i < postsToAnalyze.length; i++) {
+          analysisResult.postSentiments.push({
+            index: i + 1,
+            sentiment: 'neutral',
+            explanation: 'Sentiment could not be determined',
+            text: postsToAnalyze[i]?.title || '',
+          });
+        }
+      }
+      
+      console.log(`Final: ${analysisResult.postSentiments.length} post sentiments for ${postsToAnalyze.length} posts`);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
       console.error('Raw AI content (first 1000):', aiContent.slice(0, 1000));

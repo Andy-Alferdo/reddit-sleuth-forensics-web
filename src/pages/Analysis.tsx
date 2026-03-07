@@ -22,6 +22,7 @@ import { useInvestigation } from '@/contexts/InvestigationContext';
 
 interface SentimentItem {
   text: string;
+  body?: string;
   sentiment: 'positive' | 'negative' | 'neutral';
   explanation: string;
 }
@@ -900,6 +901,7 @@ const Analysis = () => {
                   .filter((p: any) => p._sentiment)
                   .map((p: any) => ({
                     text: p.title || '',
+                    body: p.selftext || '',
                     sentiment: p._sentiment as 'positive' | 'negative' | 'neutral',
                     explanation: p._sentimentExplanation || '',
                   }));
@@ -994,7 +996,10 @@ const Analysis = () => {
                               <tbody>
                                 {viewSentiments.map((item: SentimentItem, index: number) => (
                                   <tr key={index} className="border-b hover:bg-muted/50">
-                                    <td className="p-3 text-sm">{viewPosts[index]?.title || item.text}</td>
+                                    <td className="p-3 text-sm">
+                                      <div className="font-medium">{viewPosts[index]?.title || item.text}</div>
+                                      {item.body && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.body}</div>}
+                                    </td>
                                     <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
                                     <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
                                   </tr>
@@ -1412,6 +1417,7 @@ const Analysis = () => {
                   .filter((p: any) => p._sentiment)
                   .map((p: any) => ({
                     text: p.title || '',
+                    body: p.selftext || '',
                     sentiment: p._sentiment as 'positive' | 'negative' | 'neutral',
                     explanation: p._sentimentExplanation || '',
                   }));
@@ -1506,7 +1512,10 @@ const Analysis = () => {
                                 <tbody>
                                   {viewSentiments.map((item: SentimentItem, index: number) => (
                                     <tr key={index} className="border-b hover:bg-muted/50">
-                                      <td className="p-3 text-sm">{viewPosts[index]?.title || item.text}</td>
+                                      <td className="p-3 text-sm">
+                                        <div className="font-medium">{viewPosts[index]?.title || item.text}</div>
+                                        {item.body && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.body}</div>}
+                                      </td>
                                       <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
                                       <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
                                     </tr>
