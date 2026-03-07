@@ -22,6 +22,7 @@ import { useInvestigation } from '@/contexts/InvestigationContext';
 
 interface SentimentItem {
   text: string;
+  body?: string;
   sentiment: 'positive' | 'negative' | 'neutral';
   explanation: string;
 }
