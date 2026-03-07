@@ -468,7 +468,7 @@ const Analysis = () => {
         wordCloud: wordCloudData,
         topAuthors,
         activityData,
-        recentPosts: posts.slice(0, 10),
+        recentPosts: posts.slice(0, 100),
         sentimentChartData,
         postSentiments,
         stats: {
