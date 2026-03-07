@@ -49,7 +49,10 @@ interface KeywordAnalysisData {
   topSubreddits: any[];
   wordCloud: any[];
   trendData: any[];
-  recentPosts: any[];
+  recentPosts?: any[];
+  allPosts?: any[];
+  recent10Posts?: any[];
+  top10Posts?: any[];
   sentimentChartData: any[];
   postSentiments: any[];
   analyzedAt: string;
@@ -1236,11 +1239,12 @@ export const generatePDFReport = (options: ReportOptions): void => {
       }
 
       // Recent Posts Table
-      if (analysis.recentPosts && analysis.recentPosts.length > 0) {
+      const keywordPosts = analysis.recentPosts || analysis.allPosts || [];
+      if (keywordPosts.length > 0) {
         checkPageBreak(50);
         addSubsectionTitle('Recent Related Posts');
         
-        const postRows = analysis.recentPosts.slice(0, 8).map((post: any) => [
+        const postRows = keywordPosts.slice(0, 8).map((post: any) => [
           post.title.substring(0, 50) + (post.title.length > 50 ? '...' : ''),
           `r/${post.subreddit}`,
           post.score?.toString() || 'N/A',

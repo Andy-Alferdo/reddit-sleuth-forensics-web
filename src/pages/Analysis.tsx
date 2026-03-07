@@ -45,6 +45,7 @@ const Analysis = () => {
   const [savedCommunity, setSavedCommunity] = useState<any[]>([]);
   const [savedLink, setSavedLink] = useState<any[]>([]);
   const [previewPost, setPreviewPost] = useState<any>(null);
+  const [selectedKeywordView, setSelectedKeywordView] = useState<'all100' | 'recent10' | 'top10' | null>(null);
 
   const fetchSavedAnalyses = useCallback(async () => {
     if (!currentCase?.id) { setSavedKeyword([]); setSavedCommunity([]); setSavedLink([]); return; }
@@ -185,6 +186,7 @@ const Analysis = () => {
     
     setIsLoading(true);
     setKeywordData(null);
+    setSelectedKeywordView(null);
 
     try {
       // Search for keyword across Reddit using search API
@@ -284,13 +286,20 @@ const Analysis = () => {
         console.error('Keyword sentiment analysis error:', sentimentErr);
       }
 
+      // Sort all posts by time (newest first) for "recent" views
+      const allPostsSortedByTime = [...matchingPosts].sort((a: any, b: any) => (b.created_utc || 0) - (a.created_utc || 0));
+      // Sort by score (highest first) for "top" view
+      const allPostsSortedByScore = [...matchingPosts].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+
       const analysisResult = {
         keyword,
         totalMentions: matchingPosts.length,
         topSubreddits,
         wordCloud: wordCloudData,
         trendData: trendData.length > 0 ? trendData : [{ name: 'Recent', value: matchingPosts.length }],
-        recentPosts: matchingPosts.slice(0, 10),
+        allPosts: allPostsSortedByTime.slice(0, 100),
+        recent10Posts: allPostsSortedByTime.slice(0, 10),
+        top10Posts: allPostsSortedByScore.slice(0, 10),
         sentimentChartData: keywordSentimentData,
         postSentiments
       };
@@ -754,104 +763,189 @@ const Analysis = () => {
                 </Card>
               </div>
 
-              {/* Recent Posts */}
-              {keywordData.recentPosts && keywordData.recentPosts.length > 0 && (
-                <Card className="border-primary/20 shadow-glow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <MessageSquare className="h-5 w-5 text-primary" />
-                      <span>Recent Posts Mentioning "{keywordData.keyword}"</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {keywordData.recentPosts.map((post: any, index: number) => (
-                      <div
-                        key={index}
-                        className="border border-border/50 rounded-lg p-3 space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
-                        onClick={() => setPreviewPost({
-                          title: post.title,
-                          body: post.selftext || post.body || post.content || '',
-                          subreddit: `r/${post.subreddit}`,
-                          author: post.author,
-                          timestamp: formatActivityTime(post.created_utc),
-                          score: post.score,
-                          url: post.permalink ? `https://www.reddit.com${post.permalink}` : `https://www.reddit.com/r/${post.subreddit}`,
-                          type: 'post',
-                        })}
-                      >
-                        <h4 className="font-medium text-sm leading-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
-                          {post.title}
-                          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                        </h4>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span>{formatActivityTime(post.created_utc)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>r/{post.subreddit} • by u/{post.author}</span>
-                          <Badge variant="secondary" className="text-xs">▲ {post.score}</Badge>
-                        </div>
+              {/* Three Post Category Cards */}
+              {keywordData.allPosts && keywordData.allPosts.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Card 1: 100 Recent Posts */}
+                  <Card
+                    className={`border-primary/20 shadow-glow cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedKeywordView === 'all100' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedKeywordView(selectedKeywordView === 'all100' ? null : 'all100')}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center space-x-2 text-base">
+                        <MessageSquare className="h-5 w-5 text-primary" />
+                        <span>{Math.min(keywordData.allPosts.length, 100)} Recent Posts Mentioning "{keywordData.keyword}"</span>
+                      </CardTitle>
+                      <CardDescription>All scraped posts sorted by time</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                        <div className="text-3xl font-bold text-primary">{Math.min(keywordData.allPosts.length, 100)}</div>
+                        <p className="text-muted-foreground text-sm">Posts</p>
                       </div>
-                    ))}
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 2: 10 Recent Posts */}
+                  <Card
+                    className={`border-primary/20 shadow-glow cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedKeywordView === 'recent10' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedKeywordView(selectedKeywordView === 'recent10' ? null : 'recent10')}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center space-x-2 text-base">
+                        <Clock className="h-5 w-5 text-primary" />
+                        <span>10 Recent Posts Mentioning "{keywordData.keyword}"</span>
+                      </CardTitle>
+                      <CardDescription>Latest 10 posts by time</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                        <div className="text-3xl font-bold text-primary">{keywordData.recent10Posts?.length || 0}</div>
+                        <p className="text-muted-foreground text-sm">Posts</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 3: Top 10 Posts */}
+                  <Card
+                    className={`border-primary/20 shadow-glow cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedKeywordView === 'top10' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedKeywordView(selectedKeywordView === 'top10' ? null : 'top10')}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center space-x-2 text-base">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                        <span>Top 10 Posts Mentioning "{keywordData.keyword}"</span>
+                      </CardTitle>
+                      <CardDescription>Highest upvoted posts</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                        <div className="text-3xl font-bold text-primary">{keywordData.top10Posts?.length || 0}</div>
+                        <p className="text-muted-foreground text-sm">Posts</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
 
-              {/* Sentiment Analysis Table for Keywords */}
-              {keywordData.postSentiments && keywordData.postSentiments.length > 0 && (
-                <Card className="border-primary/20 shadow-glow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <MessageSquare className="h-5 w-5 text-primary" />
-                      <span>Post Sentiment Analysis (AI-Powered)</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left p-3 font-semibold">Post</th>
-                            <th className="text-left p-3 font-semibold w-32">Sentiment</th>
-                            <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {keywordData.postSentiments.map((item: SentimentItem, index: number) => (
-                            <tr key={index} className="border-b hover:bg-muted/50">
-                              <td className="p-3 text-sm">{item.text}</td>
-                              <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
-                              <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+              {/* Expanded Post List for selected card */}
+              {selectedKeywordView && (() => {
+                const postsMap = {
+                  all100: { posts: keywordData.allPosts || [], title: `${Math.min(keywordData.allPosts?.length || 0, 100)} Recent Posts Mentioning "${keywordData.keyword}"` },
+                  recent10: { posts: keywordData.recent10Posts || [], title: `10 Recent Posts Mentioning "${keywordData.keyword}"` },
+                  top10: { posts: keywordData.top10Posts || [], title: `Top 10 Posts Mentioning "${keywordData.keyword}"` },
+                };
+                const { posts: viewPosts, title: viewTitle } = postsMap[selectedKeywordView];
+                return (
+                  <>
+                    <Card className="border-primary/20 shadow-glow">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center space-x-2">
+                            <MessageSquare className="h-5 w-5 text-primary" />
+                            <span>{viewTitle}</span>
+                          </CardTitle>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedKeywordView(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <ScrollArea className={viewPosts.length > 10 ? "h-[600px]" : ""}>
+                          <div className="space-y-3 pr-4">
+                            {viewPosts.map((post: any, index: number) => (
+                              <div
+                                key={index}
+                                className="border border-border/50 rounded-lg p-3 space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+                                onClick={(e) => { e.stopPropagation(); setPreviewPost({
+                                  title: post.title,
+                                  body: post.selftext || post.body || post.content || '',
+                                  subreddit: `r/${post.subreddit}`,
+                                  author: post.author,
+                                  timestamp: formatActivityTime(post.created_utc),
+                                  score: post.score,
+                                  url: post.permalink ? `https://www.reddit.com${post.permalink}` : `https://www.reddit.com/r/${post.subreddit}`,
+                                  type: 'post',
+                                }); }}
+                              >
+                                <h4 className="font-medium text-sm leading-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
+                                  {post.title}
+                                  <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                </h4>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  <span>{formatActivityTime(post.created_utc)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                  <span>r/{post.subreddit} • by u/{post.author}</span>
+                                  <Badge variant="secondary" className="text-xs">▲ {post.score}</Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+
+                    {/* Sentiment Analysis Table for selected view */}
+                    {keywordData.postSentiments && keywordData.postSentiments.length > 0 && (
+                      <Card className="border-primary/20 shadow-glow">
+                        <CardHeader>
+                          <CardTitle className="flex items-center space-x-2">
+                            <MessageSquare className="h-5 w-5 text-primary" />
+                            <span>Post Sentiment Analysis (AI-Powered)</span>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                              <thead>
+                                <tr className="border-b">
+                                  <th className="text-left p-3 font-semibold">Post</th>
+                                  <th className="text-left p-3 font-semibold w-32">Sentiment</th>
+                                  <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {keywordData.postSentiments.map((item: SentimentItem, index: number) => (
+                                  <tr key={index} className="border-b hover:bg-muted/50">
+                                    <td className="p-3 text-sm">{item.text}</td>
+                                    <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
+                                    <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {keywordData.wordCloud && keywordData.wordCloud.length > 0 && (
+                        <WordCloud words={keywordData.wordCloud} title="Related Keywords" />
+                      )}
+                      {keywordData.trendData && keywordData.trendData.length > 0 && (
+                        <AnalyticsChart 
+                          data={keywordData.trendData} 
+                          title="Mention Trends" 
+                          type="bar" 
+                          height={250}
+                        />
+                      )}
+                      {keywordData.sentimentChartData && (
+                        <AnalyticsChart 
+                          data={keywordData.sentimentChartData} 
+                          title="Keyword Sentiment Analysis" 
+                          type="pie" 
+                          height={250}
+                        />
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  </>
+                );
+              })()}
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {keywordData.wordCloud && keywordData.wordCloud.length > 0 && (
-                  <WordCloud words={keywordData.wordCloud} title="Related Keywords" />
-                )}
-                {keywordData.trendData && keywordData.trendData.length > 0 && (
-                  <AnalyticsChart 
-                    data={keywordData.trendData} 
-                    title="Mention Trends" 
-                    type="bar" 
-                    height={250}
-                  />
-                )}
-                {keywordData.sentimentChartData && (
-                  <AnalyticsChart 
-                    data={keywordData.sentimentChartData} 
-                    title="Keyword Sentiment Analysis" 
-                    type="pie" 
-                    height={250}
-                  />
-                )}
-              </div>
             </>
           )}
 
