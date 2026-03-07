@@ -43,7 +43,7 @@ serve(async (req) => {
     }
 
     // Format posts - include title AND body for accurate sentiment analysis
-    const postsToAnalyze = posts.slice(0, 100);
+    const postsToAnalyze = posts.slice(0, 40);
     const formattedPosts = postsToAnalyze.map((p, idx) => {
       const title = (p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 150);
       const body = (p.selftext || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 350);
