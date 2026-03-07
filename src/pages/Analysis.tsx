@@ -264,8 +264,8 @@ const Analysis = () => {
       let keywordSentimentData = null;
       let postSentiments: SentimentItem[] = [];
       
-      // Send posts in same order as matchingPosts (before any sorting)
-      const postsForAnalysis = matchingPosts.slice(0, 100);
+      // Send only 40 posts for sentiment (20 recent + 20 top may overlap, but max 40)
+      const postsForAnalysis = matchingPosts.slice(0, 40);
       
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
