@@ -975,6 +975,7 @@ const Analysis = () => {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
+                          <ScrollArea className={viewSentiments.length > 10 ? "h-[600px]" : ""}>
                           <div className="overflow-x-auto">
                             <table className="w-full border-collapse">
                               <thead>
@@ -987,7 +988,7 @@ const Analysis = () => {
                               <tbody>
                                 {viewSentiments.map((item: SentimentItem, index: number) => (
                                   <tr key={index} className="border-b hover:bg-muted/50">
-                                    <td className="p-3 text-sm">{item.text}</td>
+                                    <td className="p-3 text-sm">{viewPosts[index]?.title || item.text}</td>
                                     <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
                                     <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
                                   </tr>
@@ -995,6 +996,7 @@ const Analysis = () => {
                               </tbody>
                             </table>
                           </div>
+                          </ScrollArea>
                         </CardContent>
                       </Card>
                     )}
