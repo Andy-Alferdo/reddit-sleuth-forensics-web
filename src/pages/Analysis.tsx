@@ -836,6 +836,68 @@ const Analysis = () => {
                   top10: { posts: keywordData.top10Posts || [], title: `Top 10 Posts Mentioning "${keywordData.keyword}"` },
                 };
                 const { posts: viewPosts, title: viewTitle } = postsMap[selectedKeywordView];
+
+                // Compute word cloud from this view's posts
+                const viewTextContent = viewPosts.map((p: any) => `${p.title} ${p.selftext || ''}`).join(' ');
+                const viewWords = viewTextContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+                const viewWordFreq: { [key: string]: number } = {};
+                const stopWords = ['that', 'this', 'with', 'from', 'have', 'been', 'will', 'your', 'their', 'what', 'when', 'where', 'just', 'like', 'more', 'would', 'could', 'should', 'about', 'there', 'which', 'them', 'these', 'than', 'then', 'also', 'only'];
+                const kwLower = (keywordData.keyword || '').toLowerCase();
+                viewWords.forEach((word: string) => {
+                  if (!stopWords.includes(word) && word !== kwLower) {
+                    viewWordFreq[word] = (viewWordFreq[word] || 0) + 1;
+                  }
+                });
+                const viewWordCloud = Object.entries(viewWordFreq)
+                  .sort(([,a], [,b]) => (b as number) - (a as number))
+                  .slice(0, 60)
+                  .map(([word, freq]) => ({
+                    word,
+                    frequency: freq as number,
+                    category: (freq as number) > 10 ? 'high' as const : (freq as number) > 5 ? 'medium' as const : 'low' as const
+                  }));
+
+                // Compute trend data from this view's posts
+                const now = new Date();
+                const viewPast7Days: { [key: string]: number } = {};
+                for (let i = 6; i >= 0; i--) {
+                  const date = new Date(now);
+                  date.setDate(date.getDate() - i);
+                  const dayKey = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+                  viewPast7Days[dayKey] = 0;
+                }
+                viewPosts.forEach((post: any) => {
+                  const postDate = new Date(post.created_utc * 1000);
+                  const daysDiff = Math.floor((now.getTime() - postDate.getTime()) / (1000 * 60 * 60 * 24));
+                  if (daysDiff < 7) {
+                    const dayKey = postDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+                    if (viewPast7Days[dayKey] !== undefined) {
+                      viewPast7Days[dayKey]++;
+                    }
+                  }
+                });
+                const viewTrendData = Object.entries(viewPast7Days).map(([name, value]) => ({ name, value }));
+
+                // Compute sentiment from this view's posts using postSentiments
+                const viewPostTitles = new Set(viewPosts.map((p: any) => p.title));
+                const viewSentiments = (keywordData.postSentiments || []).filter((s: SentimentItem) => viewPostTitles.has(s.text));
+                
+                let viewSentimentChart = null;
+                if (viewSentiments.length > 0) {
+                  const counts = { positive: 0, neutral: 0, negative: 0 };
+                  viewSentiments.forEach((s: SentimentItem) => {
+                    const label = (s.sentiment || 'neutral').toLowerCase() as keyof typeof counts;
+                    if (label in counts) counts[label]++;
+                    else counts.neutral++;
+                  });
+                  const total = viewSentiments.length;
+                  viewSentimentChart = [
+                    { name: 'Positive', value: Math.round((counts.positive / total) * 100) },
+                    { name: 'Neutral', value: Math.round((counts.neutral / total) * 100) },
+                    { name: 'Negative', value: Math.round((counts.negative / total) * 100) },
+                  ];
+                }
+
                 return (
                   <>
                     <Card className="border-primary/20 shadow-glow">
@@ -888,7 +950,7 @@ const Analysis = () => {
                     </Card>
 
                     {/* Sentiment Analysis Table for selected view */}
-                    {keywordData.postSentiments && keywordData.postSentiments.length > 0 && (
+                    {viewSentiments.length > 0 && (
                       <Card className="border-primary/20 shadow-glow">
                         <CardHeader>
                           <CardTitle className="flex items-center space-x-2">
@@ -907,7 +969,7 @@ const Analysis = () => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {keywordData.postSentiments.map((item: SentimentItem, index: number) => (
+                                {viewSentiments.map((item: SentimentItem, index: number) => (
                                   <tr key={index} className="border-b hover:bg-muted/50">
                                     <td className="p-3 text-sm">{item.text}</td>
                                     <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
@@ -922,20 +984,20 @@ const Analysis = () => {
                     )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      {keywordData.wordCloud && keywordData.wordCloud.length > 0 && (
-                        <WordCloud words={keywordData.wordCloud} title="Related Keywords" />
+                      {viewWordCloud.length > 0 && (
+                        <WordCloud words={viewWordCloud} title="Related Keywords" />
                       )}
-                      {keywordData.trendData && keywordData.trendData.length > 0 && (
+                      {viewTrendData.length > 0 && (
                         <AnalyticsChart 
-                          data={keywordData.trendData} 
+                          data={viewTrendData} 
                           title="Mention Trends" 
                           type="bar" 
                           height={250}
                         />
                       )}
-                      {keywordData.sentimentChartData && (
+                      {viewSentimentChart && (
                         <AnalyticsChart 
-                          data={keywordData.sentimentChartData} 
+                          data={viewSentimentChart} 
                           title="Keyword Sentiment Analysis" 
                           type="pie" 
                           height={250}
