@@ -122,48 +122,42 @@ Required JSON format:
 
     // Parse the AI response
     const aiContent = aiResponse.choices[0].message.content;
-    console.log('AI response preview:', aiContent.slice(0, 500));
+    console.log('AI response length:', aiContent.length);
     
-    // Extract JSON from markdown code blocks if present
     let analysisResult;
     try {
-      const jsonMatch = aiContent.match(/```json\n([\s\S]*?)\n```/) || aiContent.match(/```\n([\s\S]*?)\n```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : aiContent.trim();
+      // Strip markdown code blocks if present
+      let jsonStr = aiContent.trim();
+      const jsonMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+      if (jsonMatch) jsonStr = jsonMatch[1].trim();
+      
+      // Remove any non-ASCII chars that could break JSON
+      jsonStr = jsonStr.replace(/[^\x20-\x7E\n\r\t]/g, ' ');
+      
       analysisResult = JSON.parse(jsonStr);
       
-      // Ensure all required fields exist
       if (!analysisResult.postSentiments) analysisResult.postSentiments = [];
       if (!analysisResult.commentSentiments) analysisResult.commentSentiments = [];
-      if (!analysisResult.sentiment) {
-        analysisResult.sentiment = {
-          postBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 },
-          commentBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 }
-        };
-      }
-      if (!analysisResult.sentiment.postBreakdown) {
-        analysisResult.sentiment.postBreakdown = { positive: 0.33, negative: 0.33, neutral: 0.34 };
-      }
-      if (!analysisResult.sentiment.commentBreakdown) {
-        analysisResult.sentiment.commentBreakdown = { positive: 0.33, negative: 0.33, neutral: 0.34 };
-      }
       if (!analysisResult.locations) analysisResult.locations = [];
-      if (!analysisResult.patterns) {
-        analysisResult.patterns = { topicInterests: ['Unable to analyze'] };
-      }
+      if (!analysisResult.patterns) analysisResult.patterns = { topicInterests: [] };
       
-      console.log(`Parsed ${analysisResult.postSentiments.length} post sentiments and ${analysisResult.commentSentiments.length} comment sentiments`);
+      // Map index-based sentiments back to include post titles
+      analysisResult.postSentiments = analysisResult.postSentiments.map((s: any, idx: number) => ({
+        index: s.index || idx + 1,
+        sentiment: s.sentiment || 'neutral',
+        explanation: s.explanation || '',
+        text: postsToAnalyze[s.index ? s.index - 1 : idx]?.title || s.text || '',
+      }));
+      
+      console.log(`Parsed ${analysisResult.postSentiments.length} post sentiments`);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
-      console.error('Raw AI content:', aiContent);
+      console.error('Raw AI content (first 1000):', aiContent.slice(0, 1000));
       analysisResult = {
         postSentiments: [],
         commentSentiments: [],
-        sentiment: {
-          postBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 },
-          commentBreakdown: { positive: 0.33, negative: 0.33, neutral: 0.34 }
-        },
-        locations: ['Unable to extract locations'],
-        patterns: { topicInterests: ['Unable to analyze patterns'] }
+        locations: [],
+        patterns: { topicInterests: [] }
       };
     }
 
