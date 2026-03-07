@@ -768,7 +768,7 @@ const Analysis = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {keywordData.recentPosts.map((post: any, index: number) => (
+                    {keywordData.recentPosts.slice(0, visibleKeywordPosts).map((post: any, index: number) => (
                       <div
                         key={index}
                         className="border border-border/50 rounded-lg p-3 space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
@@ -797,6 +797,15 @@ const Analysis = () => {
                         </div>
                       </div>
                     ))}
+                    {visibleKeywordPosts < keywordData.recentPosts.length && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setVisibleKeywordPosts(prev => Math.min(prev + 10, keywordData.recentPosts.length))}
+                      >
+                        See More ({Math.min(visibleKeywordPosts + 10, keywordData.recentPosts.length) - visibleKeywordPosts} more)
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               )}
