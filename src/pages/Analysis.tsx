@@ -361,6 +361,7 @@ const Analysis = () => {
     
     setIsLoading(true);
     setCommunityData(null);
+    setSelectedCommunityView(null);
 
     try {
       const cleanSubreddit = subreddit.replace(/^r\//, '');
@@ -387,28 +388,28 @@ const Analysis = () => {
       const subredditInfo = redditData.subreddit;
       const posts = redditData.posts || [];
 
-      // Analyze content for sentiment
-      let sentimentData = null;
+      // Analyze content for sentiment - send up to 100 posts
+      const postsForAnalysis = posts.slice(0, 100);
       let postSentiments: SentimentItem[] = [];
       
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: {
-            posts: posts.slice(0, 20),
+            posts: postsForAnalysis,
             comments: []
           }
         });
 
         if (!analysisError && analysisData) {
-          if (analysisData.sentiment?.postBreakdown) {
-            const breakdown = analysisData.sentiment.postBreakdown;
-            sentimentData = {
-              positive: Math.round((breakdown.positive || 0) * 100),
-              neutral: Math.round((breakdown.neutral || 0) * 100),
-              negative: Math.round((breakdown.negative || 0) * 100)
-            };
-          }
           postSentiments = analysisData.postSentiments || [];
+          
+          // Attach sentiment to each post by index
+          postsForAnalysis.forEach((post: any, idx: number) => {
+            if (postSentiments[idx]) {
+              post._sentiment = postSentiments[idx].sentiment;
+              post._sentimentExplanation = postSentiments[idx].explanation;
+            }
+          });
         }
       } catch (sentimentErr) {
         console.error('Sentiment analysis error:', sentimentErr);
@@ -451,11 +452,10 @@ const Analysis = () => {
       const now = new Date();
       const dayActivityMap: { [key: string]: { count: number; label: string } } = {};
       
-      // Initialize last 7 days with dates
       for (let i = 6; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
-        const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dayKey = date.toISOString().split('T')[0];
         const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
         const formattedDate = `${dayName}, ${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getFullYear()}`;
         dayActivityMap[dayKey] = { count: 0, label: formattedDate };
@@ -475,12 +475,9 @@ const Analysis = () => {
       const totalUpvotes = posts.reduce((sum: number, p: any) => sum + (p.score || 0), 0);
       const totalComments = posts.reduce((sum: number, p: any) => sum + (p.num_comments || 0), 0);
 
-      // Prepare sentiment chart data
-      const sentimentChartData = sentimentData ? [
-        { name: 'Positive', value: sentimentData.positive || 0 },
-        { name: 'Neutral', value: sentimentData.neutral || 0 },
-        { name: 'Negative', value: sentimentData.negative || 0 }
-      ] : null;
+      // Sort posts for different views
+      const allPostsSortedByTime = [...posts].sort((a: any, b: any) => (b.created_utc || 0) - (a.created_utc || 0));
+      const allPostsSortedByScore = [...posts].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
 
       const analysisResult = {
         name: subredditInfo.display_name_prefixed || `r/${cleanSubreddit}`,
@@ -497,9 +494,11 @@ const Analysis = () => {
         wordCloud: wordCloudData,
         topAuthors,
         activityData,
-        recentPosts: posts.slice(0, 10),
-        sentimentChartData,
+        allPosts: allPostsSortedByTime.slice(0, 100),
+        recent10Posts: allPostsSortedByTime.slice(0, 10),
+        top10Posts: allPostsSortedByScore.slice(0, 10),
         postSentiments,
+        sentimentChartData: null as any,
         stats: {
           totalPosts: posts.length,
           totalUpvotes,
@@ -507,6 +506,23 @@ const Analysis = () => {
           avgUpvotes: posts.length > 0 ? Math.round(totalUpvotes / posts.length) : 0
         }
       };
+
+      // Calculate sentiment chart from attached sentiments
+      const postsWithSentiment = allPostsSortedByTime.filter((p: any) => p._sentiment);
+      if (postsWithSentiment.length > 0) {
+        const counts = { positive: 0, neutral: 0, negative: 0 };
+        postsWithSentiment.forEach((p: any) => {
+          const label = (p._sentiment || 'neutral').toLowerCase() as keyof typeof counts;
+          if (label in counts) counts[label]++;
+          else counts.neutral++;
+        });
+        const total = postsWithSentiment.length;
+        analysisResult.sentimentChartData = [
+          { name: 'Positive', value: Math.round((counts.positive / total) * 100) },
+          { name: 'Neutral', value: Math.round((counts.neutral / total) * 100) },
+          { name: 'Negative', value: Math.round((counts.negative / total) * 100) }
+        ];
+      }
 
       setCommunityData(analysisResult);
       
