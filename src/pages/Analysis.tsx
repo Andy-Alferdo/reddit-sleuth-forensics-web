@@ -45,6 +45,7 @@ const Analysis = () => {
   const [savedCommunity, setSavedCommunity] = useState<any[]>([]);
   const [savedLink, setSavedLink] = useState<any[]>([]);
   const [previewPost, setPreviewPost] = useState<any>(null);
+  const [selectedKeywordView, setSelectedKeywordView] = useState<'all100' | 'recent10' | 'top10' | null>(null);
 
   const fetchSavedAnalyses = useCallback(async () => {
     if (!currentCase?.id) { setSavedKeyword([]); setSavedCommunity([]); setSavedLink([]); return; }
