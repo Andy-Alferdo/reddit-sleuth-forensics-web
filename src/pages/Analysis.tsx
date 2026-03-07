@@ -1512,7 +1512,10 @@ const Analysis = () => {
                                 <tbody>
                                   {viewSentiments.map((item: SentimentItem, index: number) => (
                                     <tr key={index} className="border-b hover:bg-muted/50">
-                                      <td className="p-3 text-sm">{viewPosts[index]?.title || item.text}</td>
+                                      <td className="p-3 text-sm">
+                                        <div className="font-medium">{viewPosts[index]?.title || item.text}</div>
+                                        {item.body && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.body}</div>}
+                                      </td>
                                       <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
                                       <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
                                     </tr>
