@@ -849,9 +849,8 @@ const Analysis = () => {
               {/* Expanded Post List for selected card */}
               {selectedKeywordView && (() => {
                 const postsMap = {
-                  all100: { posts: keywordData.allPosts || [], title: `${Math.min(keywordData.allPosts?.length || 0, 100)} Recent Posts Mentioning "${keywordData.keyword}"` },
-                  recent10: { posts: keywordData.recent10Posts || [], title: `10 Recent Posts Mentioning "${keywordData.keyword}"` },
-                  top10: { posts: keywordData.top10Posts || [], title: `Top 10 Posts Mentioning "${keywordData.keyword}"` },
+                  recent20: { posts: keywordData.recent20Posts || [], title: `20 Recent Posts Mentioning "${keywordData.keyword}"` },
+                  top20: { posts: keywordData.top20Posts || [], title: `Top 20 Posts Mentioning "${keywordData.keyword}"` },
                 };
                 const { posts: viewPosts, title: viewTitle } = postsMap[selectedKeywordView];
 
