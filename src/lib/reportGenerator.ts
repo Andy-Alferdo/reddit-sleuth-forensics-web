@@ -49,7 +49,10 @@ interface KeywordAnalysisData {
   topSubreddits: any[];
   wordCloud: any[];
   trendData: any[];
-  recentPosts: any[];
+  recentPosts?: any[];
+  allPosts?: any[];
+  recent10Posts?: any[];
+  top10Posts?: any[];
   sentimentChartData: any[];
   postSentiments: any[];
   analyzedAt: string;
