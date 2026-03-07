@@ -42,11 +42,13 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Format posts - use only titles for cleaner JSON (avoids escape char issues in selftext)
+    // Format posts - include title AND body for accurate sentiment analysis
     const postsToAnalyze = posts.slice(0, 100);
-    const formattedPosts = postsToAnalyze.map((p, idx) => 
-      `POST${idx + 1}: ${(p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
-    );
+    const formattedPosts = postsToAnalyze.map((p, idx) => {
+      const title = (p.title || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 150);
+      const body = (p.selftext || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 350);
+      return body ? `POST${idx + 1}: [Title: ${title}] [Content: ${body}]` : `POST${idx + 1}: ${title}`;
+    });
     const formattedComments = comments.slice(0, 15).map((c, idx) => 
       `COMMENT${idx + 1}: ${(c.body || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
     );
@@ -69,13 +71,14 @@ serve(async (req) => {
 
 CRITICAL RULES:
 1. Analyze EVERY post individually in the EXACT ORDER given (POST1, POST2, ...).
-2. The postSentiments array MUST have exactly the same count as posts provided, in the same order.
-3. Use ONLY ASCII characters in your response. No emojis, no special unicode.
-4. Keep explanations short (under 30 words).
+2. Base your sentiment on the FULL CONTENT of each post (both title and body text), not just the title.
+3. The postSentiments array MUST have exactly the same count as posts provided, in the same order.
+4. Use ONLY ASCII characters in your response. No emojis, no special unicode.
+5. Keep explanations short (under 30 words) but reference the actual content.
 
 Required JSON format:
 {
-  "postSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "short reason"}],
+  "postSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "short reason based on full content"}],
   "commentSentiments": [{"index": 1, "sentiment": "positive|negative|neutral", "explanation": "short reason"}],
   "locations": ["location1"],
   "patterns": {"topicInterests": ["topic1"]}
