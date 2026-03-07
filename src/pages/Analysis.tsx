@@ -1306,64 +1306,44 @@ const Analysis = () => {
                 </Card>
               </div>
 
-              {/* Three Post Category Cards */}
-              {communityData.allPosts && communityData.allPosts.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Card 1: All Recent Posts */}
+              {/* Two Post Category Cards */}
+              {communityData.recent20Posts && communityData.recent20Posts.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Card 1: 20 Recent Posts */}
                   <Card
-                    className={`border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedCommunityView === 'all100' ? 'ring-2 ring-primary border-primary' : ''}`}
-                    onClick={() => setSelectedCommunityView(selectedCommunityView === 'all100' ? null : 'all100')}
-                  >
-                    <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center space-x-2 text-base">
-                        <MessageSquare className="h-5 w-5 text-forensic-accent" />
-                        <span>{Math.min(communityData.allPosts.length, 100)} Recent Posts in {communityData.name}</span>
-                      </CardTitle>
-                      <CardDescription>All scraped posts sorted by time</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
-                        <div className="text-3xl font-bold text-primary">{Math.min(communityData.allPosts.length, 100)}</div>
-                        <p className="text-muted-foreground text-sm">Posts</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Card 2: 10 Recent Posts */}
-                  <Card
-                    className={`border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedCommunityView === 'recent10' ? 'ring-2 ring-primary border-primary' : ''}`}
-                    onClick={() => setSelectedCommunityView(selectedCommunityView === 'recent10' ? null : 'recent10')}
+                    className={`border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedCommunityView === 'recent20' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedCommunityView(selectedCommunityView === 'recent20' ? null : 'recent20')}
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center space-x-2 text-base">
                         <Clock className="h-5 w-5 text-forensic-accent" />
-                        <span>10 Recent Posts in {communityData.name}</span>
+                        <span>20 Recent Posts in {communityData.name}</span>
                       </CardTitle>
-                      <CardDescription>Latest 10 posts by time</CardDescription>
+                      <CardDescription>Latest 20 posts by time</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
-                        <div className="text-3xl font-bold text-primary">{communityData.recent10Posts?.length || 0}</div>
+                        <div className="text-3xl font-bold text-primary">{communityData.recent20Posts?.length || 0}</div>
                         <p className="text-muted-foreground text-sm">Posts</p>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Card 3: Top 10 Posts */}
+                  {/* Card 2: Top 20 Posts */}
                   <Card
-                    className={`border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedCommunityView === 'top10' ? 'ring-2 ring-primary border-primary' : ''}`}
-                    onClick={() => setSelectedCommunityView(selectedCommunityView === 'top10' ? null : 'top10')}
+                    className={`border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedCommunityView === 'top20' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedCommunityView(selectedCommunityView === 'top20' ? null : 'top20')}
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center space-x-2 text-base">
                         <TrendingUp className="h-5 w-5 text-forensic-accent" />
-                        <span>Top 10 Posts in {communityData.name}</span>
+                        <span>Top 20 Posts in {communityData.name}</span>
                       </CardTitle>
                       <CardDescription>Highest upvoted posts</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
-                        <div className="text-3xl font-bold text-primary">{communityData.top10Posts?.length || 0}</div>
+                        <div className="text-3xl font-bold text-primary">{communityData.top20Posts?.length || 0}</div>
                         <p className="text-muted-foreground text-sm">Posts</p>
                       </div>
                     </CardContent>
@@ -1372,23 +1352,17 @@ const Analysis = () => {
               )}
 
               {/* Expanded View for Selected Community Card */}
-              {selectedCommunityView && communityData.allPosts && (() => {
+              {selectedCommunityView && communityData.recent20Posts && (() => {
                 let viewPosts: any[] = [];
                 let viewTitle = '';
-                let trendDaysToShow = 7;
+                const trendDaysToShow = 7;
 
-                if (selectedCommunityView === 'all100') {
-                  viewPosts = communityData.allPosts.slice(0, 100);
-                  viewTitle = `${Math.min(communityData.allPosts.length, 100)} Recent Posts in ${communityData.name}`;
-                  trendDaysToShow = 7;
-                } else if (selectedCommunityView === 'recent10') {
-                  viewPosts = communityData.recent10Posts || [];
-                  viewTitle = `10 Recent Posts in ${communityData.name}`;
-                  trendDaysToShow = 2;
-                } else if (selectedCommunityView === 'top10') {
-                  viewPosts = communityData.top10Posts || [];
-                  viewTitle = `Top 10 Posts in ${communityData.name}`;
-                  trendDaysToShow = 2;
+                if (selectedCommunityView === 'recent20') {
+                  viewPosts = communityData.recent20Posts || [];
+                  viewTitle = `20 Recent Posts in ${communityData.name}`;
+                } else if (selectedCommunityView === 'top20') {
+                  viewPosts = communityData.top20Posts || [];
+                  viewTitle = `Top 20 Posts in ${communityData.name}`;
                 }
 
                 // Build word cloud from view posts
