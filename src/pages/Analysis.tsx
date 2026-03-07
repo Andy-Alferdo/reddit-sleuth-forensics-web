@@ -289,7 +289,7 @@ const Analysis = () => {
       // Sort all posts by time (newest first) for "recent" views
       const allPostsSortedByTime = [...matchingPosts].sort((a: any, b: any) => (b.created_utc || 0) - (a.created_utc || 0));
       // Sort by score (highest first) for "top" view - ONLY posts that contain the keyword in the title
-      const keywordLower = keyword.toLowerCase();
+      const kwLowerForFilter = keyword.toLowerCase();
       const postsWithKeywordInTitle = matchingPosts.filter((p: any) => 
         (p.title || '').toLowerCase().includes(keywordLower)
       );
