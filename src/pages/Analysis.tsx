@@ -291,7 +291,7 @@ const Analysis = () => {
       // Sort by score (highest first) for "top" view - ONLY posts that contain the keyword in the title
       const kwLowerForFilter = keyword.toLowerCase();
       const postsWithKeywordInTitle = matchingPosts.filter((p: any) => 
-        (p.title || '').toLowerCase().includes(keywordLower)
+        (p.title || '').toLowerCase().includes(kwLowerForFilter)
       );
       const allPostsSortedByScore = [...postsWithKeywordInTitle].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
 
