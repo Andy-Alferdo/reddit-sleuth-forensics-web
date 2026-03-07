@@ -493,9 +493,8 @@ const Analysis = () => {
         wordCloud: wordCloudData,
         topAuthors,
         activityData,
-        allPosts: allPostsSortedByTime.slice(0, 100),
-        recent10Posts: allPostsSortedByTime.slice(0, 10),
-        top10Posts: allPostsSortedByScore.slice(0, 10),
+        recent20Posts: allPostsSortedByTime.slice(0, 20),
+        top20Posts: allPostsSortedByScore.slice(0, 20),
         postSentiments,
         sentimentChartData: null as any,
         stats: {
