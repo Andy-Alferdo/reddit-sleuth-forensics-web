@@ -506,7 +506,7 @@ const Analysis = () => {
       };
 
       // Calculate sentiment chart from attached sentiments
-      const postsWithSentiment = allPostsSortedByTime.filter((p: any) => p._sentiment);
+      const postsWithSentiment = allPostsSortedByTime.slice(0, 20).filter((p: any) => p._sentiment);
       if (postsWithSentiment.length > 0) {
         const counts = { positive: 0, neutral: 0, negative: 0 };
         postsWithSentiment.forEach((p: any) => {
