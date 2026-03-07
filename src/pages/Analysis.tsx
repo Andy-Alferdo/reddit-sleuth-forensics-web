@@ -317,28 +317,14 @@ const Analysis = () => {
         console.error('Keyword sentiment analysis error:', sentimentErr);
       }
 
-      // Sort all posts by time (newest first) for "recent" views
-      const allPostsSortedByTime = [...matchingPosts].sort((a: any, b: any) => (b.created_utc || 0) - (a.created_utc || 0));
-      // Sort by score (highest first) for "top" view - ONLY posts that contain the keyword in the title
-      const kwLowerForFilter = keyword.toLowerCase();
-      const postsWithKeywordInTitle = matchingPosts.filter((p: any) => 
-        (p.title || '').toLowerCase().includes(kwLowerForFilter)
-      );
-      const allPostsSortedByScore = [...postsWithKeywordInTitle].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
-
-      // Re-attach sentiments to any posts that were in the analysis but got re-sorted
-      // Ensure ALL recent20 and top20 posts have sentiment from the analysis
-      const recent20 = allPostsSortedByTime.slice(0, 20);
-      const top20 = allPostsSortedByScore.slice(0, 20);
-
       const analysisResult = {
         keyword,
         totalMentions: matchingPosts.length,
         topSubreddits,
         wordCloud: wordCloudData,
         trendData: trendData.length > 0 ? trendData : [{ name: 'Recent', value: matchingPosts.length }],
-        recent20Posts: allPostsSortedByTime.slice(0, 20),
-        top20Posts: allPostsSortedByScore.slice(0, 20),
+        recent20Posts: recent20Pre,
+        top20Posts: top20Pre,
         sentimentChartData: keywordSentimentData,
         postSentiments
       };
