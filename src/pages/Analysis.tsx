@@ -187,6 +187,7 @@ const Analysis = () => {
     
     setIsLoading(true);
     setKeywordData(null);
+    setVisibleKeywordPosts(10);
 
     try {
       // Search for keyword across Reddit using search API
