@@ -1148,7 +1148,7 @@ const Analysis = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {communityData.recentPosts.map((post: any, index: number) => (
+                  {communityData.recentPosts.slice(0, visibleCommunityPosts).map((post: any, index: number) => (
                     <a
                       key={index}
                       href={post.permalink ? `https://www.reddit.com${post.permalink}` : `https://www.reddit.com/r/${subreddit.replace(/^r\//, '')}`}
@@ -1169,6 +1169,15 @@ const Analysis = () => {
                       </div>
                     </a>
                   ))}
+                  {visibleCommunityPosts < communityData.recentPosts.length && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setVisibleCommunityPosts(prev => Math.min(prev + 10, communityData.recentPosts.length))}
+                    >
+                      See More ({Math.min(visibleCommunityPosts + 10, communityData.recentPosts.length) - visibleCommunityPosts} more)
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
 
