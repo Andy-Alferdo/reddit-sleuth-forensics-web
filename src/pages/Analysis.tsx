@@ -879,8 +879,14 @@ const Analysis = () => {
                 const viewTrendData = Object.entries(viewPast7Days).map(([name, value]) => ({ name, value }));
 
                 // Compute sentiment from this view's posts using postSentiments
-                const viewPostTitles = new Set(viewPosts.map((p: any) => p.title));
-                const viewSentiments = (keywordData.postSentiments || []).filter((s: SentimentItem) => viewPostTitles.has(s.text));
+                // Use substring matching since AI truncates text to ~100 chars
+                const viewSentiments = (keywordData.postSentiments || []).filter((s: SentimentItem) => {
+                  const sText = (s.text || '').toLowerCase().trim();
+                  return viewPosts.some((p: any) => {
+                    const pTitle = (p.title || '').toLowerCase().trim();
+                    return pTitle === sText || pTitle.startsWith(sText) || sText.startsWith(pTitle) || pTitle.includes(sText) || sText.includes(pTitle);
+                  });
+                });
                 
                 let viewSentimentChart = null;
                 if (viewSentiments.length > 0) {
