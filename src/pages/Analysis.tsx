@@ -946,27 +946,6 @@ const Analysis = () => {
                 );
               })()}
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {keywordData.wordCloud && keywordData.wordCloud.length > 0 && (
-                  <WordCloud words={keywordData.wordCloud} title="Related Keywords" />
-                )}
-                {keywordData.trendData && keywordData.trendData.length > 0 && (
-                  <AnalyticsChart 
-                    data={keywordData.trendData} 
-                    title="Mention Trends" 
-                    type="bar" 
-                    height={250}
-                  />
-                )}
-                {keywordData.sentimentChartData && (
-                  <AnalyticsChart 
-                    data={keywordData.sentimentChartData} 
-                    title="Keyword Sentiment Analysis" 
-                    type="pie" 
-                    height={250}
-                  />
-                )}
-              </div>
             </>
           )}
 
