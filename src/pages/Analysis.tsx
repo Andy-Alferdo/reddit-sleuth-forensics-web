@@ -46,6 +46,7 @@ const Analysis = () => {
   const [savedLink, setSavedLink] = useState<any[]>([]);
   const [previewPost, setPreviewPost] = useState<any>(null);
   const [selectedKeywordView, setSelectedKeywordView] = useState<'all100' | 'recent10' | 'top10' | null>(null);
+  const [selectedCommunityView, setSelectedCommunityView] = useState<'all100' | 'recent10' | 'top10' | null>(null);
 
   const fetchSavedAnalyses = useCallback(async () => {
     if (!currentCase?.id) { setSavedKeyword([]); setSavedCommunity([]); setSavedLink([]); return; }
@@ -360,6 +361,7 @@ const Analysis = () => {
     
     setIsLoading(true);
     setCommunityData(null);
+    setSelectedCommunityView(null);
 
     try {
       const cleanSubreddit = subreddit.replace(/^r\//, '');
@@ -386,28 +388,28 @@ const Analysis = () => {
       const subredditInfo = redditData.subreddit;
       const posts = redditData.posts || [];
 
-      // Analyze content for sentiment
-      let sentimentData = null;
+      // Analyze content for sentiment - send up to 100 posts
+      const postsForAnalysis = posts.slice(0, 100);
       let postSentiments: SentimentItem[] = [];
       
       try {
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-content', {
           body: {
-            posts: posts.slice(0, 20),
+            posts: postsForAnalysis,
             comments: []
           }
         });
 
         if (!analysisError && analysisData) {
-          if (analysisData.sentiment?.postBreakdown) {
-            const breakdown = analysisData.sentiment.postBreakdown;
-            sentimentData = {
-              positive: Math.round((breakdown.positive || 0) * 100),
-              neutral: Math.round((breakdown.neutral || 0) * 100),
-              negative: Math.round((breakdown.negative || 0) * 100)
-            };
-          }
           postSentiments = analysisData.postSentiments || [];
+          
+          // Attach sentiment to each post by index
+          postsForAnalysis.forEach((post: any, idx: number) => {
+            if (postSentiments[idx]) {
+              post._sentiment = postSentiments[idx].sentiment;
+              post._sentimentExplanation = postSentiments[idx].explanation;
+            }
+          });
         }
       } catch (sentimentErr) {
         console.error('Sentiment analysis error:', sentimentErr);
@@ -450,11 +452,10 @@ const Analysis = () => {
       const now = new Date();
       const dayActivityMap: { [key: string]: { count: number; label: string } } = {};
       
-      // Initialize last 7 days with dates
       for (let i = 6; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
-        const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dayKey = date.toISOString().split('T')[0];
         const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
         const formattedDate = `${dayName}, ${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getFullYear()}`;
         dayActivityMap[dayKey] = { count: 0, label: formattedDate };
@@ -474,12 +475,9 @@ const Analysis = () => {
       const totalUpvotes = posts.reduce((sum: number, p: any) => sum + (p.score || 0), 0);
       const totalComments = posts.reduce((sum: number, p: any) => sum + (p.num_comments || 0), 0);
 
-      // Prepare sentiment chart data
-      const sentimentChartData = sentimentData ? [
-        { name: 'Positive', value: sentimentData.positive || 0 },
-        { name: 'Neutral', value: sentimentData.neutral || 0 },
-        { name: 'Negative', value: sentimentData.negative || 0 }
-      ] : null;
+      // Sort posts for different views
+      const allPostsSortedByTime = [...posts].sort((a: any, b: any) => (b.created_utc || 0) - (a.created_utc || 0));
+      const allPostsSortedByScore = [...posts].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
 
       const analysisResult = {
         name: subredditInfo.display_name_prefixed || `r/${cleanSubreddit}`,
@@ -496,9 +494,11 @@ const Analysis = () => {
         wordCloud: wordCloudData,
         topAuthors,
         activityData,
-        recentPosts: posts.slice(0, 10),
-        sentimentChartData,
+        allPosts: allPostsSortedByTime.slice(0, 100),
+        recent10Posts: allPostsSortedByTime.slice(0, 10),
+        top10Posts: allPostsSortedByScore.slice(0, 10),
         postSentiments,
+        sentimentChartData: null as any,
         stats: {
           totalPosts: posts.length,
           totalUpvotes,
@@ -506,6 +506,23 @@ const Analysis = () => {
           avgUpvotes: posts.length > 0 ? Math.round(totalUpvotes / posts.length) : 0
         }
       };
+
+      // Calculate sentiment chart from attached sentiments
+      const postsWithSentiment = allPostsSortedByTime.filter((p: any) => p._sentiment);
+      if (postsWithSentiment.length > 0) {
+        const counts = { positive: 0, neutral: 0, negative: 0 };
+        postsWithSentiment.forEach((p: any) => {
+          const label = (p._sentiment || 'neutral').toLowerCase() as keyof typeof counts;
+          if (label in counts) counts[label]++;
+          else counts.neutral++;
+        });
+        const total = postsWithSentiment.length;
+        analysisResult.sentimentChartData = [
+          { name: 'Positive', value: Math.round((counts.positive / total) * 100) },
+          { name: 'Neutral', value: Math.round((counts.neutral / total) * 100) },
+          { name: 'Negative', value: Math.round((counts.negative / total) * 100) }
+        ];
+      }
 
       setCommunityData(analysisResult);
       
@@ -1314,95 +1331,269 @@ const Analysis = () => {
                 </Card>
               </div>
 
-              {/* Recent Posts */}
-              <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-forensic-accent" />
-                    Recent Posts
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {communityData.recentPosts.map((post: any, index: number) => (
-                    <a
-                      key={index}
-                      href={post.permalink ? `https://www.reddit.com${post.permalink}` : `https://www.reddit.com/r/${subreddit.replace(/^r\//, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block border border-border/50 rounded-lg p-3 space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
-                    >
-                      <h4 className="font-medium text-sm leading-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
-                        {post.title}
-                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                      </h4>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>by u/{post.author}</span>
-                        <div className="flex gap-2">
-                          <Badge variant="secondary" className="text-xs">▲ {post.score}</Badge>
-                          <Badge variant="outline" className="text-xs">{post.num_comments} comments</Badge>
-                        </div>
+              {/* Three Post Category Cards */}
+              {communityData.allPosts && communityData.allPosts.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Card 1: All Recent Posts */}
+                  <Card
+                    className={`border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedCommunityView === 'all100' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedCommunityView(selectedCommunityView === 'all100' ? null : 'all100')}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center space-x-2 text-base">
+                        <MessageSquare className="h-5 w-5 text-forensic-accent" />
+                        <span>{Math.min(communityData.allPosts.length, 100)} Recent Posts in {communityData.name}</span>
+                      </CardTitle>
+                      <CardDescription>All scraped posts sorted by time</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                        <div className="text-3xl font-bold text-primary">{Math.min(communityData.allPosts.length, 100)}</div>
+                        <p className="text-muted-foreground text-sm">Posts</p>
                       </div>
-                    </a>
-                  ))}
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
 
-              {/* Sentiment Analysis Table for Community */}
-              {communityData.postSentiments && communityData.postSentiments.length > 0 && (
-                <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5 text-forensic-accent" />
-                      Post Sentiment Analysis (AI-Powered)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left p-3 font-semibold">Post</th>
-                            <th className="text-left p-3 font-semibold w-32">Sentiment</th>
-                            <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {communityData.postSentiments.map((item: SentimentItem, index: number) => (
-                            <tr key={index} className="border-b hover:bg-muted/50">
-                              <td className="p-3 text-sm">{item.text}</td>
-                              <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
-                              <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
+                  {/* Card 2: 10 Recent Posts */}
+                  <Card
+                    className={`border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedCommunityView === 'recent10' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedCommunityView(selectedCommunityView === 'recent10' ? null : 'recent10')}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center space-x-2 text-base">
+                        <Clock className="h-5 w-5 text-forensic-accent" />
+                        <span>10 Recent Posts in {communityData.name}</span>
+                      </CardTitle>
+                      <CardDescription>Latest 10 posts by time</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                        <div className="text-3xl font-bold text-primary">{communityData.recent10Posts?.length || 0}</div>
+                        <p className="text-muted-foreground text-sm">Posts</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 3: Top 10 Posts */}
+                  <Card
+                    className={`border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg ${selectedCommunityView === 'top10' ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={() => setSelectedCommunityView(selectedCommunityView === 'top10' ? null : 'top10')}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center space-x-2 text-base">
+                        <TrendingUp className="h-5 w-5 text-forensic-accent" />
+                        <span>Top 10 Posts in {communityData.name}</span>
+                      </CardTitle>
+                      <CardDescription>Highest upvoted posts</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/30">
+                        <div className="text-3xl font-bold text-primary">{communityData.top10Posts?.length || 0}</div>
+                        <p className="text-muted-foreground text-sm">Posts</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
 
-              {/* Community Analytics */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {communityData.wordCloud && communityData.wordCloud.length > 0 && (
-                  <WordCloud words={communityData.wordCloud} title="Popular Topics" />
-                )}
-                {communityData.activityData && (
-                  <AnalyticsChart 
-                    data={communityData.activityData} 
-                    title="Post Frequency by Day" 
-                    type="bar" 
-                    height={250}
-                  />
-                )}
-                {communityData.sentimentChartData && (
-                  <AnalyticsChart 
-                    data={communityData.sentimentChartData} 
-                    title="Community Sentiment Analysis" 
-                    type="pie" 
-                    height={250}
-                  />
-                )}
-              </div>
+              {/* Expanded View for Selected Community Card */}
+              {selectedCommunityView && communityData.allPosts && (() => {
+                let viewPosts: any[] = [];
+                let viewTitle = '';
+                let trendDaysToShow = 7;
+
+                if (selectedCommunityView === 'all100') {
+                  viewPosts = communityData.allPosts.slice(0, 100);
+                  viewTitle = `${Math.min(communityData.allPosts.length, 100)} Recent Posts in ${communityData.name}`;
+                  trendDaysToShow = 7;
+                } else if (selectedCommunityView === 'recent10') {
+                  viewPosts = communityData.recent10Posts || [];
+                  viewTitle = `10 Recent Posts in ${communityData.name}`;
+                  trendDaysToShow = 2;
+                } else if (selectedCommunityView === 'top10') {
+                  viewPosts = communityData.top10Posts || [];
+                  viewTitle = `Top 10 Posts in ${communityData.name}`;
+                  trendDaysToShow = 2;
+                }
+
+                // Build word cloud from view posts
+                const viewText = viewPosts.map((p: any) => `${p.title} ${p.selftext || ''}`).join(' ');
+                const viewWords = viewText.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+                const viewWordFreq: { [key: string]: number } = {};
+                const stopWords = ['that', 'this', 'with', 'from', 'have', 'been', 'will', 'your', 'their', 'what', 'when', 'where', 'just', 'like', 'more', 'would', 'could', 'should', 'about', 'there', 'which', 'them', 'these', 'than', 'then', 'also', 'only'];
+                viewWords.forEach(word => {
+                  if (!stopWords.includes(word)) {
+                    viewWordFreq[word] = (viewWordFreq[word] || 0) + 1;
+                  }
+                });
+                const viewWordCloud = Object.entries(viewWordFreq)
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 40)
+                  .map(([word, freq]) => ({
+                    word,
+                    frequency: freq,
+                    category: freq > 10 ? 'high' as const : freq > 5 ? 'medium' as const : 'low' as const,
+                  }));
+
+                // Build trend data
+                const now = new Date();
+                const viewPastDays: { [key: string]: number } = {};
+                for (let i = trendDaysToShow - 1; i >= 0; i--) {
+                  const date = new Date(now);
+                  date.setDate(date.getDate() - i);
+                  const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+                  const formattedDate = `${dayName}, ${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getFullYear()}`;
+                  viewPastDays[formattedDate] = 0;
+                }
+                viewPosts.forEach((post: any) => {
+                  const postDate = new Date(post.created_utc * 1000);
+                  const daysDiff = Math.floor((now.getTime() - postDate.getTime()) / (1000 * 60 * 60 * 24));
+                  if (daysDiff < trendDaysToShow) {
+                    const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][postDate.getDay()];
+                    const formattedDate = `${dayName}, ${postDate.getDate().toString().padStart(2, '0')}-${(postDate.getMonth() + 1).toString().padStart(2, '0')}-${postDate.getFullYear()}`;
+                    if (viewPastDays[formattedDate] !== undefined) {
+                      viewPastDays[formattedDate]++;
+                    }
+                  }
+                });
+                const viewTrendData = Object.entries(viewPastDays).map(([name, value]) => ({ name, value }));
+
+                // Build sentiments from posts
+                const viewSentiments = viewPosts
+                  .filter((p: any) => p._sentiment)
+                  .map((p: any) => ({
+                    text: p.title || '',
+                    sentiment: p._sentiment as 'positive' | 'negative' | 'neutral',
+                    explanation: p._sentimentExplanation || '',
+                  }));
+
+                let viewSentimentChart = null;
+                if (viewSentiments.length > 0) {
+                  const counts = { positive: 0, neutral: 0, negative: 0 };
+                  viewSentiments.forEach((s: SentimentItem) => {
+                    const label = (s.sentiment || 'neutral').toLowerCase() as keyof typeof counts;
+                    if (label in counts) counts[label]++;
+                    else counts.neutral++;
+                  });
+                  const total = viewSentiments.length;
+                  viewSentimentChart = [
+                    { name: 'Positive', value: Math.round((counts.positive / total) * 100) },
+                    { name: 'Neutral', value: Math.round((counts.neutral / total) * 100) },
+                    { name: 'Negative', value: Math.round((counts.negative / total) * 100) },
+                  ];
+                }
+
+                return (
+                  <>
+                    <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center space-x-2">
+                            <MessageSquare className="h-5 w-5 text-forensic-accent" />
+                            <span>{viewTitle}</span>
+                          </CardTitle>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedCommunityView(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <ScrollArea className={viewPosts.length > 10 ? "h-[600px]" : ""}>
+                          <div className="space-y-3 pr-4">
+                            {viewPosts.map((post: any, index: number) => (
+                              <div
+                                key={index}
+                                className="border border-border/50 rounded-lg p-3 space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer group"
+                                onClick={(e) => { e.stopPropagation(); setPreviewPost({
+                                  title: post.title,
+                                  body: post.selftext || post.body || post.content || '',
+                                  subreddit: `r/${post.subreddit}`,
+                                  author: post.author,
+                                  timestamp: formatActivityTime(post.created_utc),
+                                  score: post.score,
+                                  url: post.permalink ? `https://www.reddit.com${post.permalink}` : `https://www.reddit.com/r/${post.subreddit}`,
+                                  type: 'post',
+                                }); }}
+                              >
+                                <h4 className="font-medium text-sm leading-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
+                                  {post.title}
+                                  <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                </h4>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  <span>{formatActivityTime(post.created_utc)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                  <span>r/{post.subreddit} • by u/{post.author}</span>
+                                  <Badge variant="secondary" className="text-xs">▲ {post.score}</Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+
+                    {/* Sentiment Analysis Table */}
+                    {viewSentiments.length > 0 && (
+                      <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)]">
+                        <CardHeader>
+                          <CardTitle className="flex items-center space-x-2">
+                            <MessageSquare className="h-5 w-5 text-forensic-accent" />
+                            <span>Post Sentiment Analysis (AI-Powered)</span>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ScrollArea className={viewSentiments.length > 10 ? "h-[600px]" : ""}>
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse">
+                                <thead>
+                                  <tr className="border-b">
+                                    <th className="text-left p-3 font-semibold">Post</th>
+                                    <th className="text-left p-3 font-semibold w-32">Sentiment</th>
+                                    <th className="text-left p-3 font-semibold">Explanation (XAI)</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {viewSentiments.map((item: SentimentItem, index: number) => (
+                                    <tr key={index} className="border-b hover:bg-muted/50">
+                                      <td className="p-3 text-sm">{viewPosts[index]?.title || item.text}</td>
+                                      <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
+                                      <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </ScrollArea>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {viewWordCloud.length > 0 && (
+                        <WordCloud words={viewWordCloud} title="Popular Topics" />
+                      )}
+                      {viewTrendData.length > 0 && (
+                        <AnalyticsChart 
+                          data={viewTrendData} 
+                          title="Post Frequency" 
+                          type="bar" 
+                          height={250}
+                        />
+                      )}
+                      {viewSentimentChart && (
+                        <AnalyticsChart 
+                          data={viewSentimentChart} 
+                          title="Community Sentiment" 
+                          type="pie" 
+                          height={250}
+                        />
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 

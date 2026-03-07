@@ -67,7 +67,10 @@ interface CommunityAnalysisData {
   wordCloud: any[];
   topAuthors: any[];
   activityData: any[];
-  recentPosts: any[];
+  recentPosts?: any[];
+  allPosts?: any[];
+  recent10Posts?: any[];
+  top10Posts?: any[];
   sentimentChartData: any[];
   postSentiments: any[];
   stats: any;

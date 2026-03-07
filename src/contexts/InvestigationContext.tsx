@@ -60,10 +60,15 @@ interface CommunityAnalysisData {
   activeUsers: number;
   description: string;
   created: string;
+  iconImg?: string;
+  bannerImg?: string;
   wordCloud: any[];
   topAuthors: any[];
   activityData: any[];
-  recentPosts: any[];
+  recentPosts?: any[];
+  allPosts?: any[];
+  recent10Posts?: any[];
+  top10Posts?: any[];
   sentimentChartData: any[];
   postSentiments: SentimentItem[];
   stats: any;
