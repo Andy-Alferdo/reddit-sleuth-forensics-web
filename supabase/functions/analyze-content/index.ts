@@ -173,7 +173,30 @@ Required JSON format (postSentiments array must have exactly ${formattedPosts.le
         }
       }
       
-      console.log(`Final: ${analysisResult.postSentiments.length} post sentiments for ${postsToAnalyze.length} posts`);
+      // Map comment sentiments back with text
+      analysisResult.commentSentiments = (analysisResult.commentSentiments || []).map((s: any, idx: number) => {
+        const comment = commentsToAnalyze[s.index ? s.index - 1 : idx];
+        return {
+          index: s.index || idx + 1,
+          sentiment: s.sentiment || 'neutral',
+          explanation: s.explanation || '',
+          text: comment?.body?.slice(0, 200) || s.text || '',
+        };
+      });
+
+      // Backfill missing comment sentiments
+      if (analysisResult.commentSentiments.length < commentsToAnalyze.length) {
+        for (let i = analysisResult.commentSentiments.length; i < commentsToAnalyze.length; i++) {
+          analysisResult.commentSentiments.push({
+            index: i + 1,
+            sentiment: 'neutral',
+            explanation: 'Sentiment could not be determined',
+            text: commentsToAnalyze[i]?.body?.slice(0, 200) || '',
+          });
+        }
+      }
+
+      console.log(`Final: ${analysisResult.postSentiments.length} post sentiments, ${analysisResult.commentSentiments.length} comment sentiments`);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
       console.error('Raw AI content (first 1000):', aiContent.slice(0, 1000));
