@@ -403,7 +403,11 @@ const Dashboard = () => {
                       {selectedCase.status}
                     </p>
                   </div>
-                  <FolderOpen className="h-8 w-8 text-foreground" />
+                  {selectedCase.status?.toLowerCase() === 'closed' ? (
+                    <CheckCircle className="h-8 w-8 text-primary" />
+                  ) : (
+                    <Search className="h-8 w-8 text-primary" />
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -415,7 +419,7 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">Created</p>
                     <p className="text-xl font-bold text-foreground">{selectedCase.date}</p>
                   </div>
-                  <Eye className="h-8 w-8 text-foreground" />
+                  <Calendar className="h-8 w-8 text-primary" />
                 </div>
               </CardContent>
             </Card>
@@ -427,7 +431,7 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">Case Number</p>
                     <p className="text-xl font-bold text-foreground">{selectedCase.name}</p>
                   </div>
-                  <FolderOpen className="h-8 w-8 text-foreground" />
+                  <Folder className="h-8 w-8 text-primary" />
                 </div>
               </CardContent>
             </Card>
