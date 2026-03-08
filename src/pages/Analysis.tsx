@@ -1529,17 +1529,9 @@ const Analysis = () => {
                       </Card>
                     )}
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {viewWordCloud.length > 0 && (
                         <WordCloud words={viewWordCloud} title="Popular Topics" />
-                      )}
-                      {viewTrendData.length > 0 && (
-                        <AnalyticsChart 
-                          data={viewTrendData} 
-                          title="Post Frequency" 
-                          type="bar" 
-                          height={250}
-                        />
                       )}
                       {viewSentimentChart && (
                         <AnalyticsChart 
