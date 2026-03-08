@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FolderOpen, Eye, Loader2, Lock, Unlock, User, TrendingUp, Users, Link2, Activity } from 'lucide-react';
+import { Folder, Search, Loader2, Lock, Unlock, User, TrendingUp, Users, Link2, Activity, CheckCircle, Calendar, Hash } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -403,7 +403,11 @@ const Dashboard = () => {
                       {selectedCase.status}
                     </p>
                   </div>
-                  <FolderOpen className="h-8 w-8 text-foreground" />
+                  {selectedCase.status?.toLowerCase() === 'closed' ? (
+                    <CheckCircle className="h-8 w-8 text-primary" />
+                  ) : (
+                    <Search className="h-8 w-8 text-primary" />
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -415,7 +419,7 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">Created</p>
                     <p className="text-xl font-bold text-foreground">{selectedCase.date}</p>
                   </div>
-                  <Eye className="h-8 w-8 text-foreground" />
+                  <Calendar className="h-8 w-8 text-primary" />
                 </div>
               </CardContent>
             </Card>
@@ -427,7 +431,7 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">Case Number</p>
                     <p className="text-xl font-bold text-foreground">{selectedCase.name}</p>
                   </div>
-                  <FolderOpen className="h-8 w-8 text-foreground" />
+                  <Folder className="h-8 w-8 text-primary" />
                 </div>
               </CardContent>
             </Card>
