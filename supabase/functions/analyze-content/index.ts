@@ -50,8 +50,9 @@ serve(async (req) => {
       // Always include both title and body sections so the AI sees the full content
       return `POST${idx + 1}: TITLE: ${title} | BODY: ${body || '(no body text)'}`;
     });
-    const formattedComments = comments.slice(0, 15).map((c, idx) => 
-      `COMMENT${idx + 1}: ${(c.body || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 200)}`
+    const commentsToAnalyze = comments.slice(0, 15);
+    const formattedComments = commentsToAnalyze.map((c, idx) => 
+      `COMMENT${idx + 1}: ${(c.body || '').replace(/[^\x20-\x7E]/g, ' ').slice(0, 300)}`
     );
 
     const postsWithBody = postsToAnalyze.filter(p => p.selftext && p.selftext.trim().length > 0).length;
