@@ -113,9 +113,9 @@ const Home = () => {
               <CardContent className="p-0">
                 <div className="grid grid-cols-3 divide-x divide-border/50">
                   {[
-                    { icon: Shield, label: 'Total Cases', value: totalCount, color: 'primary' },
-                    { icon: Activity, label: 'Active', value: activeCount, color: 'forensic-success' },
-                    { icon: Archive, label: 'Closed', value: closedCount, color: 'muted-foreground' },
+                    { icon: Folder, label: 'Total Cases', value: totalCount, color: 'primary' },
+                    { icon: Search, label: 'Active', value: activeCount, color: 'forensic-success' },
+                    { icon: CheckCircle, label: 'Closed', value: closedCount, color: 'muted-foreground' },
                   ].map(({ icon: Icon, label, value, color }) => (
                     <div key={label} className="flex items-center gap-3 p-5 md:p-6">
                       <div className={`h-10 w-1 rounded-full bg-${color}`} />
