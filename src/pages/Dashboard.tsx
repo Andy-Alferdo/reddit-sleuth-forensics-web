@@ -340,40 +340,40 @@ const Dashboard = () => {
       label: 'User Profiles',
       count: caseStats.userProfiles,
       icon: User,
-      color: 'text-foreground',
-      bgColor: 'bg-muted',
+      ringColor: 'stroke-emerald-500',
+      ringBg: 'stroke-emerald-100',
     },
     {
       key: 'keywordAnalyses',
       label: 'Keyword Analyses',
       count: caseStats.keywordAnalyses,
       icon: TrendingUp,
-      color: 'text-foreground',
-      bgColor: 'bg-muted',
+      ringColor: 'stroke-primary',
+      ringBg: 'stroke-primary/20',
     },
     {
       key: 'communityAnalyses',
       label: 'Communities',
       count: caseStats.communityAnalyses,
       icon: Users,
-      color: 'text-foreground',
-      bgColor: 'bg-muted',
+      ringColor: 'stroke-amber-500',
+      ringBg: 'stroke-amber-100',
     },
     {
       key: 'linkAnalyses',
       label: 'Link Analyses',
       count: caseStats.linkAnalyses,
       icon: Link2,
-      color: 'text-foreground',
-      bgColor: 'bg-muted',
+      ringColor: 'stroke-violet-500',
+      ringBg: 'stroke-violet-100',
     },
     {
       key: 'monitoringSessions',
       label: 'Monitoring Sessions',
       count: caseStats.monitoringSessions,
       icon: Activity,
-      color: 'text-foreground',
-      bgColor: 'bg-muted',
+      ringColor: 'stroke-rose-500',
+      ringBg: 'stroke-rose-100',
     },
   ];
 
@@ -462,24 +462,61 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {investigationCards.map((card) => {
                 const IconComponent = card.icon;
+                // Calculate progress percentage (max 100, for visual ring fill)
+                const maxCount = 50; // Arbitrary max for visual progress
+                const progress = Math.min((card.count / maxCount) * 100, 100);
+                const circumference = 2 * Math.PI * 40; // radius = 40
+                const strokeDashoffset = circumference - (progress / 100) * circumference;
+                
                 return (
                   <Card
                     key={card.key}
-                    className={`cursor-pointer transition-all hover:scale-105 hover:shadow-lg border-2 ${
-                      card.count > 0 ? 'border-primary/30 hover:border-primary' : 'border-muted'
+                    className={`cursor-pointer transition-all hover:scale-105 hover:shadow-lg border ${
+                      card.count > 0 ? 'border-border hover:border-primary/50' : 'border-muted'
                     }`}
                     onClick={() => card.count > 0 && handleViewPastResults(card.key)}
                   >
-                    <CardContent className="pt-6 text-center">
-                      <div className={`mx-auto mb-3 p-3 rounded-full w-fit ${card.bgColor}`}>
-                        <IconComponent className={`h-6 w-6 ${card.color}`} />
+                    <CardContent className="pt-6 pb-4 flex flex-col items-center">
+                      {/* Circular Progress Ring */}
+                      <div className="relative w-24 h-24 mb-2">
+                        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                          {/* Background ring */}
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="40"
+                            fill="none"
+                            strokeWidth="6"
+                            className={card.ringBg}
+                          />
+                          {/* Progress ring */}
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="40"
+                            fill="none"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                            className={card.ringColor}
+                            style={{
+                              strokeDasharray: circumference,
+                              strokeDashoffset: strokeDashoffset,
+                              transition: 'stroke-dashoffset 0.5s ease-in-out',
+                            }}
+                          />
+                        </svg>
+                        {/* Icon in center */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <IconComponent className="h-8 w-8 text-muted-foreground" />
+                        </div>
                       </div>
+                      {/* Count */}
                       {isLoading ? (
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       ) : (
-                        <div className={`text-2xl font-bold ${card.color}`}>{card.count}</div>
+                        <div className="text-2xl font-bold text-foreground">{card.count}</div>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1">{card.label}</p>
+                      <p className="text-xs text-muted-foreground mt-1 text-center">{card.label}</p>
                     </CardContent>
                   </Card>
                 );
