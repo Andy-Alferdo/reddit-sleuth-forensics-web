@@ -1013,24 +1013,16 @@ const Analysis = () => {
                       </Card>
                     )}
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {viewWordCloud.length > 0 && (
                         <WordCloud words={viewWordCloud} title="Related Keywords" />
-                      )}
-                      {viewTrendData.length > 0 && (
-                        <AnalyticsChart 
-                          data={viewTrendData} 
-                          title="Mention Trends" 
-                          type="bar" 
-                          height={250}
-                        />
                       )}
                       {viewSentimentChart && (
                         <AnalyticsChart 
                           data={viewSentimentChart} 
                           title="Keyword Sentiment Analysis" 
                           type="pie" 
-                          height={250}
+                          height={320}
                         />
                       )}
                     </div>
