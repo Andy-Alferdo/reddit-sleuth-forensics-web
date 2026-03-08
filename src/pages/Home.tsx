@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
-import { FolderOpen, Loader2, Search, Shield, Activity, Archive, Clock, ArrowRight } from 'lucide-react';
+import { FolderOpen, Loader2, Search, Folder, CheckCircle, Clock, ArrowRight } from 'lucide-react';
 import folderSearchIcon from '@/assets/folder-search-icon.png';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
