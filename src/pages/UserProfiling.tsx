@@ -534,11 +534,15 @@ const UserProfiling = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {profileData.locationIndicators.map((indicator: string, index: number) => (
-                    <div key={index} className="p-3 rounded-lg bg-card border">
-                      <p className="text-sm">{indicator}</p>
-                    </div>
-                  ))}
+                  {profileData.locationIndicators.filter((ind: string) => ind && ind.trim() && ind !== 'No specific locations detected').length > 0 ? (
+                    profileData.locationIndicators.filter((ind: string) => ind && ind.trim() && ind !== 'No specific locations detected').map((indicator: string, index: number) => (
+                      <div key={index} className="p-3 rounded-lg bg-card border">
+                        <p className="text-sm">{indicator}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-4 text-center">No specific location indicators detected from user's posts and comments</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
