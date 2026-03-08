@@ -329,6 +329,7 @@ const UserProfiling = () => {
         sentimentAnalysis: analysisData?.sentiment?.breakdown || { positive: 33, neutral: 34, negative: 33 },
         postSentiments: (analysisData?.postSentiments || []).map((s: any, i: number) => ({
           ...s,
+          body: s.body || redditData.posts?.[i]?.selftext || '',
           permalink: redditData.posts?.[i]?.permalink || null,
         })),
         commentSentiments: (analysisData?.commentSentiments || []).map((s: any, i: number) => ({
@@ -634,7 +635,8 @@ const UserProfiling = () => {
                           }}
                         >
                           <td className="p-3 text-sm">
-                            <span className="group-hover:text-primary transition-colors">{item.text}</span>
+                            <div className="font-medium group-hover:text-primary transition-colors">{item.text}</div>
+                            {item.body && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.body}</div>}
                             {item.permalink && <ExternalLink className="h-3 w-3 inline ml-1 opacity-0 group-hover:opacity-100 text-primary transition-opacity" />}
                           </td>
                           <td className="p-3">
