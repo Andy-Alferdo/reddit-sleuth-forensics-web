@@ -329,6 +329,7 @@ const UserProfiling = () => {
         sentimentAnalysis: analysisData?.sentiment?.breakdown || { positive: 33, neutral: 34, negative: 33 },
         postSentiments: (analysisData?.postSentiments || []).map((s: any, i: number) => ({
           ...s,
+          body: s.body || redditData.posts?.[i]?.selftext || '',
           permalink: redditData.posts?.[i]?.permalink || null,
         })),
         commentSentiments: (analysisData?.commentSentiments || []).map((s: any, i: number) => ({
