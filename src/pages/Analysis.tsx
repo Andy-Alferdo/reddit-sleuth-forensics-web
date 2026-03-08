@@ -1538,7 +1538,7 @@ const Analysis = () => {
                           data={viewSentimentChart} 
                           title="Community Sentiment" 
                           type="pie" 
-                          height={250}
+                          height={320}
                         />
                       )}
                     </div>
