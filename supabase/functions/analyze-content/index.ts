@@ -167,6 +167,7 @@ Required JSON format (postSentiments array must have exactly ${formattedPosts.le
             sentiment: 'neutral',
             explanation: 'Sentiment could not be determined',
             text: postsToAnalyze[i]?.title || '',
+            body: postsToAnalyze[i]?.selftext || '',
           });
         }
       }
