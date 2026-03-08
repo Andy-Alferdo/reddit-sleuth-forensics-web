@@ -146,13 +146,17 @@ Required JSON format (postSentiments array must have exactly ${formattedPosts.le
       if (!analysisResult.locations) analysisResult.locations = [];
       if (!analysisResult.patterns) analysisResult.patterns = { topicInterests: [] };
       
-      // Map index-based sentiments back to include post titles
-      analysisResult.postSentiments = analysisResult.postSentiments.map((s: any, idx: number) => ({
-        index: s.index || idx + 1,
-        sentiment: s.sentiment || 'neutral',
-        explanation: s.explanation || '',
-        text: postsToAnalyze[s.index ? s.index - 1 : idx]?.title || s.text || '',
-      }));
+      // Map index-based sentiments back to include post titles AND body
+      analysisResult.postSentiments = analysisResult.postSentiments.map((s: any, idx: number) => {
+        const post = postsToAnalyze[s.index ? s.index - 1 : idx];
+        return {
+          index: s.index || idx + 1,
+          sentiment: s.sentiment || 'neutral',
+          explanation: s.explanation || '',
+          text: post?.title || s.text || '',
+          body: post?.selftext || '',
+        };
+      });
       
       // Backfill missing sentiments - ensure every post has a sentiment entry
       if (analysisResult.postSentiments.length < postsToAnalyze.length) {
