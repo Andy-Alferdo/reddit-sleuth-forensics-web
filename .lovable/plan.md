@@ -1,61 +1,56 @@
 
 
-# Plan: Create `model_server_local.py` with all fixes applied
+## Fix: Separate Post and Comment Sentiment Breakdowns in Local Edge Function
 
-## What this file is
-A clean, corrected version of your local Python Flask server that handles ML predictions, Reddit scraping via PRAW, and MongoDB storage. Saved at `python_ml/model_server_local.py` so you can copy it.
+### Problem
+The local `analyze-content` edge function passes `analysisResult.sentiment` directly from the Python server, which returns identical values for `postBreakdown` and `commentBreakdown`. The deployed Lovable version calculates these independently, which is why the charts differ online vs locally.
 
-## Fixes applied
+### Solution
+Add a helper function in the edge function to compute breakdowns from the individual `postSentiments` and `commentSentiments` arrays, instead of relying on the Python server's combined output.
 
-1. **`created_utc` returned as raw float** (not `.isoformat()`) -- fixes the `RangeError: Invalid time value` in the frontend
-2. **`extract_locations` receives a joined string** instead of a list -- fixes SpaCy crash
-3. **`praw` imported at top level** instead of inside every request
-4. **Removed duplicate endpoints** -- merged `/mongo/save-profile` and `/api/reddit/user/analyze` into one unified set under `/api/reddit/...`
-5. **Merged `/deep-analysis` and `/shap-analysis`** into a single `/analysis` endpoint (kept both routes as aliases for backward compatibility)
-6. **MongoDB URI from environment variable** with fallback, no longer hardcoded credentials
-7. **Removed credential leak** from startup print
-8. **Removed manual CORS headers** in OPTIONS handlers (Flask-CORS handles it)
-9. **Removed unused `lime_explainer` / `shap_explainer` variables**
-10. **Added `storeUserAnalysis` endpoint** clearly documented so your frontend `hybridRedditService` can call it
+### Changes to `supabase/functions/analyze-content/index.ts`
 
-## File location
-`python_ml/model_server_local.py`
+1. Add a `calcBreakdown` helper function that counts positive/negative/neutral from an array of sentiment items and returns ratios.
 
-## Technical details
+2. Replace the direct pass-through of `analysisResult.sentiment` with computed breakdowns:
 
-### Endpoint summary (cleaned up)
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/health` | GET | Health check |
-| `/predict` | POST | Batch sentiment analysis |
-| `/analysis` | POST | Single text deep/SHAP analysis |
-| `/deep-analysis` | POST | Alias for `/analysis` |
-| `/shap-analysis` | POST | Alias for `/analysis` |
-| `/analyze` | POST | Analyze posts + comments |
-| `/reddit-scraper` | POST | Scrape Reddit user via PRAW |
-| `/api/reddit/user/analyze` | POST | Store user analysis to MongoDB |
-| `/api/reddit/user/<username>` | GET | Get user analysis from MongoDB |
-| `/api/reddit/analysis/<id>` | DELETE | Delete analysis |
-| `/api/reddit/case/<case_id>` | GET | Get all analyses for a case |
-| `/mongo/save-posts` | POST | Save posts to MongoDB |
-| `/mongo/get-posts` | POST | Get posts from MongoDB |
-
-### Key fix: `created_utc`
-```python
-# BEFORE (broken): 
-"created_utc": datetime.fromtimestamp(submission.created_utc).isoformat()
-
-# AFTER (correct - frontend expects raw Unix timestamp):
-"created_utc": submission.created_utc
+```typescript
+function calcBreakdown(items: Array<{ sentiment: string }>) {
+  if (!items || items.length === 0) {
+    return { positive: 0.33, negative: 0.33, neutral: 0.34 };
+  }
+  const counts = { positive: 0, negative: 0, neutral: 0 };
+  items.forEach(item => {
+    const s = (item.sentiment || '').toLowerCase();
+    if (s in counts) counts[s as keyof typeof counts]++;
+    else counts.neutral++;
+  });
+  const total = items.length;
+  return {
+    positive: +(counts.positive / total).toFixed(2),
+    negative: +(counts.negative / total).toFixed(2),
+    neutral: +(counts.neutral / total).toFixed(2),
+  };
+}
 ```
 
-### Key fix: `extract_locations`
-```python
-# BEFORE (broken - passes list to nlp()):
-locations = extract_locations(all_texts_for_loc)
+3. In the response section (step 6), change:
+```typescript
+// BEFORE (broken - identical charts):
+sentiment: analysisResult.sentiment || { ... }
 
-# AFTER (correct - joins into single string):
-locations = extract_locations(" ".join(all_texts_for_loc))
+// AFTER (correct - independent charts):
+sentiment: {
+  postBreakdown: calcBreakdown(analysisResult.postSentiments || []),
+  commentBreakdown: calcBreakdown(analysisResult.commentSentiments || []),
+}
 ```
+
+### Why This Works
+- The Python model server already returns individual `postSentiments` and `commentSentiments` arrays with per-item sentiment labels
+- By counting these independently, posts and comments will naturally have different distributions
+- This matches the behavior of the deployed Lovable version which uses the AI response's individual items to derive breakdowns
+
+### No Other Files Change
+This is a single-file fix to the local edge function only.
 
