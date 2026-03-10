@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface SentimentItem {
   text: string;
   sentiment: 'positive' | 'negative' | 'neutral';
-  explanation: string;
+  explanation: string | { reasoning?: string; [key: string]: any };
 }
 
 interface UserProfileData {
