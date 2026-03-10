@@ -1002,7 +1002,12 @@ const Analysis = () => {
                                       {item.body && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.body}</div>}
                                     </td>
                                     <td className="p-3">{getSentimentBadge(item.sentiment)}</td>
-                                    <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
+                                    <td className="p-3 text-sm text-muted-foreground">
+                                      {typeof item.explanation === 'string' 
+                                        ? item.explanation 
+                                        : item.explanation?.reasoning || 'No explanation available'
+                                      }
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
