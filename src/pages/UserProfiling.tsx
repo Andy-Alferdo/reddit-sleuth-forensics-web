@@ -4,10 +4,32 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, MapPin, Clock, MessageCircle, ThumbsUp, Calendar, Activity, Info, AlertCircle, Search, X, Loader2, ExternalLink, ChevronDown, Zap, Trash2, ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { 
+  ChevronDown, 
+  MessageSquare, 
+  MoreHorizontal, 
+  Plus, 
+  Search, 
+  User, 
+  Zap,
+  Loader2,
+  X,
+  ArrowLeft,
+  Calendar,
+  ThumbsUp,
+  Activity,
+  MapPin,
+  Info,
+  MessageCircle,
+  ExternalLink,
+  Clock,
+  AlertCircle,
+  Trash2
+} from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
-import { SavedAnalysisCard } from '@/components/SavedAnalysisCard';
+import { SentimentExplanation } from '@/components/SentimentExplanation';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -28,6 +50,74 @@ const UserProfiling = () => {
   const { toast } = useToast();
   const { addUserProfile, saveUserProfileToDb, currentCase } = useInvestigation();
   const [savedProfiles, setSavedProfiles] = useState<any[]>([]);
+  
+  // Per-item deep analysis state
+  const [deepAnalysisStates, setDeepAnalysisStates] = useState<Map<string, { isAnalyzing: boolean; result: any; showDeep: boolean; analysisType?: 'lime' | 'shap' }>>(new Map());
+
+  const handleDeepAnalysis = async (text: string, itemKey: string) => {
+    // Update state for this specific item
+    setDeepAnalysisStates(prev => new Map(prev.set(itemKey, { 
+      isAnalyzing: true, 
+      result: null, 
+      showDeep: false,
+      analysisType: 'lime'
+    })));
+
+    try {
+      const response = await fetch('http://localhost:5000/deep-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Deep analysis failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Update state with result
+      setDeepAnalysisStates(prev => new Map(prev.set(itemKey, { 
+        isAnalyzing: false, 
+        result, 
+        showDeep: true,
+        analysisType: 'lime'
+      })));
+
+      toast({
+        title: "Deep Analysis Complete",
+        description: "Advanced Deep Analysis analysis has been performed on this text.",
+      });
+    } catch (error) {
+      console.error('Deep analysis error:', error);
+      
+      // Reset state for this item on error
+      setDeepAnalysisStates(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(itemKey);
+        return newMap;
+      });
+      
+      toast({
+        title: "Deep Analysis Failed",
+        description: "Could not perform deep analysis. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleDeepAnalysis = (itemKey: string) => {
+    setDeepAnalysisStates(prev => {
+      const current = prev.get(itemKey);
+      if (current) {
+        return new Map(prev.set(itemKey, { 
+          ...current, 
+          showDeep: !current.showDeep 
+        }));
+      }
+      return prev;
+    });
+  };
 
   // Fetch saved profiles for current case
   const fetchSavedProfiles = useCallback(async () => {
@@ -454,7 +544,7 @@ const UserProfiling = () => {
 
       {profileData && (
         <div className="space-y-6">
-          <Button variant="ghost" size="sm" className="gap-2" onClick={() => { setProfileData(null); setError(null); }}>
+          <Button variant="ghost" size="sm" className="gap-2" onClick={() => { setProfileData(profileData); console.log('✅ Profile Data Loaded:', { hasData: !!profileData, postSentiments: profileData?.postSentiments?.length || 0, commentSentiments: profileData?.commentSentiments?.length || 0, keys: Object.keys(profileData || {}) }); setError(null); }}>
             <ArrowLeft className="h-4 w-4" />
             Back to User Profiling Overview
           </Button>
@@ -534,15 +624,11 @@ const UserProfiling = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {profileData.locationIndicators.filter((ind: string) => ind && ind.trim() && ind !== 'No specific locations detected').length > 0 ? (
-                    profileData.locationIndicators.filter((ind: string) => ind && ind.trim() && ind !== 'No specific locations detected').map((indicator: string, index: number) => (
-                      <div key={index} className="p-3 rounded-lg bg-card border">
-                        <p className="text-sm">{indicator}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground py-4 text-center">No specific location indicators detected from user's posts and comments</p>
-                  )}
+                  {profileData.locationIndicators.map((indicator: string, index: number) => (
+                    <div key={index} className="p-3 rounded-lg bg-card border">
+                      <p className="text-sm">{indicator}</p>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -614,7 +700,7 @@ const UserProfiling = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <MessageCircle className="h-5 w-5 text-primary" />
-                  <span>Post Sentiment Analysis (AI-Powered)</span>
+                  <span>Post Sentiment Analysis</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -628,7 +714,11 @@ const UserProfiling = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {profileData.postSentiments.slice(0, visiblePosts).map((item: any, index: number) => (
+                      {profileData.postSentiments.slice(0, visiblePosts).map((item: any, index: number) => {
+                        const itemKey = `post-${index}`;
+                        const deepState = deepAnalysisStates.get(itemKey);
+                        
+                        return (
                         <tr 
                           key={index} 
                           className="border-b hover:bg-muted/50 cursor-pointer group"
@@ -652,9 +742,123 @@ const UserProfiling = () => {
                               {item.sentiment}
                             </span>
                           </td>
-                          <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
+                          <td className="p-3 text-sm">
+                            <div className="space-y-2">
+                              {/* Show original explanation or deep analysis */}
+                              {deepState?.showDeep && deepState.result ? (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium">Method:</span>
+                                    <Badge variant="outline" className="text-xs bg-purple-50 border-purple-200">
+                                      {deepState.analysisType === 'shap' ? '🧠 SHAP' : 'Deep Analysis'}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs bg-purple-50 border-purple-200">
+                                      {deepState.analysisType === 'shap' ? deepState.result.shap_explanation?.analysis_depth : deepState.result.deep_explanation?.analysis_depth}
+                                    </Badge>
+                                  </div>
+                                  
+                                  <div className="text-muted-foreground text-xs">
+                                    <strong>
+                                      {deepState.analysisType === 'shap' ? 'SHAP' : 'Deep Analysis'} AI Reasoning:
+                                    </strong> {deepState.analysisType === 'shap' ? deepState.result.shap_explanation?.reasoning : deepState.result.deep_explanation?.reasoning}
+                                  </div>
+                                  
+                                  {((deepState.analysisType === 'shap' ? deepState.result.shap_explanation?.word_contributions : deepState.result.deep_explanation?.word_contributions) || []).length > 0 && (
+                                    <div className="space-y-1">
+                                      <div className="text-xs font-medium text-muted-foreground">
+                                        Word Contributions ({deepState.analysisType === 'shap' ? 'SHAP' : 'Deep Analysis'} Analysis):
+                                      </div>
+                                      {(deepState.analysisType === 'shap' ? deepState.result.shap_explanation?.word_contributions : deepState.result.deep_explanation?.word_contributions || []).slice(0, 3).map((contrib: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between text-xs p-1 bg-purple-50 rounded border border-purple-200">
+                                          <span className={contrib.sentiment_impact === 'positive' ? 'text-green-700' : contrib.sentiment_impact === 'negative' ? 'text-red-700' : 'text-gray-700'}>
+                                            {contrib.word}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            {contrib.contribution ? contrib.contribution.toFixed(3) : ''}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleDeepAnalysis(itemKey);
+                                    }}
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs"
+                                  >
+                                    Show Original
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="font-medium">{item.sentiment}</div>
+                                  {item.explanation && (
+                                    <div className="text-muted-foreground text-xs">
+                                      {typeof item.explanation === 'string' 
+                                        ? item.explanation 
+                                        : item.explanation.reasoning
+                                      }
+                                    </div>
+                                  )}
+                                  {item.explanation?.key_words && item.explanation.key_words.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {item.explanation.key_words.slice(0, 3).map((kw: any, i: number) => (
+                                        <Badge key={i} variant="outline" className="text-xs px-1 py-0">
+                                          {kw.word}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {item.explanation?.word_contributions && item.explanation.word_contributions.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                                        Word Contributions ({item.explanation.explanation_method}):
+                                      </div>
+                                      {item.explanation.word_contributions.slice(0, 4).map((contrib: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between text-xs p-1 bg-gray-50 rounded">
+                                          <span className={contrib.sentiment === 'positive' ? 'text-green-700' : contrib.sentiment === 'negative' ? 'text-red-700' : 'text-gray-700'}>
+                                            {contrib.word}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            {contrib.importance ? contrib.importance.toFixed(3) : contrib.contribution?.toFixed(3)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {/* Analysis Buttons */}
+                              <div className="flex gap-2 mt-2">
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (deepState?.showDeep && deepState.analysisType === 'lime') {
+                                      toggleDeepAnalysis(itemKey);
+                                    } else {
+                                      handleDeepAnalysis(item.text, itemKey);
+                                    }
+                                  }}
+                                  disabled={deepState?.isAnalyzing}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                >
+                                  <Zap className="h-3 w-3 mr-1" />
+                                  {deepState?.isAnalyzing && deepState.analysisType === 'lime' ? 'Analyzing...' : deepState?.showDeep && deepState.analysisType === 'lime' ? 'Show Original' : 'Deep Analysis'}
+                                </Button>
+                                
+                                </div>
+                            </div>
+                          </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                   {profileData.postSentiments.length > visiblePosts && (
@@ -688,7 +892,7 @@ const UserProfiling = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <MessageCircle className="h-5 w-5 text-primary" />
-                  <span>Comment Sentiment Analysis (AI-Powered)</span>
+                  <span>Comment Sentiment Analysis</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -702,7 +906,11 @@ const UserProfiling = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {profileData.commentSentiments.slice(0, visibleComments).map((item: any, index: number) => (
+                      {profileData.commentSentiments.slice(0, visibleComments).map((item: any, index: number) => {
+                        const itemKey = `comment-${index}`;
+                        const deepState = deepAnalysisStates.get(itemKey);
+                        
+                        return (
                         <tr 
                           key={index} 
                           className="border-b hover:bg-muted/50 cursor-pointer group"
@@ -725,9 +933,123 @@ const UserProfiling = () => {
                               {item.sentiment}
                             </span>
                           </td>
-                          <td className="p-3 text-sm text-muted-foreground">{item.explanation}</td>
+                          <td className="p-3 text-sm">
+                            <div className="space-y-2">
+                              {/* Show original explanation or deep analysis */}
+                              {deepState?.showDeep && deepState.result ? (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium">Method:</span>
+                                    <Badge variant="outline" className="text-xs bg-purple-50 border-purple-200">
+                                      {deepState.analysisType === 'shap' ? '🧠 SHAP' : 'Deep Analysis'}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs bg-purple-50 border-purple-200">
+                                      {deepState.analysisType === 'shap' ? deepState.result.shap_explanation?.analysis_depth : deepState.result.deep_explanation?.analysis_depth}
+                                    </Badge>
+                                  </div>
+                                  
+                                  <div className="text-muted-foreground text-xs">
+                                    <strong>
+                                      {deepState.analysisType === 'shap' ? 'SHAP' : 'Deep Analysis'} AI Reasoning:
+                                    </strong> {deepState.analysisType === 'shap' ? deepState.result.shap_explanation?.reasoning : deepState.result.deep_explanation?.reasoning}
+                                  </div>
+                                  
+                                  {((deepState.analysisType === 'shap' ? deepState.result.shap_explanation?.word_contributions : deepState.result.deep_explanation?.word_contributions) || []).length > 0 && (
+                                    <div className="space-y-1">
+                                      <div className="text-xs font-medium text-muted-foreground">
+                                        Word Contributions ({deepState.analysisType === 'shap' ? 'SHAP' : 'Deep Analysis'} Analysis):
+                                      </div>
+                                      {(deepState.analysisType === 'shap' ? deepState.result.shap_explanation?.word_contributions : deepState.result.deep_explanation?.word_contributions || []).slice(0, 3).map((contrib: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between text-xs p-1 bg-purple-50 rounded border border-purple-200">
+                                          <span className={contrib.sentiment_impact === 'positive' ? 'text-green-700' : contrib.sentiment_impact === 'negative' ? 'text-red-700' : 'text-gray-700'}>
+                                            {contrib.word}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            {contrib.contribution ? contrib.contribution.toFixed(3) : ''}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleDeepAnalysis(itemKey);
+                                    }}
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs"
+                                  >
+                                    Show Original
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="font-medium">{item.sentiment}</div>
+                                  {item.explanation && (
+                                    <div className="text-muted-foreground text-xs">
+                                      {typeof item.explanation === 'string' 
+                                        ? item.explanation 
+                                        : item.explanation.reasoning
+                                      }
+                                    </div>
+                                  )}
+                                  {item.explanation?.key_words && item.explanation.key_words.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {item.explanation.key_words.slice(0, 3).map((kw: any, i: number) => (
+                                        <Badge key={i} variant="outline" className="text-xs px-1 py-0">
+                                          {kw.word}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {item.explanation?.word_contributions && item.explanation.word_contributions.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                                        Word Contributions ({item.explanation.explanation_method}):
+                                      </div>
+                                      {item.explanation.word_contributions.slice(0, 4).map((contrib: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between text-xs p-1 bg-gray-50 rounded">
+                                          <span className={contrib.sentiment === 'positive' ? 'text-green-700' : contrib.sentiment === 'negative' ? 'text-red-700' : 'text-gray-700'}>
+                                            {contrib.word}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            {contrib.importance ? contrib.importance.toFixed(3) : contrib.contribution?.toFixed(3)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {/* Analysis Buttons */}
+                              <div className="flex gap-2 mt-2">
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (deepState?.showDeep && deepState.analysisType === 'lime') {
+                                      toggleDeepAnalysis(itemKey);
+                                    } else {
+                                      handleDeepAnalysis(item.text, itemKey);
+                                    }
+                                  }}
+                                  disabled={deepState?.isAnalyzing}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                >
+                                  <Zap className="h-3 w-3 mr-1" />
+                                  {deepState?.isAnalyzing && deepState.analysisType === 'lime' ? 'Analyzing...' : deepState?.showDeep && deepState.analysisType === 'lime' ? 'Show Original' : 'Deep Analysis'}
+                                </Button>
+                                  
+                                </div>
+                            </div>
+                          </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                   {profileData.commentSentiments.length > visibleComments && (
