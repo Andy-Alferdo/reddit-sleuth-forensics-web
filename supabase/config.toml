@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.send-invite-email]
 verify_jwt = false
+
+[functions.analyze-offline]
+verify_jwt = false

@@ -1,39 +1,56 @@
 
 
-# Create `analyze-offline` Edge Function
+## Fix: Separate Post and Comment Sentiment Breakdowns in Local Edge Function
 
-## Problem
-`analyze-content` fails locally because `LOVABLE_API_KEY` is a Cloud-only secret. Your Python model server is running at `http://127.0.0.1:5000` (also `http://192.168.0.107:5000`) with a `/predict` endpoint that already returns the correct response shape.
+### Problem
+The local `analyze-content` edge function passes `analysisResult.sentiment` directly from the Python server, which returns identical values for `postBreakdown` and `commentBreakdown`. The deployed Lovable version calculates these independently, which is why the charts differ online vs locally.
 
-## Plan
+### Solution
+Add a helper function in the edge function to compute breakdowns from the individual `postSentiments` and `commentSentiments` arrays, instead of relying on the Python server's combined output.
 
-### 1. Create `supabase/functions/analyze-offline/index.ts`
-A copy of `analyze-content` but instead of calling the Lovable AI gateway, it calls your local Python model server at `http://host.docker.internal:5000/predict`.
+### Changes to `supabase/functions/analyze-content/index.ts`
 
-Key differences from `analyze-content`:
-- No `LOVABLE_API_KEY` check
-- Sends `{ posts, comments }` directly to `http://host.docker.internal:5000/predict`
-- The Python `/predict` endpoint already returns `{ postSentiments, commentSentiments, sentiment, locations, patterns }` — we pass it through and add `topSubreddits` + `stats`
-- If `host.docker.internal` doesn't resolve (some Windows setups), we'll add a fallback to `http://localhost:5000/predict`
+1. Add a `calcBreakdown` helper function that counts positive/negative/neutral from an array of sentiment items and returns ratios.
 
-Note: `host.docker.internal` is used because Supabase CLI runs edge functions inside Docker. This hostname resolves to the host machine where your Flask server runs. If that fails, the function will also try `localhost`.
+2. Replace the direct pass-through of `analysisResult.sentiment` with computed breakdowns:
 
-### 2. Add to `supabase/config.toml`
-```toml
-[functions.analyze-offline]
-verify_jwt = false
+```typescript
+function calcBreakdown(items: Array<{ sentiment: string }>) {
+  if (!items || items.length === 0) {
+    return { positive: 0.33, negative: 0.33, neutral: 0.34 };
+  }
+  const counts = { positive: 0, negative: 0, neutral: 0 };
+  items.forEach(item => {
+    const s = (item.sentiment || '').toLowerCase();
+    if (s in counts) counts[s as keyof typeof counts]++;
+    else counts.neutral++;
+  });
+  const total = items.length;
+  return {
+    positive: +(counts.positive / total).toFixed(2),
+    negative: +(counts.negative / total).toFixed(2),
+    neutral: +(counts.neutral / total).toFixed(2),
+  };
+}
 ```
 
-### 3. Update frontend calls
-Change `supabase.functions.invoke('analyze-content', ...)` to `supabase.functions.invoke('analyze-offline', ...)` in:
-- `src/pages/UserProfiling.tsx` (line 254)
-- `src/pages/Analysis.tsx` (lines 282, 397)
+3. In the response section (step 6), change:
+```typescript
+// BEFORE (broken - identical charts):
+sentiment: analysisResult.sentiment || { ... }
 
-### Files changed
-| File | Action |
-|---|---|
-| `supabase/functions/analyze-offline/index.ts` | Create new |
-| `supabase/config.toml` | Add function entry |
-| `src/pages/UserProfiling.tsx` | Change invoke target |
-| `src/pages/Analysis.tsx` | Change invoke target |
+// AFTER (correct - independent charts):
+sentiment: {
+  postBreakdown: calcBreakdown(analysisResult.postSentiments || []),
+  commentBreakdown: calcBreakdown(analysisResult.commentSentiments || []),
+}
+```
+
+### Why This Works
+- The Python model server already returns individual `postSentiments` and `commentSentiments` arrays with per-item sentiment labels
+- By counting these independently, posts and comments will naturally have different distributions
+- This matches the behavior of the deployed Lovable version which uses the AI response's individual items to derive breakdowns
+
+### No Other Files Change
+This is a single-file fix to the local edge function only.
 
