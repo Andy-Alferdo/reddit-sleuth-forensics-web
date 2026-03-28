@@ -202,7 +202,7 @@ const Report = () => {
                 <p className="text-xs text-muted-foreground">Link Analyses</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-card border">
-                <Activity className="h-5 w-5 text-foreground mx-auto mb-1" />
+                <Monitor className="h-5 w-5 text-foreground mx-auto mb-1" />
                 <div className="font-bold">{monitoringSessions.length}</div>
                 <p className="text-xs text-muted-foreground">Monitoring Sessions</p>
               </div>
