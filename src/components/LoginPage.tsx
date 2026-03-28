@@ -129,7 +129,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
           </div>
 
           <div className="space-y-2 text-center lg:text-left">
-            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in to your account</h2>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Log in to your account</h2>
             <p className="text-sm text-slate-500">Enter your credentials to access the platform</p>
           </div>
 
@@ -141,7 +141,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@organization.com"
+                  placeholder=""
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -158,7 +158,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+                  placeholder=""
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -183,10 +183,10 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Signing In...
+                  Logging In...
                 </>
               ) : (
-                'Sign In'
+                'Log In'
               )}
             </Button>
           </form>
