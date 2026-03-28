@@ -381,11 +381,11 @@ const Dashboard = () => {
     <div className="p-6 space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-foreground mb-2">
-          {hasSelectedCase ? `Case Dashboard - ${selectedCase.name}` : 'Dashboard Overview'}
+          {hasSelectedCase ? `Case Dashboard - ${selectedCase.description || 'Untitled Case'}` : 'Dashboard Overview'}
         </h2>
         <p className="text-muted-foreground">
           {hasSelectedCase 
-            ? `${selectedCase.description || 'No description'} - Status: ${selectedCase.status}` 
+            ? `${selectedCase.name} - Status: ${selectedCase.status}` 
             : 'Select a case from the sidebar to begin investigation'}
         </p>
       </div>
