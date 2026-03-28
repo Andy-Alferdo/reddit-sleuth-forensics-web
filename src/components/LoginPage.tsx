@@ -129,7 +129,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
           </div>
 
           <div className="space-y-2 text-center lg:text-left">
-            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in to your account</h2>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Log in to your account</h2>
             <p className="text-sm text-slate-500">Enter your credentials to access the platform</p>
           </div>
 
