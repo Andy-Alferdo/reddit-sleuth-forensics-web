@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { User, Users, Calendar, TrendingUp, FileText, Activity, MessageSquare, ExternalLink, StopCircle, ArrowLeft } from 'lucide-react';
+import { User, Users, Calendar, TrendingUp, FileText, Monitor, MessageSquare, ExternalLink, StopCircle, ArrowLeft } from 'lucide-react';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 

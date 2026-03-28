@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Save, Calendar, User, Gavel, Shield, FileCode, FileCog, Users, TrendingUp, Network, Activity, Loader2 } from 'lucide-react';
+import { FileText, Download, Save, Calendar, User, Gavel, Shield, FileCode, FileCog, Users, TrendingUp, Network, Monitor, Loader2 } from 'lucide-react';
 import { useInvestigation } from '@/contexts/InvestigationContext';
 import { useToast } from '@/hooks/use-toast';
 import { generatePDFReport, generateHTMLReport } from '@/lib/reportGenerator';

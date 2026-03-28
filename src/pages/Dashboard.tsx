@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Folder, Search, Loader2, Lock, Unlock, User, TrendingUp, Users, Link2, Activity, CheckCircle, Calendar, Hash } from 'lucide-react';
+import { Folder, Search, Loader2, Lock, Unlock, User, TrendingUp, Users, Link2, Monitor, CheckCircle, Calendar, Hash } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';

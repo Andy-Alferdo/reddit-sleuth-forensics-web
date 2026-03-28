@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Users, StopCircle, Eye, X, Play, Activity, Zap } from 'lucide-react';
+import { User, Users, StopCircle, Eye, X, Play, Monitor, Zap } from 'lucide-react';
 import { ProfileData } from '@/contexts/MonitoringContext';
 
 interface MonitoringTargetCardProps {
