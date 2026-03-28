@@ -440,7 +440,6 @@ const Dashboard = () => {
           {/* Collected Investigation Data */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Monitor className="h-5 w-5 text-foreground" />
               <h3 className="text-lg font-semibold text-foreground">Collected Investigation Data</h3>
             </div>
             
