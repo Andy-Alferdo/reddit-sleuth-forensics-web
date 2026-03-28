@@ -174,7 +174,7 @@ const Report = () => {
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <Activity className="h-5 w-5 text-primary" />
+            <Monitor className="h-5 w-5 text-primary" />
             <span>Collected Investigation Data</span>
           </CardTitle>
         </CardHeader>
