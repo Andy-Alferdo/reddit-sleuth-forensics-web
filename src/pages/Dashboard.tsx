@@ -381,11 +381,11 @@ const Dashboard = () => {
     <div className="p-6 space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-foreground mb-2">
-          {hasSelectedCase ? `Case Dashboard - ${selectedCase.name}` : 'Dashboard Overview'}
+          {hasSelectedCase ? `Case Dashboard - ${selectedCase.description || 'Untitled Case'}` : 'Dashboard Overview'}
         </h2>
         <p className="text-muted-foreground">
           {hasSelectedCase 
-            ? `${selectedCase.description || 'No description'} - Status: ${selectedCase.status}` 
+            ? `${selectedCase.name} - Status: ${selectedCase.status}` 
             : 'Select a case from the sidebar to begin investigation'}
         </p>
       </div>
@@ -428,32 +428,13 @@ const Dashboard = () => {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Case Number</p>
-                    <p className="text-xl font-bold text-foreground">{selectedCase.name}</p>
+                    <p className="text-sm text-muted-foreground">Case Name</p>
+                    <p className="text-xl font-bold text-foreground">{selectedCase.description || 'Untitled'}</p>
                   </div>
                   <Folder className="h-8 w-8 text-primary" />
                 </div>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Case Actions */}
-          <div className="flex justify-center">
-            <Button
-              variant={selectedCase.status?.toLowerCase() === 'closed' ? 'default' : 'destructive'}
-              onClick={handleToggleCaseStatus}
-              disabled={isUpdatingStatus}
-              className="min-w-[200px]"
-            >
-              {isUpdatingStatus ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : selectedCase.status?.toLowerCase() === 'closed' ? (
-                <Unlock className="h-4 w-4 mr-2" />
-              ) : (
-                <Lock className="h-4 w-4 mr-2" />
-              )}
-              {selectedCase.status?.toLowerCase() === 'closed' ? 'Reopen Case' : 'Close Case'}
-            </Button>
           </div>
 
           {/* Collected Investigation Data */}
@@ -526,6 +507,25 @@ const Dashboard = () => {
                 );
               })}
             </div>
+          </div>
+
+          {/* Case Actions - Bottom */}
+          <div className="flex justify-center pt-4">
+            <Button
+              variant={selectedCase.status?.toLowerCase() === 'closed' ? 'default' : 'destructive'}
+              onClick={handleToggleCaseStatus}
+              disabled={isUpdatingStatus}
+              className="min-w-[200px]"
+            >
+              {isUpdatingStatus ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : selectedCase.status?.toLowerCase() === 'closed' ? (
+                <Unlock className="h-4 w-4 mr-2" />
+              ) : (
+                <Lock className="h-4 w-4 mr-2" />
+              )}
+              {selectedCase.status?.toLowerCase() === 'closed' ? 'Reopen Case' : 'Close Case'}
+            </Button>
           </div>
         </>
       ) : (
