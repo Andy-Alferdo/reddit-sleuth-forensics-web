@@ -256,7 +256,7 @@ export const MonitoringDetailView = ({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
+                <Monitor className="h-5 w-5" />
                 Notifications
                 <Badge variant="default" className="ml-auto animate-pulse">Live</Badge>
               </CardTitle>
