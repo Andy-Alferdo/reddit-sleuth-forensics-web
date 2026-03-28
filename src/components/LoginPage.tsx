@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import MovingBackground from '@/components/MovingBackground';
+import { Label } from '@/components/ui/label';
 import mascotLogo from '@/assets/reddit-sleuth-mascot.png';
-import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff, Shield, Search, Activity, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -21,7 +21,6 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Show success message when coming from signup
   useEffect(() => {
     if (location.state?.fromSignup) {
       toast({
@@ -61,23 +60,23 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
 
       if (error) throw error;
 
-        if (data.user) {
-          toast({
-            title: "Login Successful",
-            description: "Welcome back to Intel Reddit!",
-          });
-          onLogin();
+      if (data.user) {
+        toast({
+          title: "Login Successful",
+          description: "Welcome back to Intel Reddit!",
+        });
+        onLogin();
 
-          const from = (location.state as any)?.from;
-          if (from?.pathname) {
-            navigate(from.pathname + (from.search || ''), {
-              replace: true,
-              state: from.state,
-            });
-          } else {
-            navigate('/', { replace: true });
-          }
+        const from = (location.state as any)?.from;
+        if (from?.pathname) {
+          navigate(from.pathname + (from.search || ''), {
+            replace: true,
+            state: from.state,
+          });
+        } else {
+          navigate('/', { replace: true });
         }
+      }
     } catch (error: any) {
       toast({
         title: "Login Failed",
@@ -90,75 +89,127 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-forensic-dark to-forensic-darker flex items-center justify-center relative">
-      <MovingBackground />
-      
-      <div className="relative z-10 w-full max-w-sm p-6">
-        <div className="backdrop-blur-sm bg-card/90 border border-primary/20 shadow-2xl rounded-2xl p-8">
-          {/* Logo */}
-          <div className="flex justify-center mb-6">
-            <img 
-              src={mascotLogo} 
-              alt="Reddit Sleuth Logo" 
-              className="h-24 w-auto object-contain drop-shadow-[0_0_15px_rgba(255,85,0,0.5)]"
+    <div className="min-h-screen flex">
+      {/* Left Branding Panel */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex-col justify-center items-center p-12 text-white">
+        {/* Subtle grid pattern */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
+          backgroundSize: '32px 32px',
+        }} />
+        {/* Glow accent */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-blue-500/10 blur-[120px]" />
+
+        <div className="relative z-10 max-w-md text-center space-y-8">
+          <img
+            src={mascotLogo}
+            alt="Intel Reddit Logo"
+            className="h-28 w-auto mx-auto drop-shadow-[0_0_30px_rgba(59,130,246,0.35)]"
+          />
+          <div className="space-y-3">
+            <h1 className="text-3xl font-bold tracking-tight">Welcome to Intel Reddit</h1>
+            <p className="text-blue-300 text-lg font-medium">Open-Source Intelligence &amp; Investigation Platform</p>
+          </div>
+          <p className="text-slate-400 leading-relaxed text-sm">
+            Empowering analysts to uncover insights, monitor communities, and transform data into actionable intelligence.
+          </p>
+
+          {/* Feature pills */}
+          <div className="grid grid-cols-2 gap-3 pt-4">
+            {[
+              { icon: Search, label: 'Deep Analysis' },
+              { icon: Shield, label: 'Secure Access' },
+              { icon: Activity, label: 'Real-time Monitoring' },
+              { icon: Globe, label: 'Community Intel' },
+            ].map(({ icon: Icon, label }) => (
+              <div key={label} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
+                <Icon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                {label}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Login Panel */}
+      <div className="flex-1 flex items-center justify-center bg-slate-50 p-6 sm:p-10">
+        <div className="w-full max-w-sm space-y-8">
+          {/* Mobile logo */}
+          <div className="flex justify-center lg:hidden">
+            <img
+              src={mascotLogo}
+              alt="Intel Reddit Logo"
+              className="h-20 w-auto"
             />
           </div>
 
-          {/* Login Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            {/* Email Input */}
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-                className="pl-12 h-12 bg-background/50 border-foreground/30 focus:border-foreground rounded-full"
-              />
-            </div>
-            
-            {/* Password Input */}
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-                className="pl-12 pr-12 h-12 bg-background/50 border-foreground/30 focus:border-foreground rounded-full"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+          <div className="space-y-2 text-center lg:text-left">
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in to your account</h2>
+            <p className="text-sm text-slate-500">Enter your credentials to access the platform</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-slate-700 text-sm font-medium">Email Address</Label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@organization.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="pl-10 h-11 bg-white border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-slate-900 placeholder:text-slate-400"
+                />
+              </div>
             </div>
 
-            
-            {/* Login Button */}
-            <Button 
-              type="submit" 
-              className="w-full h-12 mt-6 rounded-full bg-foreground hover:bg-foreground/90 text-background font-semibold shadow-lg transition-all duration-300"
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-slate-700 text-sm font-medium">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="pl-10 pr-10 h-11 bg-white border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg text-slate-900 placeholder:text-slate-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition-colors"
               disabled={isLoading}
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Logging In...
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Signing In...
                 </>
               ) : (
-                'Login'
+                'Sign In'
               )}
             </Button>
           </form>
 
+          <p className="text-center text-xs text-slate-400">
+            <Shield className="inline w-3 h-3 mr-1 -mt-0.5" />
+            Secure access for authorized investigators only
+          </p>
         </div>
       </div>
     </div>
