@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Save, Calendar, User, Gavel, Shield, FileCode, FileCog, Users, TrendingUp, Network, Activity, Loader2 } from 'lucide-react';
+import { FileText, Download, Save, Calendar, User, Gavel, Shield, FileCode, FileCog, Users, TrendingUp, Network, Monitor, Loader2 } from 'lucide-react';
 import { useInvestigation } from '@/contexts/InvestigationContext';
 import { useToast } from '@/hooks/use-toast';
 import { generatePDFReport, generateHTMLReport } from '@/lib/reportGenerator';
@@ -174,7 +174,7 @@ const Report = () => {
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <Activity className="h-5 w-5 text-primary" />
+            <Monitor className="h-5 w-5 text-primary" />
             <span>Collected Investigation Data</span>
           </CardTitle>
         </CardHeader>
@@ -202,14 +202,14 @@ const Report = () => {
                 <p className="text-xs text-muted-foreground">Link Analyses</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-card border">
-                <Activity className="h-5 w-5 text-foreground mx-auto mb-1" />
+                <Monitor className="h-5 w-5 text-foreground mx-auto mb-1" />
                 <div className="font-bold">{monitoringSessions.length}</div>
                 <p className="text-xs text-muted-foreground">Monitoring Sessions</p>
               </div>
             </div>
           ) : (
             <div className="text-center py-6 text-muted-foreground">
-              <Activity className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <Monitor className="h-10 w-10 mx-auto mb-2 opacity-50" />
               <p>No investigation data collected yet.</p>
               <p className="text-sm">Use Monitoring, User Profiling, and Analysis tools to gather data.</p>
             </div>

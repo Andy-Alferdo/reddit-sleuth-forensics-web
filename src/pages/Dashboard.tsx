@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Folder, Search, Loader2, Lock, Unlock, User, TrendingUp, Users, Link2, Activity, CheckCircle, Calendar, Hash } from 'lucide-react';
+import { Folder, Search, Loader2, Lock, Unlock, User, TrendingUp, Users, Link2, Monitor, CheckCircle, Calendar, Hash } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -371,7 +371,7 @@ const Dashboard = () => {
       key: 'monitoringSessions',
       label: 'Monitoring Sessions',
       count: caseStats.monitoringSessions,
-      icon: Activity,
+      icon: Monitor,
       ringColor: 'stroke-rose-500',
       ringBg: 'stroke-rose-100',
     },
@@ -440,7 +440,7 @@ const Dashboard = () => {
           {/* Collected Investigation Data */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-foreground" />
+              <Monitor className="h-5 w-5 text-foreground" />
               <h3 className="text-lg font-semibold text-foreground">Collected Investigation Data</h3>
             </div>
             
@@ -537,7 +537,7 @@ const Dashboard = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
+              <Monitor className="h-5 w-5 text-primary" />
               {dialogTitle} ({pastResults.length})
             </DialogTitle>
           </DialogHeader>

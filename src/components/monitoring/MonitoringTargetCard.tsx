@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Users, StopCircle, Eye, X, Play, Activity, Zap } from 'lucide-react';
+import { User, Users, StopCircle, Eye, X, Play, Monitor, Zap } from 'lucide-react';
 import { ProfileData } from '@/contexts/MonitoringContext';
 
 interface MonitoringTargetCardProps {
@@ -125,7 +125,7 @@ export const MonitoringTargetCard = ({
         <div className="grid grid-cols-2 gap-2 mb-2">
           <div className="text-center p-2 rounded-lg bg-muted/50 border border-border/40">
             <div className="flex items-center justify-center gap-1 mb-0.5">
-              <Activity className="h-3 w-3 text-muted-foreground" />
+              <Monitor className="h-3 w-3 text-muted-foreground" />
             </div>
             <p className="text-lg font-extrabold text-foreground leading-none">{totalActivities}</p>
             <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest mt-0.5">Activities</p>
