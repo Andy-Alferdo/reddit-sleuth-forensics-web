@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import mascotLogo from '@/assets/reddit-sleuth-mascot.png';
-import { Mail, Lock, Loader2, Eye, EyeOff, Shield, Search, Activity, Globe } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
