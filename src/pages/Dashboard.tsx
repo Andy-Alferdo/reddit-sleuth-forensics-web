@@ -508,6 +508,25 @@ const Dashboard = () => {
               })}
             </div>
           </div>
+
+          {/* Case Actions - Bottom */}
+          <div className="flex justify-center pt-4">
+            <Button
+              variant={selectedCase.status?.toLowerCase() === 'closed' ? 'default' : 'destructive'}
+              onClick={handleToggleCaseStatus}
+              disabled={isUpdatingStatus}
+              className="min-w-[200px]"
+            >
+              {isUpdatingStatus ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : selectedCase.status?.toLowerCase() === 'closed' ? (
+                <Unlock className="h-4 w-4 mr-2" />
+              ) : (
+                <Lock className="h-4 w-4 mr-2" />
+              )}
+              {selectedCase.status?.toLowerCase() === 'closed' ? 'Reopen Case' : 'Close Case'}
+            </Button>
+          </div>
         </>
       ) : (
         <Navigate to="/" replace />
