@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import mascotLogo from '@/assets/reddit-sleuth-mascot.png';
-import { Mail, Lock, Loader2, Eye, EyeOff, Shield, Search, Activity, Globe } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -110,24 +110,9 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
             <h1 className="text-3xl font-bold tracking-tight">Welcome to Intel Reddit</h1>
             <p className="text-blue-300 text-lg font-medium">Open-Source Intelligence &amp; Investigation Platform</p>
           </div>
-          <p className="text-slate-400 leading-relaxed text-sm">
+          <p className="text-slate-400 leading-relaxed text-sm max-w-sm">
             Empowering analysts to uncover insights, monitor communities, and transform data into actionable intelligence.
           </p>
-
-          {/* Feature pills */}
-          <div className="grid grid-cols-2 gap-3 pt-4">
-            {[
-              { icon: Search, label: 'Deep Analysis' },
-              { icon: Shield, label: 'Secure Access' },
-              { icon: Activity, label: 'Real-time Monitoring' },
-              { icon: Globe, label: 'Community Intel' },
-            ].map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
-                <Icon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                {label}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
