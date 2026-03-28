@@ -141,7 +141,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@organization.com"
+                  placeholder=""
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
