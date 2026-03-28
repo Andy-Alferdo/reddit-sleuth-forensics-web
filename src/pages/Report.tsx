@@ -209,7 +209,7 @@ const Report = () => {
             </div>
           ) : (
             <div className="text-center py-6 text-muted-foreground">
-              <Activity className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <Monitor className="h-10 w-10 mx-auto mb-2 opacity-50" />
               <p>No investigation data collected yet.</p>
               <p className="text-sm">Use Monitoring, User Profiling, and Analysis tools to gather data.</p>
             </div>
