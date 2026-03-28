@@ -183,10 +183,10 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Signing In...
+                  Logging In...
                 </>
               ) : (
-                'Sign In'
+                'Log In'
               )}
             </Button>
           </form>
