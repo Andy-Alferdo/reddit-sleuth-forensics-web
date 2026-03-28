@@ -233,8 +233,8 @@ export const MonitoringDetailView = ({
           {/* Stop button */}
           {isMonitoring && (
             <div className="flex flex-col items-center gap-3 pt-4 border-t">
-              <Button onClick={onStop} size="lg" variant="destructive" className="w-full max-w-md">
-                <StopCircle className="h-5 w-5 mr-2" />
+              <Button onClick={onStop} size="sm" variant="outline" className="bg-foreground text-background hover:bg-foreground/90 border-foreground">
+                <StopCircle className="h-4 w-4 mr-1.5" />
                 Stop Monitoring
               </Button>
               {newActivityCount > 0 && (
