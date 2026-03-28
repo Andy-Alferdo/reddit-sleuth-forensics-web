@@ -371,7 +371,7 @@ const Dashboard = () => {
       key: 'monitoringSessions',
       label: 'Monitoring Sessions',
       count: caseStats.monitoringSessions,
-      icon: Activity,
+      icon: Monitor,
       ringColor: 'stroke-rose-500',
       ringBg: 'stroke-rose-100',
     },
