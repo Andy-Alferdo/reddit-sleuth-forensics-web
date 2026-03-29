@@ -511,10 +511,10 @@ const Dashboard = () => {
           {/* Case Actions - Bottom */}
           <div className="flex justify-center pt-4">
             <Button
-              variant={selectedCase.status?.toLowerCase() === 'closed' ? 'default' : 'destructive'}
+              variant={selectedCase.status?.toLowerCase() === 'closed' ? 'default' : 'default'}
               onClick={handleToggleCaseStatus}
               disabled={isUpdatingStatus}
-              className="min-w-[200px]"
+              className="min-w-[200px] bg-foreground text-background hover:bg-foreground/90"
             >
               {isUpdatingStatus ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
