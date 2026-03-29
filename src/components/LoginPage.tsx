@@ -187,10 +187,6 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               border: '1px solid rgba(255, 255, 255, 0.6)',
             }}
           >
-            {/* Top accent line */}
-            <div className="absolute top-0 left-6 right-6 h-[2px] rounded-full"
-              style={{ background: 'linear-gradient(90deg, transparent, #3b82f6, #6366f1, transparent)' }}
-            />
 
             <div className="space-y-1.5 text-center lg:text-left">
               <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Log in to your account</h2>
