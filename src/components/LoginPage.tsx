@@ -165,7 +165,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
 
       {/* Right Login Panel */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10"
-        style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}
+        style={{ background: 'linear-gradient(180deg, #f0f4f8 0%, #e2e8f0 100%)' }}
       >
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
@@ -177,60 +177,87 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
             />
           </div>
 
-          {/* Login Card */}
-          <div className="bg-white rounded-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] border border-slate-200/60 p-8 space-y-7">
+          {/* Login Card - Glassmorphism */}
+          <div className="relative rounded-2xl p-8 space-y-8"
+            style={{
+              background: 'rgba(255, 255, 255, 0.72)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              boxShadow: '0 8px 32px -8px rgba(15, 23, 42, 0.12), 0 4px 16px -4px rgba(15, 23, 42, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.6)',
+            }}
+          >
+            {/* Top accent line */}
+            <div className="absolute top-0 left-6 right-6 h-[2px] rounded-full"
+              style={{ background: 'linear-gradient(90deg, transparent, #3b82f6, #6366f1, transparent)' }}
+            />
+
             <div className="space-y-1.5 text-center lg:text-left">
               <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Log in to your account</h2>
               <p className="text-sm text-slate-500">Enter your credentials to continue</p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-slate-700 text-sm font-medium">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder=""
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    className="pl-10 h-11 bg-slate-50/50 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white rounded-xl text-slate-900 placeholder:text-slate-400 transition-all duration-200"
-                  />
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-slate-700 text-sm font-medium">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder=""
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="pl-10 h-11 rounded-xl text-slate-900 placeholder:text-slate-400 transition-all duration-200"
+                      style={{
+                        background: 'rgba(241, 245, 249, 0.7)',
+                        border: '1px solid rgba(203, 213, 225, 0.6)',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-slate-700 text-sm font-medium">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder=""
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="pl-10 pr-10 h-11 rounded-xl text-slate-900 placeholder:text-slate-400 transition-all duration-200"
+                      style={{
+                        background: 'rgba(241, 245, 249, 0.7)',
+                        border: '1px solid rgba(203, 213, 225, 0.6)',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-slate-700 text-sm font-medium">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder=""
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    className="pl-10 pr-10 h-11 bg-slate-50/50 border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white rounded-xl text-slate-900 placeholder:text-slate-400 transition-all duration-200"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
+              {/* Divider */}
+              <div className="h-px w-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(148,163,184,0.3), transparent)' }} />
 
               <Button
                 type="submit"
-                className="w-full h-11 rounded-xl font-semibold shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 text-white"
+                className="w-full h-11 rounded-xl font-semibold text-white transition-all duration-300 hover:-translate-y-0.5"
                 style={{
                   background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%)',
+                  boxShadow: '0 4px 14px -2px rgba(37, 99, 235, 0.4)',
                 }}
                 disabled={isLoading}
               >
@@ -245,7 +272,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
               </Button>
             </form>
 
-            <div className="flex items-center justify-center gap-1.5 pt-1">
+            <div className="flex items-center justify-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
               <p className="text-xs text-slate-400">Authorized access only</p>
             </div>
