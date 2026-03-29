@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import MovingBackground from '@/components/MovingBackground';
+
 
 interface CaseItem {
   id: string;
@@ -101,8 +101,6 @@ const Home = () => {
 
   return (
     <div className="relative min-h-[90vh] flex flex-col">
-      <MovingBackground />
-      <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background pointer-events-none" />
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-4xl space-y-8">
