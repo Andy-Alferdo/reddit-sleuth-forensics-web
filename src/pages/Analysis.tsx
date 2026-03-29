@@ -710,7 +710,7 @@ const Analysis = () => {
                 <BarChart3 className="h-5 w-5 text-primary" />
                 <span>Analyze Keyword</span>
               </CardTitle>
-              <CardDescription>Search for keywords across Reddit's front page posts</CardDescription>
+              <CardDescription><CardDescription>Search for keywords across Reddit</CardDescription></CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
