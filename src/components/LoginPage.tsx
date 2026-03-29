@@ -240,7 +240,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
                     Accessing...
                   </>
                 ) : (
-                  'Access Platform'
+                  'Log In'
                 )}
               </Button>
             </form>
