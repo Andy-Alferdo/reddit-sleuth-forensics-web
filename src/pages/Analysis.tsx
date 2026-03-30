@@ -1424,13 +1424,7 @@ const Analysis = () => {
                   centerSubreddit={communityData.displayName || communityData.name?.replace('r/', '') || ''}
                   relatedSubreddits={communityData.relatedSubreddits}
                   onSubredditClick={(name: string) => {
-                    setSubreddit(name);
-                    setCommunityData(null);
-                    setSelectedCommunityView(null);
-                    setTimeout(() => {
-                      const btn = document.querySelector('[data-community-search-btn]') as HTMLButtonElement;
-                      btn?.click();
-                    }, 100);
+                    handleCommunityAnalysis(name);
                   }}
                 />
               )}
