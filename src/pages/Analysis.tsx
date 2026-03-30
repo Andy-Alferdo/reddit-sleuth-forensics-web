@@ -1167,7 +1167,7 @@ const Analysis = () => {
                   variant="ghost"
                   size="icon"
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
-                  onClick={handleCommunityAnalysis}
+                  onClick={() => handleCommunityAnalysis()}
                   disabled={isLoading || !subreddit.trim()}
                 >
                   <Search className="h-4 w-4" />
