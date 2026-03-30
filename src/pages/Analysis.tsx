@@ -358,15 +358,17 @@ const Analysis = () => {
     }
   };
 
-  const handleCommunityAnalysis = async () => {
-    if (!subreddit.trim()) return;
+  const handleCommunityAnalysis = async (searchTerm?: string) => {
+    const term = (searchTerm || subreddit).trim();
+    if (!term) return;
     
+    setSubreddit(term);
     setIsLoading(true);
     setCommunityData(null);
     setSelectedCommunityView(null);
 
     try {
-      const cleanSubreddit = subreddit.replace(/^r\//, '');
+      const cleanSubreddit = term.replace(/^r\//, '');
 
       const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
         body: { 
