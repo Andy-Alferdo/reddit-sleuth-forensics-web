@@ -1180,6 +1180,55 @@ const Analysis = () => {
                 <ArrowLeft className="h-4 w-4" />
                 Back to Community Analysis Overview
               </Button>
+
+              {/* KPI Metrics Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Members</p>
+                      <p className="text-xl font-bold">{communityData.subscribers >= 1_000_000 ? (communityData.subscribers / 1_000_000).toFixed(1) + 'M' : communityData.subscribers >= 1_000 ? (communityData.subscribers / 1_000).toFixed(1) + 'K' : communityData.subscribers}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-500/10">
+                      <Activity className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Online Now</p>
+                      <p className="text-xl font-bold">{communityData.activeUsers >= 1_000 ? (communityData.activeUsers / 1_000).toFixed(1) + 'K' : communityData.activeUsers}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-violet-500/10">
+                      <UserCheck className="h-5 w-5 text-violet-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Weekly Contributors</p>
+                      <p className="text-xl font-bold">{communityData.weeklyContributors || 0}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-amber-500/10">
+                      <TrendingUp className="h-5 w-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Posts Collected</p>
+                      <p className="text-xl font-bold">{communityData.stats.totalPosts}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Community Information */}
                 <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] overflow-hidden">
