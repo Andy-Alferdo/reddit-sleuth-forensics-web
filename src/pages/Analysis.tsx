@@ -483,6 +483,7 @@ const Analysis = () => {
 
       const analysisResult = {
         name: subredditInfo.display_name_prefixed || `r/${cleanSubreddit}`,
+        displayName: subredditInfo.display_name || cleanSubreddit,
         subscribers: subredditInfo.subscribers || 0,
         activeUsers: subredditInfo.accounts_active || 0,
         description: subredditInfo.public_description || subredditInfo.description || 'No description available',
@@ -500,6 +501,17 @@ const Analysis = () => {
         top20Posts: allPostsSortedByScore.slice(0, 20),
         postSentiments,
         sentimentChartData: null as any,
+        relatedSubreddits: (redditData.relatedSubreddits || []) as { name: string; subscribers?: number; description?: string }[],
+        weeklyContributors: (() => {
+          const sevenDaysAgo = Date.now() / 1000 - 7 * 24 * 60 * 60;
+          const recentAuthors = new Set<string>();
+          posts.forEach((p: any) => {
+            if (p.created_utc >= sevenDaysAgo && p.author && p.author !== '[deleted]') {
+              recentAuthors.add(p.author);
+            }
+          });
+          return recentAuthors.size;
+        })(),
         stats: {
           totalPosts: posts.length,
           totalUpvotes,
