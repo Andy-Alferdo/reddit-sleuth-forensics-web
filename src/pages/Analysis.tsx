@@ -10,7 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X, Loader2, ExternalLink, Eye, UserPlus, MoreVertical, ArrowLeft } from 'lucide-react';
+import { BarChart3, MapPin, Calendar, Users, Network, Share2, AlertTriangle, TrendingUp, Search, Shield, MessageSquare, Clock, X, Loader2, ExternalLink, Eye, UserPlus, MoreVertical, ArrowLeft, Activity, UserCheck } from 'lucide-react';
+import { RelatedSubredditsGraph } from '@/components/RelatedSubredditsGraph';
 import { WordCloud } from '@/components/WordCloud';
 import { AnalyticsChart } from '@/components/AnalyticsChart';
 import { UserCommunityNetworkGraph } from '@/components/UserCommunityNetworkGraph';
@@ -357,15 +358,17 @@ const Analysis = () => {
     }
   };
 
-  const handleCommunityAnalysis = async () => {
-    if (!subreddit.trim()) return;
+  const handleCommunityAnalysis = async (searchTerm?: string) => {
+    const term = (searchTerm || subreddit).trim();
+    if (!term) return;
     
+    setSubreddit(term);
     setIsLoading(true);
     setCommunityData(null);
     setSelectedCommunityView(null);
 
     try {
-      const cleanSubreddit = subreddit.replace(/^r\//, '');
+      const cleanSubreddit = term.replace(/^r\//, '');
 
       const { data: redditData, error } = await supabase.functions.invoke('reddit-scraper', {
         body: { 
@@ -482,6 +485,7 @@ const Analysis = () => {
 
       const analysisResult = {
         name: subredditInfo.display_name_prefixed || `r/${cleanSubreddit}`,
+        displayName: subredditInfo.display_name || cleanSubreddit,
         subscribers: subredditInfo.subscribers || 0,
         activeUsers: subredditInfo.accounts_active || 0,
         description: subredditInfo.public_description || subredditInfo.description || 'No description available',
@@ -499,6 +503,17 @@ const Analysis = () => {
         top20Posts: allPostsSortedByScore.slice(0, 20),
         postSentiments,
         sentimentChartData: null as any,
+        relatedSubreddits: (redditData.relatedSubreddits || []) as { name: string; subscribers?: number; description?: string }[],
+        weeklyContributors: (() => {
+          const sevenDaysAgo = Date.now() / 1000 - 7 * 24 * 60 * 60;
+          const recentAuthors = new Set<string>();
+          posts.forEach((p: any) => {
+            if (p.created_utc >= sevenDaysAgo && p.author && p.author !== '[deleted]') {
+              recentAuthors.add(p.author);
+            }
+          });
+          return recentAuthors.size;
+        })(),
         stats: {
           totalPosts: posts.length,
           totalUpvotes,
@@ -1152,7 +1167,7 @@ const Analysis = () => {
                   variant="ghost"
                   size="icon"
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
-                  onClick={handleCommunityAnalysis}
+                  onClick={() => handleCommunityAnalysis()}
                   disabled={isLoading || !subreddit.trim()}
                 >
                   <Search className="h-4 w-4" />
@@ -1167,6 +1182,55 @@ const Analysis = () => {
                 <ArrowLeft className="h-4 w-4" />
                 Back to Community Analysis Overview
               </Button>
+
+              {/* KPI Metrics Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Members</p>
+                      <p className="text-xl font-bold">{communityData.subscribers >= 1_000_000 ? (communityData.subscribers / 1_000_000).toFixed(1) + 'M' : communityData.subscribers >= 1_000 ? (communityData.subscribers / 1_000).toFixed(1) + 'K' : communityData.subscribers}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-green-500/10">
+                      <Activity className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Online Now</p>
+                      <p className="text-xl font-bold">{communityData.activeUsers >= 1_000 ? (communityData.activeUsers / 1_000).toFixed(1) + 'K' : communityData.activeUsers}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-violet-500/10">
+                      <UserCheck className="h-5 w-5 text-violet-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Weekly Contributors</p>
+                      <p className="text-xl font-bold">{communityData.weeklyContributors || 0}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-primary/20">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-amber-500/10">
+                      <TrendingUp className="h-5 w-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Posts Collected</p>
+                      <p className="text-xl font-bold">{communityData.stats.totalPosts}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Community Information */}
                 <Card className="border-primary/20 border-forensic-accent/30 shadow-[0_0_20px_rgba(0,255,198,0.15)] overflow-hidden">
@@ -1352,6 +1416,17 @@ const Analysis = () => {
                     </CardContent>
                   </Card>
                 </div>
+              )}
+
+              {/* Related Subreddits Graph */}
+              {communityData.relatedSubreddits && communityData.relatedSubreddits.length > 0 && (
+                <RelatedSubredditsGraph
+                  centerSubreddit={communityData.displayName || communityData.name?.replace('r/', '') || ''}
+                  relatedSubreddits={communityData.relatedSubreddits}
+                  onSubredditClick={(name: string) => {
+                    handleCommunityAnalysis(name);
+                  }}
+                />
               )}
 
               {/* Expanded View for Selected Community Card */}
