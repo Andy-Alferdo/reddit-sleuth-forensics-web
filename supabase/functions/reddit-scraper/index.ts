@@ -236,16 +236,74 @@ serve(async (req) => {
       const posts: RedditPost[] = postsData.data?.children?.map((child: any) => child.data) || [];
       console.log(`Fetched ${posts.length} posts from subreddit`);
 
-      // Reddit API provides accounts_active (online now) but not weekly contributors directly
-      // The weekly contributors shown on Reddit sidebar is not exposed via API
-      // We'll use accounts_active as a proxy and let frontend handle display
+      // Fetch related subreddits from sidebar widgets
+      let relatedSubreddits: { name: string; subscribers?: number; description?: string }[] = [];
+      try {
+        const widgetsResponse = await fetch(`https://oauth.reddit.com/r/${subreddit}/api/widgets`, {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'User-Agent': 'IntelReddit/1.0',
+          },
+        });
+        if (widgetsResponse.ok) {
+          const widgetsData = await widgetsResponse.json();
+          if (widgetsData.items) {
+            for (const key of Object.keys(widgetsData.items)) {
+              const widget = widgetsData.items[key];
+              if (widget.kind === 'community-list' && widget.data) {
+                widget.data.forEach((item: any) => {
+                  const name = (item.name || '').replace(/^r\//, '');
+                  if (name && name.toLowerCase() !== subreddit.toLowerCase()) {
+                    relatedSubreddits.push({
+                      name,
+                      subscribers: item.subscribers,
+                      description: item.communityIcon ? undefined : undefined,
+                    });
+                  }
+                });
+              }
+            }
+          }
+        }
+        console.log(`Found ${relatedSubreddits.length} related subreddits for r/${subreddit}`);
+      } catch (e) {
+        console.log(`Could not fetch widgets for r/${subreddit}:`, e);
+      }
+
+      // Fallback: if no related subs found, try fetching similar subreddits via search
+      if (relatedSubreddits.length === 0) {
+        try {
+          const searchResponse = await fetch(`https://oauth.reddit.com/subreddits/search?q=${encodeURIComponent(subreddit)}&limit=10`, {
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'User-Agent': 'IntelReddit/1.0',
+            },
+          });
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            const subs = searchData.data?.children || [];
+            relatedSubreddits = subs
+              .map((child: any) => child.data)
+              .filter((s: any) => s.display_name.toLowerCase() !== subreddit.toLowerCase())
+              .slice(0, 8)
+              .map((s: any) => ({
+                name: s.display_name,
+                subscribers: s.subscribers,
+                description: s.public_description?.substring(0, 100),
+              }));
+            console.log(`Fallback search found ${relatedSubreddits.length} similar subreddits`);
+          }
+        } catch (e) {
+          console.log('Fallback subreddit search failed:', e);
+        }
+      }
+
       responseData = {
         subreddit: subredditData.data,
         posts,
+        relatedSubreddits,
         weeklyVisitors: subredditData.data.accounts_active || 0,
         activeUsers: subredditData.data.active_user_count || 0,
-        // Reddit doesn't expose weekly contributors via API, so we pass null to indicate unavailable
-        weeklyContributors: subredditData.data.wls !== undefined ? null : null,
       };
     }
 
