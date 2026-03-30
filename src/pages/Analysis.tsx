@@ -1423,7 +1423,12 @@ const Analysis = () => {
                   relatedSubreddits={communityData.relatedSubreddits}
                   onSubredditClick={(name: string) => {
                     setSubreddit(name);
-                    handleCommunityAnalysis();
+                    setCommunityData(null);
+                    setSelectedCommunityView(null);
+                    setTimeout(() => {
+                      const btn = document.querySelector('[data-community-search-btn]') as HTMLButtonElement;
+                      btn?.click();
+                    }, 100);
                   }}
                 />
               )}
