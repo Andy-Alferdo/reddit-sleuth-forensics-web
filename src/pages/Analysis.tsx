@@ -1416,6 +1416,18 @@ const Analysis = () => {
                 </div>
               )}
 
+              {/* Related Subreddits Graph */}
+              {communityData.relatedSubreddits && communityData.relatedSubreddits.length > 0 && (
+                <RelatedSubredditsGraph
+                  centerSubreddit={communityData.displayName || communityData.name?.replace('r/', '') || ''}
+                  relatedSubreddits={communityData.relatedSubreddits}
+                  onSubredditClick={(name: string) => {
+                    setSubreddit(name);
+                    handleCommunityAnalysis();
+                  }}
+                />
+              )}
+
               {/* Expanded View for Selected Community Card */}
               {selectedCommunityView && communityData.recent20Posts && (() => {
                 let viewPosts: any[] = [];
