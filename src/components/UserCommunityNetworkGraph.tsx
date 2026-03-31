@@ -557,7 +557,7 @@ export const UserCommunityNetworkGraph = ({
                   className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
                   onClick={() => { unpinNode(contextMenu.node); setContextMenu(null); }}
                 >
-                  🔓 Release node
+                  📌 Unpin node
                 </button>
               )}
               <button
