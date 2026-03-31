@@ -1833,6 +1833,10 @@ const Analysis = () => {
               <UserCommunityNetworkGraph
                 title="User to Community Network Graph"
                 primaryUserId="user1"
+                onCommunityClick={(communityName) => {
+                  setActiveTab('community');
+                  handleCommunityAnalysis(communityName);
+                }}
                 nodes={[
                   { id: 'user1', label: `u/${linkData.primaryUser}`, type: 'user' as const },
                   ...(linkData.userToCommunities || []).slice(0, 10).map((item: any, index: number) => ({
