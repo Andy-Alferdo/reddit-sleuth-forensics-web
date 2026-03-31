@@ -255,8 +255,8 @@ const CommunityAnalysis = () => {
                     <Activity className="h-5 w-5 text-green-500" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Online Now</p>
-                    <p className="text-xl font-bold">{formatNumber(activeUsers)}</p>
+                     <p className="text-xs text-muted-foreground">Weekly Contributions</p>
+                     <p className="text-xl font-bold">{weeklyContributors}</p>
                   </div>
                 </CardContent>
               </Card>
