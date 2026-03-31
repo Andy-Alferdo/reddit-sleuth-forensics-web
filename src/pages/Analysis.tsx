@@ -1202,8 +1202,8 @@ const Analysis = () => {
                       <Activity className="h-5 w-5 text-green-500" />
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Online Now</p>
-                      <p className="text-xl font-bold">{communityData.activeUsers >= 1_000 ? (communityData.activeUsers / 1_000).toFixed(1) + 'K' : communityData.activeUsers}</p>
+                       <p className="text-xs text-muted-foreground">Weekly Contributions</p>
+                       <p className="text-xl font-bold">{communityData.weeklyContributors >= 1_000 ? (communityData.weeklyContributors / 1_000).toFixed(1) + 'K' : communityData.weeklyContributors}</p>
                     </div>
                   </CardContent>
                 </Card>
