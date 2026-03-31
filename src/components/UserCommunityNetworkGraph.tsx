@@ -22,6 +22,7 @@ interface UserCommunityNetworkGraphProps {
   nodes: NetworkNode[];
   links: NetworkLink[];
   primaryUserId?: string;
+  onCommunityClick?: (communityName: string) => void;
 }
 
 interface SimulatedNode extends NetworkNode {
@@ -47,7 +48,8 @@ export const UserCommunityNetworkGraph = ({
   title, 
   nodes, 
   links, 
-  primaryUserId 
+  primaryUserId,
+  onCommunityClick,
 }: UserCommunityNetworkGraphProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -131,6 +133,11 @@ export const UserCommunityNetworkGraph = ({
     }
   }, []);
 
+  const analyzeCommunityInApp = useCallback((node: SimulatedNode) => {
+    if (node.type !== 'community' || !onCommunityClick) return;
+    onCommunityClick(node.label);
+  }, [onCommunityClick]);
+
   const unpinNode = useCallback((node: SimulatedNode) => {
     node.fixed = false;
     frameCountRef.current = 0;
@@ -166,7 +173,7 @@ export const UserCommunityNetworkGraph = ({
       const worldPos = screenToWorld(screenPos.x, screenPos.y);
       const node = getNodeAtPosition(worldPos.x, worldPos.y);
 
-      if (node && node.type !== 'user') {
+      if (node && node.id !== primaryUserId) {
         isDraggingNodeRef.current = false;
         dragNodeRef.current = node;
         mouseDownPosRef.current = screenPos;
@@ -262,7 +269,7 @@ export const UserCommunityNetworkGraph = ({
       canvas.removeEventListener('dblclick', handleDblClick);
       canvas.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [getCanvasCoords, getNodeAtPosition, screenToWorld, handleZoom]);
+  }, [getCanvasCoords, getNodeAtPosition, screenToWorld, handleZoom, primaryUserId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -312,6 +319,16 @@ export const UserCommunityNetworkGraph = ({
       const links = linksRef.current;
 
       nodes.forEach(node => {
+        const isPrimary = node.id === primaryUserId;
+
+        if (isPrimary) {
+          node.x = centerX;
+          node.y = centerY;
+          node.vx = 0;
+          node.vy = 0;
+          return;
+        }
+
         if (node === dragNodeRef.current || node.fixed) return;
 
         // Center gravity
@@ -352,6 +369,14 @@ export const UserCommunityNetworkGraph = ({
       });
 
       nodes.forEach(node => {
+        if (node.id === primaryUserId) {
+          node.x = centerX;
+          node.y = centerY;
+          node.vx = 0;
+          node.vy = 0;
+          return;
+        }
+
         if (node === dragNodeRef.current || node.fixed) return;
         node.vx *= 0.85;
         node.vy *= 0.85;
@@ -552,6 +577,14 @@ export const UserCommunityNetworkGraph = ({
               >
                 🔗 Open in Reddit
               </button>
+              {contextMenu.node.type === 'community' && onCommunityClick && (
+                <button
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                  onClick={() => { analyzeCommunityInApp(contextMenu.node); setContextMenu(null); }}
+                >
+                  🔍 Analyze subreddit
+                </button>
+              )}
               {contextMenu.node.fixed && (
                 <button
                   className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
