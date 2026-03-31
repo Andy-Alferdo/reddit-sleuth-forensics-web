@@ -166,7 +166,7 @@ export const UserCommunityNetworkGraph = ({
       const worldPos = screenToWorld(screenPos.x, screenPos.y);
       const node = getNodeAtPosition(worldPos.x, worldPos.y);
 
-      if (node) {
+      if (node && node.type !== 'user') {
         isDraggingNodeRef.current = false;
         dragNodeRef.current = node;
         mouseDownPosRef.current = screenPos;
