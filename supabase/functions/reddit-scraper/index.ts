@@ -298,10 +298,43 @@ serve(async (req) => {
         }
       }
 
+      // Scrape weekly contributions from Reddit's webpage
+      let weeklyContributions = 0;
+      try {
+        const pageResponse = await fetch(`https://www.reddit.com/r/${subreddit}/`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+          },
+        });
+        if (pageResponse.ok) {
+          const html = await pageResponse.text();
+          // Look for "X contributions in the past week" or "X contributions this week"
+          const contribMatch = html.match(/([\d,]+(?:\.\d+)?[KkMm]?)\s*contributions?\s*(?:in the past week|this week|per week)/i);
+          if (contribMatch) {
+            let raw = contribMatch[1].replace(/,/g, '');
+            if (raw.toLowerCase().endsWith('k')) {
+              weeklyContributions = Math.round(parseFloat(raw) * 1000);
+            } else if (raw.toLowerCase().endsWith('m')) {
+              weeklyContributions = Math.round(parseFloat(raw) * 1000000);
+            } else {
+              weeklyContributions = parseInt(raw, 10) || 0;
+            }
+            console.log(`Scraped weekly contributions for r/${subreddit}: ${weeklyContributions}`);
+          } else {
+            console.log(`Could not find weekly contributions in HTML for r/${subreddit}`);
+          }
+        }
+      } catch (e) {
+        console.log(`Failed to scrape weekly contributions for r/${subreddit}:`, e);
+      }
+
       responseData = {
         subreddit: subredditData.data,
         posts,
         relatedSubreddits,
+        weeklyContributions,
         weeklyVisitors: subredditData.data.accounts_active || 0,
         activeUsers: subredditData.data.active_user_count || 0,
       };

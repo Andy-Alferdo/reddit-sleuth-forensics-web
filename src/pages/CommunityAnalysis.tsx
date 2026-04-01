@@ -50,18 +50,7 @@ const CommunityAnalysis = () => {
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [relatedSubreddits, setRelatedSubreddits] = useState<RelatedSub[]>([]);
   const [activeUsers, setActiveUsers] = useState(0);
-
-  // Derive weekly contributors from posts (unique authors in last 7 days)
-  const weeklyContributors = useMemo(() => {
-    const sevenDaysAgo = Date.now() / 1000 - 7 * 24 * 60 * 60;
-    const recentAuthors = new Set<string>();
-    posts.forEach(p => {
-      if (p.created_utc >= sevenDaysAgo && p.author && p.author !== '[deleted]') {
-        recentAuthors.add(p.author);
-      }
-    });
-    return recentAuthors.size;
-  }, [posts]);
+  const [weeklyContributions, setWeeklyContributions] = useState(0);
 
   // Word cloud from post titles
   const communityWordCloud = useMemo(() => {
