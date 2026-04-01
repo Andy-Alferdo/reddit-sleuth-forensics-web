@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Search, Users, Calendar, Shield, MessageSquare, Loader2, TrendingUp, UserCheck, Activity, Eye } from "lucide-react";
+import { Search, Users, Calendar, Shield, MessageSquare, Loader2, TrendingUp, UserCheck, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -237,7 +237,7 @@ const CommunityAnalysis = () => {
         {hasSearched && subredditData && (
           <div className="space-y-6">
             {/* KPI Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="border-primary/20">
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-primary/10">
@@ -246,17 +246,6 @@ const CommunityAnalysis = () => {
                   <div>
                     <p className="text-xs text-muted-foreground">Members</p>
                     <p className="text-xl font-bold">{formatNumber(subredditData.subscribers)}</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-primary/20">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-500/10">
-                    <Activity className="h-5 w-5 text-green-500" />
-                  </div>
-                  <div>
-                     <p className="text-xs text-muted-foreground">Weekly Contributions</p>
-                     <p className="text-xl font-bold">{weeklyContributors}</p>
                   </div>
                 </CardContent>
               </Card>
