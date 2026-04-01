@@ -342,14 +342,18 @@ serve(async (req) => {
       // Fallback: calculate from fetched posts if scraping failed
       if (weeklyContributions === 0) {
         const sevenDaysAgo = Date.now() / 1000 - 7 * 24 * 60 * 60;
-        let count = 0;
+        let postCount = 0;
+        let commentCount = 0;
         posts.forEach((p: any) => {
-          if (p.created_utc >= sevenDaysAgo) count++;
+          if (p.created_utc >= sevenDaysAgo) {
+            postCount++;
+            commentCount += (p.num_comments || 0);
+          }
         });
-        // Estimate: each post likely has ~10x more comments, so multiply
-        weeklyContributions = count > 0 ? count * 10 : 0;
+        // Weekly contributions = posts + comments from the last 7 days
+        weeklyContributions = postCount + commentCount;
         if (weeklyContributions > 0) {
-          console.log(`Estimated weekly contributions from posts: ${weeklyContributions}`);
+          console.log(`Calculated weekly contributions (${postCount} posts + ${commentCount} comments): ${weeklyContributions}`);
         }
       }
 
