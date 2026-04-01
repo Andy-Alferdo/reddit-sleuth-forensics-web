@@ -504,16 +504,7 @@ const Analysis = () => {
         postSentiments,
         sentimentChartData: null as any,
         relatedSubreddits: (redditData.relatedSubreddits || []) as { name: string; subscribers?: number; description?: string }[],
-        weeklyContributors: (() => {
-          const sevenDaysAgo = Date.now() / 1000 - 7 * 24 * 60 * 60;
-          const recentAuthors = new Set<string>();
-          posts.forEach((p: any) => {
-            if (p.created_utc >= sevenDaysAgo && p.author && p.author !== '[deleted]') {
-              recentAuthors.add(p.author);
-            }
-          });
-          return recentAuthors.size;
-        })(),
+        weeklyContributors: redditData.weeklyContributions || 0,
         stats: {
           totalPosts: posts.length,
           totalUpvotes,
