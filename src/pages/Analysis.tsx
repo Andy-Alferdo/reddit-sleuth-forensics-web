@@ -1184,7 +1184,7 @@ const Analysis = () => {
               </Button>
 
               {/* KPI Metrics Row */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="border-primary/20">
                   <CardContent className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-primary/10">
@@ -1193,17 +1193,6 @@ const Analysis = () => {
                     <div>
                       <p className="text-xs text-muted-foreground">Members</p>
                       <p className="text-xl font-bold">{communityData.subscribers >= 1_000_000 ? (communityData.subscribers / 1_000_000).toFixed(1) + 'M' : communityData.subscribers >= 1_000 ? (communityData.subscribers / 1_000).toFixed(1) + 'K' : communityData.subscribers}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-primary/20">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-green-500/10">
-                      <Activity className="h-5 w-5 text-green-500" />
-                    </div>
-                    <div>
-                       <p className="text-xs text-muted-foreground">Weekly Contributions</p>
-                       <p className="text-xl font-bold">{communityData.weeklyContributors >= 1_000 ? (communityData.weeklyContributors / 1_000).toFixed(1) + 'K' : communityData.weeklyContributors}</p>
                     </div>
                   </CardContent>
                 </Card>
