@@ -246,7 +246,7 @@ const CommunityAnalysis = () => {
                   </div>
                   <div>
                      <p className="text-xs text-muted-foreground">Weekly Contributions</p>
-                     <p className="text-xl font-bold">{weeklyContributors}</p>
+                     <p className="text-xl font-bold">{formatNumber(weeklyContributions)}</p>
                   </div>
                 </CardContent>
               </Card>
