@@ -143,6 +143,7 @@ const CommunityAnalysis = () => {
       setPosts(data.posts || []);
       setRelatedSubreddits(data.relatedSubreddits || []);
       setActiveUsers(data.activeUsers || data.weeklyVisitors || 0);
+      setWeeklyContributions(data.weeklyContributions || 0);
       setHasSearched(true);
     } catch (err: any) {
       console.error('Community analysis error:', err);
