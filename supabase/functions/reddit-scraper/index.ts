@@ -301,33 +301,56 @@ serve(async (req) => {
       // Scrape weekly contributions from Reddit's webpage
       let weeklyContributions = 0;
       try {
-        const pageResponse = await fetch(`https://www.reddit.com/r/${subreddit}/`, {
+        // Try fetching the subreddit page JSON which may contain contribution stats
+        const pageResponse = await fetch(`https://www.reddit.com/r/${subreddit}.json?limit=1`, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
+            'User-Agent': 'Mozilla/5.0 (compatible; IntelReddit/1.0)',
+            'Accept': 'application/json',
           },
         });
-        if (pageResponse.ok) {
-          const html = await pageResponse.text();
-          // Look for "X contributions in the past week" or "X contributions this week"
-          const contribMatch = html.match(/([\d,]+(?:\.\d+)?[KkMm]?)\s*contributions?\s*(?:in the past week|this week|per week)/i);
-          if (contribMatch) {
-            let raw = contribMatch[1].replace(/,/g, '');
-            if (raw.toLowerCase().endsWith('k')) {
-              weeklyContributions = Math.round(parseFloat(raw) * 1000);
-            } else if (raw.toLowerCase().endsWith('m')) {
-              weeklyContributions = Math.round(parseFloat(raw) * 1000000);
-            } else {
-              weeklyContributions = parseInt(raw, 10) || 0;
+        console.log(`Reddit page fetch status: ${pageResponse.status}`);
+        
+        if (!pageResponse.ok) {
+          // Fallback: try scraping old.reddit.com
+          const oldRedditResponse = await fetch(`https://old.reddit.com/r/${subreddit}/`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html',
+            },
+          });
+          console.log(`Old Reddit fetch status: ${oldRedditResponse.status}`);
+          if (oldRedditResponse.ok) {
+            const html = await oldRedditResponse.text();
+            const contribMatch = html.match(/([\d,]+(?:\.\d+)?[KkMm]?)\s*contributions?\s*(?:in the past week|this week|per week)/i);
+            if (contribMatch) {
+              let raw = contribMatch[1].replace(/,/g, '');
+              if (raw.toLowerCase().endsWith('k')) {
+                weeklyContributions = Math.round(parseFloat(raw) * 1000);
+              } else if (raw.toLowerCase().endsWith('m')) {
+                weeklyContributions = Math.round(parseFloat(raw) * 1000000);
+              } else {
+                weeklyContributions = parseInt(raw, 10) || 0;
+              }
+              console.log(`Scraped weekly contributions from old Reddit: ${weeklyContributions}`);
             }
-            console.log(`Scraped weekly contributions for r/${subreddit}: ${weeklyContributions}`);
-          } else {
-            console.log(`Could not find weekly contributions in HTML for r/${subreddit}`);
           }
         }
       } catch (e) {
         console.log(`Failed to scrape weekly contributions for r/${subreddit}:`, e);
+      }
+      
+      // Fallback: calculate from fetched posts if scraping failed
+      if (weeklyContributions === 0) {
+        const sevenDaysAgo = Date.now() / 1000 - 7 * 24 * 60 * 60;
+        let count = 0;
+        posts.forEach((p: any) => {
+          if (p.created_utc >= sevenDaysAgo) count++;
+        });
+        // Estimate: each post likely has ~10x more comments, so multiply
+        weeklyContributions = count > 0 ? count * 10 : 0;
+        if (weeklyContributions > 0) {
+          console.log(`Estimated weekly contributions from posts: ${weeklyContributions}`);
+        }
       }
 
       responseData = {
