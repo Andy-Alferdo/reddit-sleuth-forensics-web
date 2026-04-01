@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Search, Users, Calendar, Shield, MessageSquare, Loader2, TrendingUp, UserCheck, Activity, Eye } from "lucide-react";
+import { Search, Users, Calendar, Shield, MessageSquare, Loader2, TrendingUp, UserCheck, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
