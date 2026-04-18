@@ -43,7 +43,7 @@ const seededRandom = (seed: number) => {
   };
 };
 
-export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
+export const WordCloud = ({ words, title = "Word Cloud", bluePalette = false }: WordCloudProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [placedWords, setPlacedWords] = useState<PlacedWord[]>([]);
@@ -127,12 +127,22 @@ export const WordCloud = ({ words, title = "Word Cloud" }: WordCloudProps) => {
       const fontSize = Math.round(minFont + (maxFont - minFont) * Math.pow(ratio, 0.25));
       const fontWeight = ratio > 0.5 ? 900 : ratio > 0.2 ? 700 : ratio > 0.08 ? 500 : 400;
 
-      // Color assignment: high freq = reds, med = darks/warm, low = grays
-      let colorIdx: number;
-      if (ratio > 0.5) colorIdx = Math.floor(rng() * 5); // reds + oranges
-      else if (ratio > 0.15) colorIdx = 5 + Math.floor(rng() * 6); // darks + warm + greens
-      else colorIdx = 11 + Math.floor(rng() * 5); // teals + grays
-      const color = COLORS[colorIdx % COLORS.length];
+      // Color assignment
+      let color: string;
+      if (bluePalette) {
+        if (ratio > 0.85) color = '#1E3A8A';
+        else if (ratio > 0.65) color = '#1D4ED8';
+        else if (ratio > 0.45) color = '#2563EB';
+        else if (ratio > 0.25) color = '#3B82F6';
+        else if (ratio > 0.1) color = '#60A5FA';
+        else color = '#93C5FD';
+      } else {
+        let colorIdx: number;
+        if (ratio > 0.5) colorIdx = Math.floor(rng() * 5);
+        else if (ratio > 0.15) colorIdx = 5 + Math.floor(rng() * 6);
+        else colorIdx = 11 + Math.floor(rng() * 5);
+        color = COLORS[colorIdx % COLORS.length];
+      }
 
       // ~30% vertical for smaller words, less for big
       const vertical = fontSize < maxFont * 0.4 && rng() < 0.3;
