@@ -10,6 +10,7 @@ interface WordData {
 interface WordCloudProps {
   words: WordData[];
   title?: string;
+  bluePalette?: boolean;
 }
 
 interface PlacedWord {
