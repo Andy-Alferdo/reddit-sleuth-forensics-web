@@ -58,6 +58,20 @@ const realTimeWordCloud = [
   { word: "insights", frequency: 22, category: "low" as const },
 ];
 
+// ── Short timestamp: "Nov 12, 2024 · 10:57 AM" ───────────────────
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const formatShortStamp = (createdUtc?: number): string => {
+  if (!createdUtc || !isFinite(createdUtc)) return '';
+  const d = new Date(createdUtc * 1000);
+  if (isNaN(d.getTime())) return '';
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  const mm = m < 10 ? `0${m}` : `${m}`;
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${h}:${mm} ${ampm}`;
+};
+
 // ── Stat block (compact) ──────────────────────────────────────────
 const StatBlock = ({
   icon: Icon, label, value, withDivider,
@@ -65,7 +79,7 @@ const StatBlock = ({
   <div className={`text-center flex-1 px-2 ${withDivider ? 'border-r border-slate-200' : ''}`}>
     <Icon className="text-blue-600 w-4 h-4 mx-auto mb-0.5" />
     <p className="text-[9px] uppercase tracking-widest text-slate-400 font-mono-plex font-semibold">{label}</p>
-    <p className="text-lg font-bold text-slate-900 font-mono-plex leading-tight mt-0.5 truncate">{value}</p>
+    <p className="text-xl font-bold text-slate-900 font-mono-plex leading-tight mt-0.5 truncate">{value}</p>
   </div>
 );
 
@@ -74,36 +88,43 @@ const ActivityItem = ({
   activity, accent, onClick,
 }: { activity: RedditActivity; accent: 'blue' | 'orange'; onClick: () => void }) => {
   const borderClass = accent === 'blue' ? 'border-l-blue-500' : 'border-l-orange-400';
+  const stamp = formatShortStamp(activity.created_utc);
   return (
     <div
       onClick={onClick}
-      className={`group cursor-pointer border-l-[3px] ${borderClass} px-3 py-2 border-b border-slate-50 hover:bg-slate-50 transition-colors duration-150`}
+      className={`group cursor-pointer border-l-2 ${borderClass} border-b border-slate-50 hover:bg-slate-50 transition-colors duration-150`}
+      style={{ padding: '8px 10px' }}
     >
       <p className="text-[12px] font-medium text-slate-800 line-clamp-2 leading-snug">{activity.title}</p>
       <div className="flex items-center justify-between mt-1 gap-2">
         <span className="text-[11px] text-cyan-600 font-medium truncate">{activity.subreddit}</span>
-        <span className="text-[10px] font-mono-plex text-slate-400 whitespace-nowrap">{activity.timestamp}</span>
+        <span
+          className="text-[10px] font-mono-plex text-slate-400 whitespace-nowrap truncate text-right"
+          style={{ maxWidth: 120 }}
+          title={stamp}
+        >
+          {stamp}
+        </span>
       </div>
     </div>
   );
 };
 
-// ── Inline word cloud (overflow-safe, max 18px) ───────────────────
+// ── Inline word cloud (quintile-mapped sizes/colors) ─────────────
 const InlineWordCloud = ({ words }: { words: { word: string; frequency: number }[] }) => {
   const tiers = useMemo(() => {
     if (!words.length) return [];
     const sorted = [...words].sort((a, b) => b.frequency - a.frequency).slice(0, 40);
-    const max = sorted[0]?.frequency || 1;
-    const min = sorted[sorted.length - 1]?.frequency || 0;
-    const range = Math.max(1, max - min);
-    return sorted.map(w => {
-      const norm = (w.frequency - min) / range; // 0..1
+    const n = sorted.length;
+    return sorted.map((w, idx) => {
+      // idx 0 = highest weight; map to quintile by rank
+      const rank = idx / Math.max(1, n - 1); // 0..1, 0 = top
       let size = 10, color = '#93C5FD', weight = 400;
-      if (norm > 0.85)      { size = 18; color = '#1E3A8A'; weight = 800; }
-      else if (norm > 0.65) { size = 15; color = '#1D4ED8'; weight = 700; }
-      else if (norm > 0.45) { size = 13; color = '#2563EB'; weight = 600; }
-      else if (norm > 0.25) { size = 11; color = '#3B82F6'; weight = 500; }
-      else                  { size = 10; color = '#93C5FD'; weight = 400; }
+      if (rank <= 0.20)      { size = 22; color = '#1E3A8A'; weight = 800; }
+      else if (rank <= 0.40) { size = 17; color = '#1D4ED8'; weight = 700; }
+      else if (rank <= 0.60) { size = 14; color = '#2563EB'; weight = 600; }
+      else if (rank <= 0.80) { size = 12; color = '#3B82F6'; weight = 500; }
+      else                   { size = 10; color = '#93C5FD'; weight = 400; }
       return { ...w, size, color, weight };
     });
   }, [words]);
@@ -113,11 +134,14 @@ const InlineWordCloud = ({ words }: { words: { word: string; frequency: number }
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 overflow-hidden w-full h-full">
+    <div
+      className="flex flex-wrap items-center justify-center overflow-hidden w-full h-full"
+      style={{ gap: '6px 8px' }}
+    >
       {tiers.map((t, i) => (
         <span
           key={`${t.word}-${i}`}
-          style={{ fontSize: t.size, color: t.color, fontWeight: t.weight, lineHeight: 1.1 }}
+          style={{ fontSize: t.size, color: t.color, fontWeight: t.weight, lineHeight: 1.05 }}
           className="font-mono-plex whitespace-nowrap"
         >
           {t.word}
@@ -204,16 +228,18 @@ export const MonitoringDetailView = ({
           Back to Overview
         </button>
         {isMonitoring && lastFetchTime && (
-          <span className="text-[10px] font-mono-plex text-slate-400">Last sync: {lastFetchTime}</span>
+          <span className="text-[10px] font-mono-plex text-slate-400 truncate" style={{ maxWidth: 200 }} title={lastFetchTime}>
+            Last sync: {lastFetchTime.split('(')[0].replace(/\s*PKT\s*$/i, '').trim()}
+          </span>
         )}
       </div>
 
-      {/* ── ROW 2: Profile Header (max 130px) ─────────────── */}
+      {/* ── ROW 2: Profile Header (max 120px) ─────────────── */}
       <Card
         className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-600 shrink-0 overflow-hidden"
-        style={{ maxHeight: 130, marginBottom: 12 }}
+        style={{ maxHeight: 120, marginBottom: 12 }}
       >
-        <CardContent className="p-0" style={{ padding: '12px 16px' }}>
+        <CardContent className="p-0" style={{ padding: '10px 16px' }}>
           {/* TOP ROW */}
           <div className="flex items-center justify-between gap-3 pb-2">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -320,8 +346,12 @@ export const MonitoringDetailView = ({
                 </span>
               )}
             </div>
-            <span className="text-[10px] font-mono-plex text-slate-400">
-              {lastFetchTime || '—'}
+            <span
+              className="text-[10px] font-mono-plex text-slate-400 truncate"
+              style={{ maxWidth: 120 }}
+              title={lastFetchTime || ''}
+            >
+              {(lastFetchTime || '—').split('(')[0].replace(/\s*PKT\s*$/i, '').trim()}
             </span>
           </div>
 
@@ -394,8 +424,11 @@ export const MonitoringDetailView = ({
             <div className="border-b border-slate-100 shrink-0" style={{ padding: '10px 14px' }}>
               <p className="text-sm font-semibold text-slate-900">Keyword Intelligence</p>
             </div>
-            <div className="flex-1 min-h-0 p-2 overflow-hidden">
-              <div className="bg-blue-50 rounded-lg p-2 w-full h-full overflow-hidden flex items-center justify-center">
+            <div className="flex-1 min-h-0 p-2 overflow-hidden flex">
+              <div
+                className="bg-[#EFF6FF] rounded-lg w-full overflow-hidden flex flex-wrap items-center justify-center"
+                style={{ padding: 12, maxHeight: 160, gap: '6px 8px' }}
+              >
                 <InlineWordCloud words={wordsForCloud} />
               </div>
             </div>
@@ -409,9 +442,9 @@ export const MonitoringDetailView = ({
                 {profileData.communityName ? 'Daily post distribution' : 'Posts vs Comments'}
               </p>
             </div>
-            <div className="flex-1 min-h-0 p-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={activityBreakdownData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+            <div className="p-2" style={{ height: 180 }}>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={activityBreakdownData} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
                   <CartesianGrid stroke="#F1F5F9" strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="name"
@@ -426,6 +459,7 @@ export const MonitoringDetailView = ({
                     axisLine={{ stroke: '#E2E8F0' }}
                     tickLine={false}
                     allowDecimals={false}
+                    domain={[0, 'auto']}
                     width={28}
                   />
                   <ReTooltip
@@ -433,7 +467,7 @@ export const MonitoringDetailView = ({
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                       fontFamily: 'IBM Plex Mono, monospace',
                       fontSize: '11px',
@@ -460,7 +494,7 @@ export const MonitoringDetailView = ({
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2 pt-1">
               <Badge variant="outline" className="text-xs">{previewActivity?.subreddit}</Badge>
-              <span className="text-[11px] font-mono-plex text-slate-400">{previewActivity?.timestamp}</span>
+              <span className="text-[11px] font-mono-plex text-slate-400">{formatShortStamp(previewActivity?.created_utc)}</span>
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="flex-1 max-h-[50vh]">
