@@ -232,12 +232,12 @@ export const MonitoringDetailView = ({
         )}
       </div>
 
-      {/* ── ROW 2: Profile Header (max 130px) ─────────────── */}
+      {/* ── ROW 2: Profile Header (max 120px) ─────────────── */}
       <Card
         className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-600 shrink-0 overflow-hidden"
-        style={{ maxHeight: 130, marginBottom: 12 }}
+        style={{ maxHeight: 120, marginBottom: 12 }}
       >
-        <CardContent className="p-0" style={{ padding: '12px 16px' }}>
+        <CardContent className="p-0" style={{ padding: '10px 16px' }}>
           {/* TOP ROW */}
           <div className="flex items-center justify-between gap-3 pb-2">
             <div className="flex items-center gap-3 min-w-0 flex-1">
