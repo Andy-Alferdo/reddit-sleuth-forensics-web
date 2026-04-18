@@ -228,7 +228,9 @@ export const MonitoringDetailView = ({
           Back to Overview
         </button>
         {isMonitoring && lastFetchTime && (
-          <span className="text-[10px] font-mono-plex text-slate-400">Last sync: {lastFetchTime}</span>
+          <span className="text-[10px] font-mono-plex text-slate-400 truncate" style={{ maxWidth: 200 }} title={lastFetchTime}>
+            Last sync: {lastFetchTime.split('(')[0].replace(/\s*PKT\s*$/i, '').trim()}
+          </span>
         )}
       </div>
 
