@@ -191,7 +191,7 @@ export const WordCloud = ({ words, title = "Word Cloud", bluePalette = false }: 
     }
 
     setPlacedWords(placed);
-  }, [sortedWords, dims]);
+  }, [sortedWords, dims, bluePalette]);
 
   useEffect(() => { layout(); }, [layout]);
 
