@@ -58,6 +58,20 @@ const realTimeWordCloud = [
   { word: "insights", frequency: 22, category: "low" as const },
 ];
 
+// ── Short timestamp: "Nov 12, 2024 · 10:57 AM" ───────────────────
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const formatShortStamp = (createdUtc?: number): string => {
+  if (!createdUtc || !isFinite(createdUtc)) return '';
+  const d = new Date(createdUtc * 1000);
+  if (isNaN(d.getTime())) return '';
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  const mm = m < 10 ? `0${m}` : `${m}`;
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${h}:${mm} ${ampm}`;
+};
+
 // ── Stat block (compact) ──────────────────────────────────────────
 const StatBlock = ({
   icon: Icon, label, value, withDivider,
@@ -65,7 +79,7 @@ const StatBlock = ({
   <div className={`text-center flex-1 px-2 ${withDivider ? 'border-r border-slate-200' : ''}`}>
     <Icon className="text-blue-600 w-4 h-4 mx-auto mb-0.5" />
     <p className="text-[9px] uppercase tracking-widest text-slate-400 font-mono-plex font-semibold">{label}</p>
-    <p className="text-lg font-bold text-slate-900 font-mono-plex leading-tight mt-0.5 truncate">{value}</p>
+    <p className="text-xl font-bold text-slate-900 font-mono-plex leading-tight mt-0.5 truncate">{value}</p>
   </div>
 );
 
@@ -74,15 +88,23 @@ const ActivityItem = ({
   activity, accent, onClick,
 }: { activity: RedditActivity; accent: 'blue' | 'orange'; onClick: () => void }) => {
   const borderClass = accent === 'blue' ? 'border-l-blue-500' : 'border-l-orange-400';
+  const stamp = formatShortStamp(activity.created_utc);
   return (
     <div
       onClick={onClick}
-      className={`group cursor-pointer border-l-[3px] ${borderClass} px-3 py-2 border-b border-slate-50 hover:bg-slate-50 transition-colors duration-150`}
+      className={`group cursor-pointer border-l-2 ${borderClass} border-b border-slate-50 hover:bg-slate-50 transition-colors duration-150`}
+      style={{ padding: '8px 10px' }}
     >
       <p className="text-[12px] font-medium text-slate-800 line-clamp-2 leading-snug">{activity.title}</p>
       <div className="flex items-center justify-between mt-1 gap-2">
         <span className="text-[11px] text-cyan-600 font-medium truncate">{activity.subreddit}</span>
-        <span className="text-[10px] font-mono-plex text-slate-400 whitespace-nowrap">{activity.timestamp}</span>
+        <span
+          className="text-[10px] font-mono-plex text-slate-400 whitespace-nowrap truncate text-right"
+          style={{ maxWidth: 120 }}
+          title={stamp}
+        >
+          {stamp}
+        </span>
       </div>
     </div>
   );
