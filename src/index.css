@@ -122,33 +122,4 @@ All colors MUST be HSL.
   .animate-fade-in-up {
     animation: fade-in-up 0.6s ease-out both;
   }
-
-  .font-mono-plex {
-    font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-
-  /* Thin scrollbar for monitoring feed */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(214 32% 80%) transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: hsl(214 32% 80%);
-    border-radius: 9999px;
-  }
-}
-
-@keyframes monitoring-dot-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
-}
-.monitoring-pulse-dot {
-  animation: monitoring-dot-pulse 1.6s ease-in-out infinite;
 }
