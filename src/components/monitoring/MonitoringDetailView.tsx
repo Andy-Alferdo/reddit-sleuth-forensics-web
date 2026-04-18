@@ -344,8 +344,12 @@ export const MonitoringDetailView = ({
                 </span>
               )}
             </div>
-            <span className="text-[10px] font-mono-plex text-slate-400">
-              {lastFetchTime || '—'}
+            <span
+              className="text-[10px] font-mono-plex text-slate-400 truncate"
+              style={{ maxWidth: 120 }}
+              title={lastFetchTime || ''}
+            >
+              {(lastFetchTime || '—').split('(')[0].replace(/\s*PKT\s*$/i, '').trim()}
             </span>
           </div>
 
