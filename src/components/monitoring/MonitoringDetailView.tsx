@@ -130,16 +130,38 @@ const InlineWordCloud = ({ words }: { words: { word: string; frequency: number }
     });
   }, [words]);
 
+// ── Inline word cloud (quintile-mapped sizes/colors) ─────────────
+const InlineWordCloud = ({ words }: { words: { word: string; frequency: number }[] }) => {
+  const tiers = useMemo(() => {
+    if (!words.length) return [];
+    const sorted = [...words].sort((a, b) => b.frequency - a.frequency).slice(0, 40);
+    const n = sorted.length;
+    return sorted.map((w, idx) => {
+      // idx 0 = highest weight; map to quintile by rank
+      const rank = idx / Math.max(1, n - 1); // 0..1, 0 = top
+      let size = 10, color = '#93C5FD', weight = 400;
+      if (rank <= 0.20)      { size = 22; color = '#1E3A8A'; weight = 800; }
+      else if (rank <= 0.40) { size = 17; color = '#1D4ED8'; weight = 700; }
+      else if (rank <= 0.60) { size = 14; color = '#2563EB'; weight = 600; }
+      else if (rank <= 0.80) { size = 12; color = '#3B82F6'; weight = 500; }
+      else                   { size = 10; color = '#93C5FD'; weight = 400; }
+      return { ...w, size, color, weight };
+    });
+  }, [words]);
+
   if (!tiers.length) {
     return <p className="text-xs text-slate-400 italic">No keyword data yet</p>;
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 overflow-hidden w-full h-full">
+    <div
+      className="flex flex-wrap items-center justify-center overflow-hidden w-full h-full"
+      style={{ gap: '6px 8px' }}
+    >
       {tiers.map((t, i) => (
         <span
           key={`${t.word}-${i}`}
-          style={{ fontSize: t.size, color: t.color, fontWeight: t.weight, lineHeight: 1.1 }}
+          style={{ fontSize: t.size, color: t.color, fontWeight: t.weight, lineHeight: 1.05 }}
           className="font-mono-plex whitespace-nowrap"
         >
           {t.word}
