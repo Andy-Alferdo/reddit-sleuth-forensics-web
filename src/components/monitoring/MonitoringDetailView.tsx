@@ -494,7 +494,7 @@ export const MonitoringDetailView = ({
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2 pt-1">
               <Badge variant="outline" className="text-xs">{previewActivity?.subreddit}</Badge>
-              <span className="text-[11px] font-mono-plex text-slate-400">{previewActivity?.timestamp}</span>
+              <span className="text-[11px] font-mono-plex text-slate-400">{formatShortStamp(previewActivity?.created_utc)}</span>
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="flex-1 max-h-[50vh]">
