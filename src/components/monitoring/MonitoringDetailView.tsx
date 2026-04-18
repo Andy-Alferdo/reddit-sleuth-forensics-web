@@ -1,11 +1,10 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { User, Users, Calendar, TrendingUp, FileText, MessageSquare, ExternalLink, StopCircle, ArrowLeft } from 'lucide-react';
-import { WordCloud } from '@/components/WordCloud';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Cell,
 } from 'recharts';
@@ -59,24 +58,18 @@ const realTimeWordCloud = [
   { word: "insights", frequency: 22, category: "low" as const },
 ];
 
-// ── Small UI helpers ──────────────────────────────────────────────
-const SectionLabel = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
-  <span className={`text-[10px] uppercase tracking-widest font-mono-plex font-semibold text-slate-400 ${className}`}>
-    {children}
-  </span>
-);
-
+// ── Stat block (compact) ──────────────────────────────────────────
 const StatBlock = ({
   icon: Icon, label, value, withDivider,
 }: { icon: any; label: string; value: React.ReactNode; withDivider?: boolean }) => (
-  <div className={`text-center flex-1 ${withDivider ? 'border-r border-slate-200' : ''}`}>
-    <Icon className="text-blue-600 w-5 h-5 mx-auto mb-1" />
-    <p className="text-[10px] uppercase tracking-widest text-slate-400 font-mono-plex">{label}</p>
-    <p className="text-2xl font-bold text-slate-900 font-mono-plex leading-tight mt-0.5">{value}</p>
+  <div className={`text-center flex-1 px-2 ${withDivider ? 'border-r border-slate-200' : ''}`}>
+    <Icon className="text-blue-600 w-4 h-4 mx-auto mb-0.5" />
+    <p className="text-[9px] uppercase tracking-widest text-slate-400 font-mono-plex font-semibold">{label}</p>
+    <p className="text-lg font-bold text-slate-900 font-mono-plex leading-tight mt-0.5 truncate">{value}</p>
   </div>
 );
 
-// Activity item used by Posts/Comments columns
+// ── Compact activity item ─────────────────────────────────────────
 const ActivityItem = ({
   activity, accent, onClick,
 }: { activity: RedditActivity; accent: 'blue' | 'orange'; onClick: () => void }) => {
@@ -84,16 +77,52 @@ const ActivityItem = ({
   return (
     <div
       onClick={onClick}
-      className={`group cursor-pointer bg-white rounded-md border border-slate-200 border-l-[3px] ${borderClass} px-3 py-2.5 hover:bg-slate-50 transition-colors duration-150`}
+      className={`group cursor-pointer border-l-[3px] ${borderClass} px-3 py-2 border-b border-slate-50 hover:bg-slate-50 transition-colors duration-150`}
     >
-      <p className="text-[13px] font-medium text-slate-800 line-clamp-2 leading-snug">{activity.title}</p>
-      {activity.body && (
-        <p className="text-[12px] text-slate-500 mt-1 line-clamp-2 leading-snug">{activity.body}</p>
-      )}
-      <div className="flex items-center justify-between mt-2 gap-2">
-        <span className="text-[12px] text-cyan-600 font-medium truncate">{activity.subreddit}</span>
-        <span className="text-[11px] font-mono-plex text-slate-400 whitespace-nowrap">{activity.timestamp}</span>
+      <p className="text-[12px] font-medium text-slate-800 line-clamp-2 leading-snug">{activity.title}</p>
+      <div className="flex items-center justify-between mt-1 gap-2">
+        <span className="text-[11px] text-cyan-600 font-medium truncate">{activity.subreddit}</span>
+        <span className="text-[10px] font-mono-plex text-slate-400 whitespace-nowrap">{activity.timestamp}</span>
       </div>
+    </div>
+  );
+};
+
+// ── Inline word cloud (overflow-safe, max 18px) ───────────────────
+const InlineWordCloud = ({ words }: { words: { word: string; frequency: number }[] }) => {
+  const tiers = useMemo(() => {
+    if (!words.length) return [];
+    const sorted = [...words].sort((a, b) => b.frequency - a.frequency).slice(0, 40);
+    const max = sorted[0]?.frequency || 1;
+    const min = sorted[sorted.length - 1]?.frequency || 0;
+    const range = Math.max(1, max - min);
+    return sorted.map(w => {
+      const norm = (w.frequency - min) / range; // 0..1
+      let size = 10, color = '#93C5FD', weight = 400;
+      if (norm > 0.85)      { size = 18; color = '#1E3A8A'; weight = 800; }
+      else if (norm > 0.65) { size = 15; color = '#1D4ED8'; weight = 700; }
+      else if (norm > 0.45) { size = 13; color = '#2563EB'; weight = 600; }
+      else if (norm > 0.25) { size = 11; color = '#3B82F6'; weight = 500; }
+      else                  { size = 10; color = '#93C5FD'; weight = 400; }
+      return { ...w, size, color, weight };
+    });
+  }, [words]);
+
+  if (!tiers.length) {
+    return <p className="text-xs text-slate-400 italic">No keyword data yet</p>;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 overflow-hidden w-full h-full">
+      {tiers.map((t, i) => (
+        <span
+          key={`${t.word}-${i}`}
+          style={{ fontSize: t.size, color: t.color, fontWeight: t.weight, lineHeight: 1.1 }}
+          className="font-mono-plex whitespace-nowrap"
+        >
+          {t.word}
+        </span>
+      ))}
     </div>
   );
 };
@@ -158,295 +187,246 @@ export const MonitoringDetailView = ({
     ? `https://www.reddit.com/user/${profileData.username.replace(/^u\//, '')}`
     : `https://www.reddit.com/${profileData.communityName}`;
 
+  const wordsForCloud = (wordCloudData && wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud) as { word: string; frequency: number }[];
+
   return (
-    <div className="space-y-5 animate-fade-in bg-[#F8FAFC] -m-6 p-6 rounded-xl">
-      {/* Back button + Status */}
-      <div className="flex items-center justify-between">
+    <div
+      className="bg-[#F8FAFC] -m-6 flex flex-col overflow-hidden"
+      style={{ height: '100vh', padding: 16 }}
+    >
+      {/* ── ROW 1: Back link ─────────────────────────────── */}
+      <div className="flex items-center justify-between shrink-0" style={{ height: 28, marginBottom: 8 }}>
         <button
           onClick={onBack}
-          className="text-blue-600 text-sm font-medium hover:text-blue-800 flex items-center gap-1 mb-0"
+          className="text-blue-600 text-sm font-medium hover:text-blue-800 flex items-center gap-1"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Overview
         </button>
         {isMonitoring && lastFetchTime && (
-          <span className="text-[11px] font-mono-plex text-slate-400">Last sync: {lastFetchTime}</span>
+          <span className="text-[10px] font-mono-plex text-slate-400">Last sync: {lastFetchTime}</span>
         )}
       </div>
 
-      {/* ── Profile Header Card ─────────────────────────── */}
-      <Card className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-600 overflow-hidden">
-        {profileData.communityName && profileData.bannerImg && (
-          <div className="relative h-24 w-full bg-slate-100">
-            <img
-              src={profileData.bannerImg}
-              alt={`${profileData.communityName} banner`}
-              className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-          </div>
-        )}
-        <CardContent className="p-5">
-          <div className="flex items-start gap-4">
-            {/* Avatar */}
-            <div className="ring-2 ring-blue-600 ring-offset-2 rounded-full overflow-hidden bg-white shrink-0" style={{ width: 72, height: 72 }}>
-              {profileData.iconImg ? (
-                <img
-                  src={profileData.iconImg}
-                  alt="avatar"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const fallback = profileData.username ? 'u/' : 'r/';
-                    (e.target as HTMLImageElement).parentElement!.innerHTML =
-                      `<div class="w-full h-full bg-blue-50 flex items-center justify-center"><span class="text-blue-600 font-bold text-xl font-mono-plex">${fallback}</span></div>`;
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full bg-blue-50 flex items-center justify-center">
-                  {profileData.username ? <User className="h-8 w-8 text-blue-600" /> : <Users className="h-8 w-8 text-blue-600" />}
-                </div>
-              )}
-            </div>
-
-            {/* Identity */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <a
-                  href={profileLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono-plex font-bold text-slate-900 text-xl hover:text-blue-700 transition-colors flex items-center gap-1.5 group"
-                >
-                  {profileData.username || profileData.communityName}
-                  <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
-                <span className="bg-blue-50 text-blue-700 text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full">
-                  {profileData.username ? 'User' : 'Community'}
-                </span>
-                {isMonitoring && (
-                  <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 font-semibold text-xs rounded-full px-3 py-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 monitoring-pulse-dot" />
-                    Monitoring Active
-                  </span>
+      {/* ── ROW 2: Profile Header (max 130px) ─────────────── */}
+      <Card
+        className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-600 shrink-0 overflow-hidden"
+        style={{ maxHeight: 130, marginBottom: 12 }}
+      >
+        <CardContent className="p-0" style={{ padding: '12px 16px' }}>
+          {/* TOP ROW */}
+          <div className="flex items-center justify-between gap-3 pb-2">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              {/* Avatar */}
+              <div className="ring-2 ring-blue-600 ring-offset-2 rounded-full overflow-hidden bg-white shrink-0 w-12 h-12">
+                {profileData.iconImg ? (
+                  <img
+                    src={profileData.iconImg}
+                    alt="avatar"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const fallback = profileData.username ? 'u/' : 'r/';
+                      (e.target as HTMLImageElement).parentElement!.innerHTML =
+                        `<div class="w-full h-full bg-blue-50 flex items-center justify-center"><span class="text-blue-600 font-bold text-sm font-mono-plex">${fallback}</span></div>`;
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-blue-50 flex items-center justify-center">
+                    {profileData.username ? <User className="h-5 w-5 text-blue-600" /> : <Users className="h-5 w-5 text-blue-600" />}
+                  </div>
                 )}
               </div>
-              {profileData.communityName && profileData.description && (
-                <p className="text-[13px] text-slate-500 mt-1.5 line-clamp-2">{profileData.description}</p>
-              )}
+
+              {/* Identity */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <a
+                    href={profileLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono-plex font-bold text-slate-900 text-lg hover:text-blue-700 transition-colors truncate"
+                  >
+                    {profileData.username || profileData.communityName}
+                  </a>
+                  <span className="bg-blue-50 text-blue-700 text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0">
+                    {profileData.username ? 'User' : 'Community'}
+                  </span>
+                </div>
+                {(profileData.description || profileData.accountAge) && (
+                  <p className="text-xs text-slate-400 truncate mt-0.5">
+                    {profileData.description || `Member since ${profileData.accountAge}`}
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* Stop button */}
-            {isMonitoring && (
-              <button
-                onClick={onStop}
-                className="border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 rounded-lg px-4 py-1.5 text-sm font-medium inline-flex items-center gap-1.5 transition-colors shrink-0"
-              >
-                <StopCircle className="h-4 w-4" />
-                Stop Monitoring
-              </button>
-            )}
+            {/* Right side: status + stop */}
+            <div className="flex items-center gap-2 shrink-0">
+              {isMonitoring && (
+                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 font-semibold text-[11px] rounded-full px-2.5 py-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 monitoring-pulse-dot" />
+                  MONITORING ACTIVE
+                </span>
+              )}
+              {isMonitoring && (
+                <button
+                  onClick={onStop}
+                  className="border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 rounded-lg px-3 text-xs font-medium inline-flex items-center gap-1 transition-colors h-8"
+                >
+                  <StopCircle className="h-3.5 w-3.5" />
+                  Stop
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Stats row */}
-          <div className="border-t border-slate-100 pt-4 mt-4 flex items-stretch">
+          {/* BOTTOM ROW: stats */}
+          <div className="border-t border-slate-100 pt-2 flex items-stretch">
             {profileData.username ? (
               <>
-                <StatBlock
-                  icon={TrendingUp}
-                  label="Karma"
-                  value={(profileData.totalKarma || 0).toLocaleString()}
-                  withDivider
-                />
-                <StatBlock
-                  icon={Calendar}
-                  label="Age"
-                  value={profileData.accountAge || '—'}
-                  withDivider
-                />
-                <StatBlock
-                  icon={FileText}
-                  label="Posts"
-                  value={posts.length}
-                  withDivider
-                />
-                <StatBlock
-                  icon={MessageSquare}
-                  label="Comments"
-                  value={comments.length}
-                />
+                <StatBlock icon={TrendingUp} label="Karma" value={(profileData.totalKarma || 0).toLocaleString()} withDivider />
+                <StatBlock icon={Calendar} label="Age" value={profileData.accountAge || '—'} withDivider />
+                <StatBlock icon={FileText} label="Posts" value={posts.length} withDivider />
+                <StatBlock icon={MessageSquare} label="Comments" value={comments.length} />
               </>
             ) : (
               <>
-                <StatBlock
-                  icon={Users}
-                  label="Members"
-                  value={profileData.memberCount || '—'}
-                  withDivider
-                />
-                <StatBlock
-                  icon={Calendar}
-                  label="Created"
-                  value={profileData.createdDate || '—'}
-                  withDivider
-                />
-                <StatBlock
-                  icon={FileText}
-                  label="Posts"
-                  value={posts.length}
-                  withDivider
-                />
-                <StatBlock
-                  icon={MessageSquare}
-                  label="Comments"
-                  value={comments.length}
-                />
+                <StatBlock icon={Users} label="Members" value={profileData.memberCount || '—'} withDivider />
+                <StatBlock icon={Calendar} label="Created" value={profileData.createdDate || '—'} withDivider />
+                <StatBlock icon={FileText} label="Posts" value={posts.length} withDivider />
+                <StatBlock icon={MessageSquare} label="Comments" value={comments.length} />
               </>
             )}
           </div>
-
-          {newActivityCount > 0 && isMonitoring && (
-            <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-mono-plex font-semibold">
-              ✨ {newActivityCount} new {newActivityCount === 1 ? 'item' : 'items'} detected
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* ── Live Activity Feed ──────────────────────────── */}
-      <Card className="bg-white rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-blue-600">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center text-[15px] font-semibold text-slate-900">
+      {/* ── ROW 3: MAIN CONTENT (fills remaining) ────────── */}
+      <div className="flex flex-row gap-3 flex-1 min-h-0 overflow-hidden">
+        {/* LEFT — Live Activity Feed (60%) */}
+        <Card
+          className="bg-white rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-blue-600 flex flex-col overflow-hidden h-full"
+          style={{ width: '60%' }}
+        >
+          {/* Card header (fixed) */}
+          <div className="flex justify-between items-center border-b border-slate-100 shrink-0" style={{ padding: '10px 14px' }}>
+            <div className="flex items-center">
               <span className="w-1 h-5 bg-blue-600 rounded-full mr-2 inline-block" />
-              Live Activity Feed
+              <span className="text-sm font-semibold text-slate-900">Live Activity Feed</span>
               {isFetching && <span className="ml-2 h-1.5 w-1.5 rounded-full bg-blue-600 monitoring-pulse-dot" />}
-            </CardTitle>
-            {newActivityCount > 0 && (
-              <span className="bg-blue-50 text-blue-700 font-mono-plex text-[10px] font-semibold rounded-full px-2 py-0.5">
-                {newActivityCount} NEW
-              </span>
-            )}
+              {newActivityCount > 0 && (
+                <span className="ml-2 bg-blue-50 text-blue-700 font-mono-plex text-[10px] font-semibold rounded-full px-2 py-0.5">
+                  {newActivityCount} NEW
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-mono-plex text-slate-400">
+              {lastFetchTime || '—'}
+            </span>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+          {/* Two-column feed (flex-1) */}
+          <div className="grid grid-cols-2 flex-1 min-h-0 overflow-hidden">
             {/* Posts column */}
-            <div>
-              <div className="border-b-2 border-blue-600 pb-1 mb-3 flex items-center justify-between">
-                <span className="text-[11px] uppercase tracking-widest font-mono-plex text-slate-500 font-semibold">Posts</span>
-                <span className="text-[11px] font-mono-plex text-slate-400">{posts.length}</span>
+            <div className="overflow-y-auto scrollbar-thin border-r border-slate-100">
+              <div className="sticky top-0 bg-white border-b-2 border-blue-600 px-3 py-2 flex items-center justify-between z-10">
+                <span className="text-[10px] uppercase font-mono-plex text-slate-400 font-semibold tracking-widest">Posts</span>
+                <span className="text-[10px] font-mono-plex text-slate-400">{posts.length}</span>
               </div>
-              <ScrollArea className="max-h-[480px] h-[480px] scrollbar-thin pr-2">
-                <div className="space-y-2">
-                  {posts.length === 0 && (
-                    <p className="text-xs text-slate-400 italic text-center py-8">No posts yet</p>
-                  )}
-                  {posts.map(activity => (
-                    <ActivityItem
-                      key={activity.id}
-                      activity={activity}
-                      accent="blue"
-                      onClick={() => setPreviewActivity(activity)}
-                    />
-                  ))}
-                </div>
-              </ScrollArea>
+              {posts.length === 0 ? (
+                <p className="text-xs text-slate-400 italic text-center py-6">No posts yet</p>
+              ) : (
+                posts.map(activity => (
+                  <ActivityItem
+                    key={activity.id}
+                    activity={activity}
+                    accent="blue"
+                    onClick={() => setPreviewActivity(activity)}
+                  />
+                ))
+              )}
             </div>
 
-            {/* Comments column (or community link for community monitoring) */}
-            <div>
+            {/* Comments column */}
+            <div className="overflow-y-auto scrollbar-thin">
+              <div className="sticky top-0 bg-white border-b-2 border-orange-400 px-3 py-2 flex items-center justify-between z-10">
+                <span className="text-[10px] uppercase font-mono-plex text-slate-400 font-semibold tracking-widest">
+                  {profileData.communityName ? 'Community' : 'Comments'}
+                </span>
+                <span className="text-[10px] font-mono-plex text-slate-400">
+                  {profileData.communityName ? '' : comments.length}
+                </span>
+              </div>
               {profileData.communityName ? (
-                <>
-                  <div className="border-b-2 border-orange-400 pb-1 mb-3 flex items-center justify-between">
-                    <span className="text-[11px] uppercase tracking-widest font-mono-plex text-slate-500 font-semibold">Community</span>
+                <a
+                  href={`https://reddit.com/${profileData.communityName}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 mx-3 mt-3 p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                >
+                  <Users className="h-5 w-5 text-blue-600" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono-plex font-semibold text-slate-900 text-xs truncate">{profileData.communityName}</p>
+                    <p className="text-[10px] font-mono-plex text-slate-400">Visit on Reddit</p>
                   </div>
-                  <a
-                    href={`https://reddit.com/${profileData.communityName}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-                  >
-                    <Users className="h-5 w-5 text-blue-600" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-mono-plex font-semibold text-slate-900 truncate">{profileData.communityName}</p>
-                      <p className="text-[11px] font-mono-plex text-slate-400">Visit on Reddit</p>
-                    </div>
-                    <ExternalLink className="h-4 w-4 text-slate-400" />
-                  </a>
-                </>
+                  <ExternalLink className="h-4 w-4 text-slate-400" />
+                </a>
+              ) : comments.length === 0 ? (
+                <p className="text-xs text-slate-400 italic text-center py-6">No comments yet</p>
               ) : (
-                <>
-                  <div className="border-b-2 border-orange-400 pb-1 mb-3 flex items-center justify-between">
-                    <span className="text-[11px] uppercase tracking-widest font-mono-plex text-slate-500 font-semibold">Comments</span>
-                    <span className="text-[11px] font-mono-plex text-slate-400">{comments.length}</span>
-                  </div>
-                  <ScrollArea className="max-h-[480px] h-[480px] scrollbar-thin pr-2">
-                    <div className="space-y-2">
-                      {comments.length === 0 && (
-                        <p className="text-xs text-slate-400 italic text-center py-8">No comments yet</p>
-                      )}
-                      {comments.map(activity => (
-                        <ActivityItem
-                          key={activity.id}
-                          activity={activity}
-                          accent="orange"
-                          onClick={() => setPreviewActivity(activity)}
-                        />
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </>
+                comments.map(activity => (
+                  <ActivityItem
+                    key={activity.id}
+                    activity={activity}
+                    accent="orange"
+                    onClick={() => setPreviewActivity(activity)}
+                  />
+                ))
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Keyword Intelligence + Activity Distribution ─ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-600">
-          <CardHeader className="pb-3 border-b border-slate-100">
-            <CardTitle className="text-[14px] font-semibold text-slate-900">Keyword Intelligence</CardTitle>
-            <p className="text-[11px] text-slate-400 font-mono-plex mt-0.5">Frequency-weighted topic signals</p>
-          </CardHeader>
-          <CardContent className="pt-3">
-            <div className="bg-blue-50 rounded-lg p-3">
-              <WordCloud
-                words={wordCloudData.length > 0 ? wordCloudData : realTimeWordCloud}
-                title=""
-                bluePalette
-              />
-            </div>
-          </CardContent>
         </Card>
 
-        <Card className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-600">
-          <CardHeader className="pb-3 border-b border-slate-100">
-            <CardTitle className="text-[14px] font-semibold text-slate-900">Activity Distribution</CardTitle>
-            <p className="text-[11px] text-slate-400 font-mono-plex mt-0.5">
-              {profileData.communityName ? 'Daily post distribution' : 'Posts vs Comments by community'}
-            </p>
-          </CardHeader>
-          <CardContent className="pt-3">
-            <div style={{ width: '100%', height: 260 }}>
+        {/* RIGHT — 40% column with two stacked cards */}
+        <div className="flex flex-col gap-3 h-full" style={{ width: '40%' }}>
+          {/* Keyword Intelligence */}
+          <Card className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-600 flex flex-col overflow-hidden flex-1 min-h-0">
+            <div className="border-b border-slate-100 shrink-0" style={{ padding: '10px 14px' }}>
+              <p className="text-sm font-semibold text-slate-900">Keyword Intelligence</p>
+            </div>
+            <div className="flex-1 min-h-0 p-2 overflow-hidden">
+              <div className="bg-blue-50 rounded-lg p-2 w-full h-full overflow-hidden flex items-center justify-center">
+                <InlineWordCloud words={wordsForCloud} />
+              </div>
+            </div>
+          </Card>
+
+          {/* Activity Distribution */}
+          <Card className="bg-white rounded-xl shadow-sm border border-slate-200 border-t-4 border-t-blue-600 flex flex-col overflow-hidden flex-1 min-h-0">
+            <div className="border-b border-slate-100 shrink-0" style={{ padding: '10px 14px' }}>
+              <p className="text-sm font-semibold text-slate-900">Activity Distribution</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                {profileData.communityName ? 'Daily post distribution' : 'Posts vs Comments'}
+              </p>
+            </div>
+            <div className="flex-1 min-h-0 p-2">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={activityBreakdownData} margin={{ top: 8, right: 12, left: -8, bottom: 24 }}>
+                <BarChart data={activityBreakdownData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                   <CartesianGrid stroke="#F1F5F9" strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: '#94A3B8', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}
+                    tick={{ fill: '#94A3B8', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace' }}
                     axisLine={{ stroke: '#E2E8F0' }}
                     tickLine={false}
                     interval={0}
-                    angle={activityBreakdownData.length > 3 ? -25 : 0}
-                    textAnchor={activityBreakdownData.length > 3 ? 'end' : 'middle'}
-                    height={48}
+                    tickFormatter={(v: string) => (typeof v === 'string' && v.length > 10 ? v.slice(0, 10) : v)}
                   />
                   <YAxis
-                    tick={{ fill: '#94A3B8', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}
+                    tick={{ fill: '#94A3B8', fontSize: 10, fontFamily: 'IBM Plex Mono, monospace' }}
                     axisLine={{ stroke: '#E2E8F0' }}
                     tickLine={false}
                     allowDecimals={false}
+                    width={28}
                   />
                   <ReTooltip
                     cursor={{ fill: 'rgba(59,130,246,0.06)' }}
@@ -456,10 +436,10 @@ export const MonitoringDetailView = ({
                       borderRadius: '8px',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                       fontFamily: 'IBM Plex Mono, monospace',
-                      fontSize: '12px',
+                      fontSize: '11px',
                     }}
                   />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={56}>
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={48}>
                     {activityBreakdownData.map((_, i) => (
                       <Cell key={i} fill="#3B82F6" />
                     ))}
@@ -467,8 +447,8 @@ export const MonitoringDetailView = ({
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
 
       {/* Preview Dialog */}
