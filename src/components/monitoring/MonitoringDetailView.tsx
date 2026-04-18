@@ -442,9 +442,9 @@ export const MonitoringDetailView = ({
                 {profileData.communityName ? 'Daily post distribution' : 'Posts vs Comments'}
               </p>
             </div>
-            <div className="flex-1 min-h-0 p-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={activityBreakdownData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+            <div className="p-2" style={{ height: 180 }}>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={activityBreakdownData} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
                   <CartesianGrid stroke="#F1F5F9" strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="name"
@@ -459,6 +459,7 @@ export const MonitoringDetailView = ({
                     axisLine={{ stroke: '#E2E8F0' }}
                     tickLine={false}
                     allowDecimals={false}
+                    domain={[0, 'auto']}
                     width={28}
                   />
                   <ReTooltip
@@ -466,7 +467,7 @@ export const MonitoringDetailView = ({
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                       fontFamily: 'IBM Plex Mono, monospace',
                       fontSize: '11px',
