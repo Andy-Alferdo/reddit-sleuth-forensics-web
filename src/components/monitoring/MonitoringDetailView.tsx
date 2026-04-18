@@ -110,26 +110,6 @@ const ActivityItem = ({
   );
 };
 
-// ── Inline word cloud (overflow-safe, max 18px) ───────────────────
-const InlineWordCloud = ({ words }: { words: { word: string; frequency: number }[] }) => {
-  const tiers = useMemo(() => {
-    if (!words.length) return [];
-    const sorted = [...words].sort((a, b) => b.frequency - a.frequency).slice(0, 40);
-    const max = sorted[0]?.frequency || 1;
-    const min = sorted[sorted.length - 1]?.frequency || 0;
-    const range = Math.max(1, max - min);
-    return sorted.map(w => {
-      const norm = (w.frequency - min) / range; // 0..1
-      let size = 10, color = '#93C5FD', weight = 400;
-      if (norm > 0.85)      { size = 18; color = '#1E3A8A'; weight = 800; }
-      else if (norm > 0.65) { size = 15; color = '#1D4ED8'; weight = 700; }
-      else if (norm > 0.45) { size = 13; color = '#2563EB'; weight = 600; }
-      else if (norm > 0.25) { size = 11; color = '#3B82F6'; weight = 500; }
-      else                  { size = 10; color = '#93C5FD'; weight = 400; }
-      return { ...w, size, color, weight };
-    });
-  }, [words]);
-
 // ── Inline word cloud (quintile-mapped sizes/colors) ─────────────
 const InlineWordCloud = ({ words }: { words: { word: string; frequency: number }[] }) => {
   const tiers = useMemo(() => {
