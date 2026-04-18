@@ -424,8 +424,11 @@ export const MonitoringDetailView = ({
             <div className="border-b border-slate-100 shrink-0" style={{ padding: '10px 14px' }}>
               <p className="text-sm font-semibold text-slate-900">Keyword Intelligence</p>
             </div>
-            <div className="flex-1 min-h-0 p-2 overflow-hidden">
-              <div className="bg-blue-50 rounded-lg p-2 w-full h-full overflow-hidden flex items-center justify-center">
+            <div className="flex-1 min-h-0 p-2 overflow-hidden flex">
+              <div
+                className="bg-[#EFF6FF] rounded-lg w-full overflow-hidden flex flex-wrap items-center justify-center"
+                style={{ padding: 12, maxHeight: 160, gap: '6px 8px' }}
+              >
                 <InlineWordCloud words={wordsForCloud} />
               </div>
             </div>
