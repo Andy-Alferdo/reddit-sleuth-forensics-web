@@ -347,6 +347,33 @@ const UserProfiling = () => {
     return { risk, influence, negPct, posPct };
   }, [profileData]);
 
+  // Sorted feeds
+  const sortedPosts = useMemo(() => {
+    const arr = [...(profileData?.postSentiments || [])];
+    if (postsSort === 'top') {
+      arr.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    } else if (postsSort === 'controversial') {
+      arr.sort((a, b) => {
+        const sa = (a.score ?? 0) + (a.num_comments ?? 0) * 2 + (a.sentiment === 'negative' ? 50 : 0);
+        const sb = (b.score ?? 0) + (b.num_comments ?? 0) * 2 + (b.sentiment === 'negative' ? 50 : 0);
+        return sb - sa;
+      });
+    } else {
+      arr.sort((a, b) => (b.created_utc ?? 0) - (a.created_utc ?? 0));
+    }
+    return arr;
+  }, [profileData?.postSentiments, postsSort]);
+
+  const sortedComments = useMemo(() => {
+    const arr = [...(profileData?.commentSentiments || [])];
+    if (commentsSort === 'top') {
+      arr.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    } else {
+      arr.sort((a, b) => (b.created_utc ?? 0) - (a.created_utc ?? 0));
+    }
+    return arr;
+  }, [profileData?.commentSentiments, commentsSort]);
+
   const renderSentimentRow = (item: any, itemKey: string, isPost: boolean) => {
     const deepState = deepAnalysisStates.get(itemKey);
     const explanationText = deepState?.showDeep && deepState.result
