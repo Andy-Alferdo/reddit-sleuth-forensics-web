@@ -52,6 +52,8 @@ const UserProfiling = () => {
   const [error, setError] = useState<string | null>(null);
   const [visiblePosts, setVisiblePosts] = useState(INITIAL_VISIBLE);
   const [visibleComments, setVisibleComments] = useState(INITIAL_VISIBLE);
+  const [postsSort, setPostsSort] = useState<'recent' | 'top' | 'controversial'>('recent');
+  const [commentsSort, setCommentsSort] = useState<'recent' | 'top'>('recent');
   const { toast } = useToast();
   const { addUserProfile, saveUserProfileToDb, currentCase } = useInvestigation();
   const [savedProfiles, setSavedProfiles] = useState<any[]>([]);
