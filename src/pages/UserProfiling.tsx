@@ -462,16 +462,14 @@ const UserProfiling = () => {
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <Label htmlFor="username" className="text-xs font-semibold text-slate-600 whitespace-nowrap">TARGET</Label>
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 id="username"
                 placeholder="Enter Reddit username (e.g. spez or u/spez)"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleAnalyzeUser()}
-                className="pl-9 pr-10 h-10 border-slate-200"
+                className="pr-10 h-10 border-slate-200"
               />
               {username && (
                 <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setUsername('')}>
