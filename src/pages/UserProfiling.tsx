@@ -625,28 +625,59 @@ const UserProfiling = () => {
             <div className="lg:col-span-7">
               <Card className="border-slate-200 shadow-sm h-full">
                 <CardHeader className="pb-3 border-b border-slate-100">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Target className="h-4 w-4 text-blue-600" />
-                    Unified Intelligence Feed
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Target className="h-4 w-4 text-blue-600" />
+                      Unified Intelligence Feed
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Posts</span>
+                        <Select value={postsSort} onValueChange={(v) => setPostsSort(v as any)}>
+                          <SelectTrigger className="h-8 w-[130px] text-xs border-slate-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="recent" className="text-xs">Recent</SelectItem>
+                            <SelectItem value="top" className="text-xs">Top</SelectItem>
+                            <SelectItem value="controversial" className="text-xs">Controversial</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Comments</span>
+                        <Select value={commentsSort} onValueChange={(v) => setCommentsSort(v as any)}>
+                          <SelectTrigger className="h-8 w-[110px] text-xs border-slate-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="recent" className="text-xs">Recent</SelectItem>
+                            <SelectItem value="top" className="text-xs">Top</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Recent Posts */}
+                    {/* Posts */}
                     <div>
                       <div className="flex items-center justify-between mb-2.5 px-1">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Recent Posts</h4>
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                          {postsSort === 'top' ? 'Top Posts' : postsSort === 'controversial' ? 'Controversial Posts' : 'Recent Posts'}
+                        </h4>
                         <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-500 px-1.5 py-0">
-                          {profileData.postSentiments?.length || 0}
+                          {sortedPosts.length}
                         </Badge>
                       </div>
                       <div className="space-y-2 max-h-[700px] overflow-y-auto pr-1">
-                        {profileData.postSentiments && profileData.postSentiments.length > 0 ? (
+                        {sortedPosts.length > 0 ? (
                           <>
-                            {profileData.postSentiments.slice(0, visiblePosts).map((item: any, i: number) => renderSentimentRow(item, `post-${i}`, true))}
-                            {profileData.postSentiments.length > visiblePosts && (
+                            {sortedPosts.slice(0, visiblePosts).map((item: any, i: number) => renderSentimentRow(item, `post-${postsSort}-${i}`, true))}
+                            {sortedPosts.length > visiblePosts && (
                               <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setVisiblePosts(p => p + 10)}>
-                                <ChevronDown className="h-3 w-3 mr-1" /> See {profileData.postSentiments.length - visiblePosts} more
+                                <ChevronDown className="h-3 w-3 mr-1" /> See {sortedPosts.length - visiblePosts} more
                               </Button>
                             )}
                           </>
@@ -658,21 +689,23 @@ const UserProfiling = () => {
                       </div>
                     </div>
 
-                    {/* Recent Comments */}
+                    {/* Comments */}
                     <div>
                       <div className="flex items-center justify-between mb-2.5 px-1">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Recent Comments</h4>
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                          {commentsSort === 'top' ? 'Top Comments' : 'Recent Comments'}
+                        </h4>
                         <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-500 px-1.5 py-0">
-                          {profileData.commentSentiments?.length || 0}
+                          {sortedComments.length}
                         </Badge>
                       </div>
                       <div className="space-y-2 max-h-[700px] overflow-y-auto pr-1">
-                        {profileData.commentSentiments && profileData.commentSentiments.length > 0 ? (
+                        {sortedComments.length > 0 ? (
                           <>
-                            {profileData.commentSentiments.slice(0, visibleComments).map((item: any, i: number) => renderSentimentRow(item, `comment-${i}`, false))}
-                            {profileData.commentSentiments.length > visibleComments && (
+                            {sortedComments.slice(0, visibleComments).map((item: any, i: number) => renderSentimentRow(item, `comment-${commentsSort}-${i}`, false))}
+                            {sortedComments.length > visibleComments && (
                               <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setVisibleComments(p => p + 10)}>
-                                <ChevronDown className="h-3 w-3 mr-1" /> See {profileData.commentSentiments.length - visibleComments} more
+                                <ChevronDown className="h-3 w-3 mr-1" /> See {sortedComments.length - visibleComments} more
                               </Button>
                             )}
                           </>
