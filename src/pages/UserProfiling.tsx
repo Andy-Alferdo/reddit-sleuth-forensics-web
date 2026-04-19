@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ChevronDown, MessageSquare, Search, User, Zap, Loader2, X, ArrowLeft,
   Calendar, ThumbsUp, Activity, MapPin, Info, MessageCircle, ExternalLink,
@@ -52,6 +53,8 @@ const UserProfiling = () => {
   const [error, setError] = useState<string | null>(null);
   const [visiblePosts, setVisiblePosts] = useState(INITIAL_VISIBLE);
   const [visibleComments, setVisibleComments] = useState(INITIAL_VISIBLE);
+  const [postsSort, setPostsSort] = useState<'recent' | 'top' | 'controversial'>('recent');
+  const [commentsSort, setCommentsSort] = useState<'recent' | 'top'>('recent');
   const { toast } = useToast();
   const { addUserProfile, saveUserProfileToDb, currentCase } = useInvestigation();
   const [savedProfiles, setSavedProfiles] = useState<any[]>([]);
@@ -344,6 +347,33 @@ const UserProfiling = () => {
     return { risk, influence, negPct, posPct };
   }, [profileData]);
 
+  // Sorted feeds
+  const sortedPosts = useMemo(() => {
+    const arr = [...(profileData?.postSentiments || [])];
+    if (postsSort === 'top') {
+      arr.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    } else if (postsSort === 'controversial') {
+      arr.sort((a, b) => {
+        const sa = (a.score ?? 0) + (a.num_comments ?? 0) * 2 + (a.sentiment === 'negative' ? 50 : 0);
+        const sb = (b.score ?? 0) + (b.num_comments ?? 0) * 2 + (b.sentiment === 'negative' ? 50 : 0);
+        return sb - sa;
+      });
+    } else {
+      arr.sort((a, b) => (b.created_utc ?? 0) - (a.created_utc ?? 0));
+    }
+    return arr;
+  }, [profileData?.postSentiments, postsSort]);
+
+  const sortedComments = useMemo(() => {
+    const arr = [...(profileData?.commentSentiments || [])];
+    if (commentsSort === 'top') {
+      arr.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    } else {
+      arr.sort((a, b) => (b.created_utc ?? 0) - (a.created_utc ?? 0));
+    }
+    return arr;
+  }, [profileData?.commentSentiments, commentsSort]);
+
   const renderSentimentRow = (item: any, itemKey: string, isPost: boolean) => {
     const deepState = deepAnalysisStates.get(itemKey);
     const explanationText = deepState?.showDeep && deepState.result
@@ -462,16 +492,14 @@ const UserProfiling = () => {
       <Card className="border-slate-200 shadow-sm">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <Label htmlFor="username" className="text-xs font-semibold text-slate-600 whitespace-nowrap">TARGET</Label>
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 id="username"
                 placeholder="Enter Reddit username (e.g. spez or u/spez)"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleAnalyzeUser()}
-                className="pl-9 pr-10 h-10 border-slate-200"
+                className="pr-10 h-10 border-slate-200"
               />
               {username && (
                 <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setUsername('')}>
@@ -500,7 +528,7 @@ const UserProfiling = () => {
           {/* === PREMIUM PROFILE HEADER === */}
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardContent className="p-5">
-              <div className="flex items-center gap-5">
+              <div className="flex items-stretch gap-5 min-h-[110px]">
                 {/* LEFT: Avatar + name */}
                 <div className="flex items-center gap-4 min-w-[240px]">
                   <Avatar className="h-16 w-16 border-2 border-blue-100 shadow-sm">
@@ -525,11 +553,11 @@ const UserProfiling = () => {
                   </div>
                 </div>
 
-                <Separator orientation="vertical" className="h-14" />
+                <Separator orientation="vertical" className="h-auto self-stretch" />
 
-                {/* CENTER: Metrics columns */}
-                <div className="flex-1 grid grid-cols-3 lg:grid-cols-6 gap-4">
-                  <div>
+                {/* CENTER: Metrics columns - vertically centered */}
+                <div className="flex-1 grid grid-cols-3 lg:grid-cols-6 gap-4 self-center">
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <Shield className="h-3 w-3" /> Risk
                     </div>
@@ -537,31 +565,36 @@ const UserProfiling = () => {
                       intel.risk === 'High' ? 'text-rose-600' : intel.risk === 'Medium' ? 'text-amber-600' : 'text-emerald-600'
                     }`}>{intel.risk}</div>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
-                      <TrendingUp className="h-3 w-3" /> Influence
-                    </div>
-                    <div className="text-lg font-bold text-blue-600 mt-0.5">{intel.influence}<span className="text-xs text-slate-400">/100</span></div>
+                  <div className="flex flex-col items-start justify-center">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 cursor-help">
+                          <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
+                          <div className="text-lg font-bold text-blue-600">{intel.influence}<span className="text-xs text-slate-400">/100</span></div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-xs">Influence Score</p></TooltipContent>
+                    </Tooltip>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <ThumbsUp className="h-3 w-3" /> Karma
                     </div>
                     <div className="text-lg font-bold text-slate-900 mt-0.5">{(profileData.totalKarma || 0).toLocaleString()}</div>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <Calendar className="h-3 w-3" /> Account Age
                     </div>
                     <div className="text-sm font-bold text-slate-900 mt-1">{profileData.accountAge}</div>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <MessageSquare className="h-3 w-3" /> Posts
                     </div>
                     <div className="text-lg font-bold text-slate-900 mt-0.5">{profileData.postsCount || 0}</div>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <MessageCircle className="h-3 w-3" /> Comments
                     </div>
@@ -569,12 +602,19 @@ const UserProfiling = () => {
                   </div>
                 </div>
 
-                <Separator orientation="vertical" className="h-14" />
+                <Separator orientation="vertical" className="h-auto self-stretch" />
 
-                {/* RIGHT: Track button */}
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
-                  <Bell className="h-4 w-4 mr-1.5" /> Track
-                </Button>
+                {/* RIGHT: Track icon-only button */}
+                <div className="flex items-center">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" className="h-10 w-10 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-md">
+                        <Bell className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs">Start Monitoring</p></TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -585,28 +625,59 @@ const UserProfiling = () => {
             <div className="lg:col-span-7">
               <Card className="border-slate-200 shadow-sm h-full">
                 <CardHeader className="pb-3 border-b border-slate-100">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Target className="h-4 w-4 text-blue-600" />
-                    Unified Intelligence Feed
-                  </CardTitle>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Target className="h-4 w-4 text-blue-600" />
+                      Unified Intelligence Feed
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Posts</span>
+                        <Select value={postsSort} onValueChange={(v) => setPostsSort(v as any)}>
+                          <SelectTrigger className="h-8 w-[130px] text-xs border-slate-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="recent" className="text-xs">Recent</SelectItem>
+                            <SelectItem value="top" className="text-xs">Top</SelectItem>
+                            <SelectItem value="controversial" className="text-xs">Controversial</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Comments</span>
+                        <Select value={commentsSort} onValueChange={(v) => setCommentsSort(v as any)}>
+                          <SelectTrigger className="h-8 w-[110px] text-xs border-slate-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="recent" className="text-xs">Recent</SelectItem>
+                            <SelectItem value="top" className="text-xs">Top</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Recent Posts */}
+                    {/* Posts */}
                     <div>
                       <div className="flex items-center justify-between mb-2.5 px-1">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Recent Posts</h4>
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                          {postsSort === 'top' ? 'Top Posts' : postsSort === 'controversial' ? 'Controversial Posts' : 'Recent Posts'}
+                        </h4>
                         <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-500 px-1.5 py-0">
-                          {profileData.postSentiments?.length || 0}
+                          {sortedPosts.length}
                         </Badge>
                       </div>
                       <div className="space-y-2 max-h-[700px] overflow-y-auto pr-1">
-                        {profileData.postSentiments && profileData.postSentiments.length > 0 ? (
+                        {sortedPosts.length > 0 ? (
                           <>
-                            {profileData.postSentiments.slice(0, visiblePosts).map((item: any, i: number) => renderSentimentRow(item, `post-${i}`, true))}
-                            {profileData.postSentiments.length > visiblePosts && (
+                            {sortedPosts.slice(0, visiblePosts).map((item: any, i: number) => renderSentimentRow(item, `post-${postsSort}-${i}`, true))}
+                            {sortedPosts.length > visiblePosts && (
                               <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setVisiblePosts(p => p + 10)}>
-                                <ChevronDown className="h-3 w-3 mr-1" /> See {profileData.postSentiments.length - visiblePosts} more
+                                <ChevronDown className="h-3 w-3 mr-1" /> See {sortedPosts.length - visiblePosts} more
                               </Button>
                             )}
                           </>
@@ -618,21 +689,23 @@ const UserProfiling = () => {
                       </div>
                     </div>
 
-                    {/* Recent Comments */}
+                    {/* Comments */}
                     <div>
                       <div className="flex items-center justify-between mb-2.5 px-1">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Recent Comments</h4>
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                          {commentsSort === 'top' ? 'Top Comments' : 'Recent Comments'}
+                        </h4>
                         <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-500 px-1.5 py-0">
-                          {profileData.commentSentiments?.length || 0}
+                          {sortedComments.length}
                         </Badge>
                       </div>
                       <div className="space-y-2 max-h-[700px] overflow-y-auto pr-1">
-                        {profileData.commentSentiments && profileData.commentSentiments.length > 0 ? (
+                        {sortedComments.length > 0 ? (
                           <>
-                            {profileData.commentSentiments.slice(0, visibleComments).map((item: any, i: number) => renderSentimentRow(item, `comment-${i}`, false))}
-                            {profileData.commentSentiments.length > visibleComments && (
+                            {sortedComments.slice(0, visibleComments).map((item: any, i: number) => renderSentimentRow(item, `comment-${commentsSort}-${i}`, false))}
+                            {sortedComments.length > visibleComments && (
                               <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setVisibleComments(p => p + 10)}>
-                                <ChevronDown className="h-3 w-3 mr-1" /> See {profileData.commentSentiments.length - visibleComments} more
+                                <ChevronDown className="h-3 w-3 mr-1" /> See {sortedComments.length - visibleComments} more
                               </Button>
                             )}
                           </>
