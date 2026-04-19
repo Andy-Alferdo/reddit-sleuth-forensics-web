@@ -498,7 +498,7 @@ const UserProfiling = () => {
           {/* === PREMIUM PROFILE HEADER === */}
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardContent className="p-5">
-              <div className="flex items-center gap-5">
+              <div className="flex items-stretch gap-5 min-h-[110px]">
                 {/* LEFT: Avatar + name */}
                 <div className="flex items-center gap-4 min-w-[240px]">
                   <Avatar className="h-16 w-16 border-2 border-blue-100 shadow-sm">
@@ -523,11 +523,11 @@ const UserProfiling = () => {
                   </div>
                 </div>
 
-                <Separator orientation="vertical" className="h-14" />
+                <Separator orientation="vertical" className="h-auto self-stretch" />
 
-                {/* CENTER: Metrics columns */}
-                <div className="flex-1 grid grid-cols-3 lg:grid-cols-6 gap-4">
-                  <div>
+                {/* CENTER: Metrics columns - vertically centered */}
+                <div className="flex-1 grid grid-cols-3 lg:grid-cols-6 gap-4 self-center">
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <Shield className="h-3 w-3" /> Risk
                     </div>
@@ -535,31 +535,36 @@ const UserProfiling = () => {
                       intel.risk === 'High' ? 'text-rose-600' : intel.risk === 'Medium' ? 'text-amber-600' : 'text-emerald-600'
                     }`}>{intel.risk}</div>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
-                      <TrendingUp className="h-3 w-3" /> Influence
-                    </div>
-                    <div className="text-lg font-bold text-blue-600 mt-0.5">{intel.influence}<span className="text-xs text-slate-400">/100</span></div>
+                  <div className="flex flex-col items-start justify-center">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 cursor-help">
+                          <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
+                          <div className="text-lg font-bold text-blue-600">{intel.influence}<span className="text-xs text-slate-400">/100</span></div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent><p className="text-xs">Influence Score</p></TooltipContent>
+                    </Tooltip>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <ThumbsUp className="h-3 w-3" /> Karma
                     </div>
                     <div className="text-lg font-bold text-slate-900 mt-0.5">{(profileData.totalKarma || 0).toLocaleString()}</div>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <Calendar className="h-3 w-3" /> Account Age
                     </div>
                     <div className="text-sm font-bold text-slate-900 mt-1">{profileData.accountAge}</div>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <MessageSquare className="h-3 w-3" /> Posts
                     </div>
                     <div className="text-lg font-bold text-slate-900 mt-0.5">{profileData.postsCount || 0}</div>
                   </div>
-                  <div>
+                  <div className="flex flex-col items-start justify-center">
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-semibold">
                       <MessageCircle className="h-3 w-3" /> Comments
                     </div>
@@ -567,12 +572,19 @@ const UserProfiling = () => {
                   </div>
                 </div>
 
-                <Separator orientation="vertical" className="h-14" />
+                <Separator orientation="vertical" className="h-auto self-stretch" />
 
-                {/* RIGHT: Track button */}
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
-                  <Bell className="h-4 w-4 mr-1.5" /> Track
-                </Button>
+                {/* RIGHT: Track icon-only button */}
+                <div className="flex items-center">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" className="h-10 w-10 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-md">
+                        <Bell className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-xs">Start Monitoring</p></TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
             </CardContent>
           </Card>
