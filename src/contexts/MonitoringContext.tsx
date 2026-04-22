@@ -43,6 +43,7 @@ export interface MonitoringTarget {
   lastFetchTime: string;
   newActivityCount: number;
   startedAt: string;
+  dbSessionId?: string;
 }
 
 export const MAX_TARGETS = 5;
