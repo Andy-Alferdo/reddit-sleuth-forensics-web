@@ -122,7 +122,8 @@ interface InvestigationContextType {
   // Monitoring data
   monitoringSessions: MonitoringData[];
   addMonitoringSession: (session: MonitoringData) => void;
-  saveMonitoringSessionToDb: (session: MonitoringData) => Promise<void>;
+  saveMonitoringSessionToDb: (session: MonitoringData) => Promise<string | null>;
+  updateMonitoringSessionInDb: (sessionId: string, updates: Partial<MonitoringData> & { endedAt?: string }) => Promise<void>;
   clearMonitoringSessions: () => void;
   
   // Keyword analysis data
@@ -348,9 +349,16 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
     setMonitoringSessions(prev => [...prev, session]);
   };
 
-  const saveMonitoringSessionToDb = useCallback(async (session: MonitoringData) => {
+  const saveMonitoringSessionToDb = useCallback(async (session: MonitoringData): Promise<string | null> => {
+    if (!currentCase?.id) return null;
+    const result = await callDataStore('saveMonitoringSession', session, currentCase.id);
+    emitCaseDataUpdated(currentCase.id, 'monitoringSessions');
+    return result?.id ?? null;
+  }, [currentCase, callDataStore, emitCaseDataUpdated]);
+
+  const updateMonitoringSessionInDb = useCallback(async (sessionId: string, updates: Partial<MonitoringData> & { endedAt?: string }) => {
     if (!currentCase?.id) return;
-    await callDataStore('saveMonitoringSession', session, currentCase.id);
+    await callDataStore('updateMonitoringSession', { id: sessionId, ...updates });
     emitCaseDataUpdated(currentCase.id, 'monitoringSessions');
   }, [currentCase, callDataStore, emitCaseDataUpdated]);
 
@@ -481,6 +489,7 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
       monitoringSessions,
       addMonitoringSession,
       saveMonitoringSessionToDb,
+      updateMonitoringSessionInDb,
       clearMonitoringSessions,
       keywordAnalyses,
       addKeywordAnalysis,

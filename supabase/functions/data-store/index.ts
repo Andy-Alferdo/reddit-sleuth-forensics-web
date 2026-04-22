@@ -288,6 +288,7 @@ Deno.serve(async (req) => {
             activities: data.activities,
             word_cloud_data: data.wordCloudData,
             started_at: data.startedAt,
+            ended_at: data.endedAt ?? null,
             new_activity_count: data.newActivityCount,
           })
           .select()
@@ -296,6 +297,28 @@ Deno.serve(async (req) => {
         if (error) throw error;
         result = session;
         console.log(`[data-store] Saved monitoring session for ${data.targetName}`);
+        break;
+      }
+
+      case 'updateMonitoringSession': {
+        if (!data?.id) throw new Error('session id required');
+        const updatePayload: Record<string, unknown> = {};
+        if (data.profileData !== undefined) updatePayload.profile_data = data.profileData;
+        if (data.activities !== undefined) updatePayload.activities = data.activities;
+        if (data.wordCloudData !== undefined) updatePayload.word_cloud_data = data.wordCloudData;
+        if (data.newActivityCount !== undefined) updatePayload.new_activity_count = data.newActivityCount;
+        if (data.endedAt !== undefined) updatePayload.ended_at = data.endedAt;
+
+        const { data: session, error } = await supabase
+          .from('monitoring_sessions')
+          .update(updatePayload)
+          .eq('id', data.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = session;
+        console.log(`[data-store] Updated monitoring session ${data.id}`);
         break;
       }
 

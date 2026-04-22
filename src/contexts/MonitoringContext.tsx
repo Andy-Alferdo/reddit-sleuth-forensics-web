@@ -43,6 +43,7 @@ export interface MonitoringTarget {
   lastFetchTime: string;
   newActivityCount: number;
   startedAt: string;
+  dbSessionId?: string;
 }
 
 export const MAX_TARGETS = 5;
@@ -130,7 +131,7 @@ const MonitoringContext = createContext<MonitoringContextType | undefined>(undef
 
 export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const { addMonitoringSession, saveMonitoringSessionToDb, currentCase } = useInvestigation();
+  const { addMonitoringSession, saveMonitoringSessionToDb, updateMonitoringSessionInDb, currentCase } = useInvestigation();
 
   const [targets, setTargets] = useState<MonitoringTarget[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
@@ -308,6 +309,24 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
         setTargets((prev) => [...prev, newTarget]);
         setSelectedTargetId(targetId);
 
+        // Persist session immediately so it appears on the Dashboard while live
+        if (currentCase?.id) {
+          try {
+            const dbId = await saveMonitoringSessionToDb({
+              searchType: newTarget.type,
+              targetName: newTarget.profileData.username || newTarget.profileData.communityName || newTarget.name,
+              profileData: newTarget.profileData,
+              activities: newTarget.activities,
+              wordCloudData: newTarget.wordCloudData,
+              startedAt: newTarget.startedAt,
+              newActivityCount: newTarget.newActivityCount,
+            } as any);
+            if (dbId) updateTarget(targetId, { dbSessionId: dbId });
+          } catch (dbErr) {
+            console.error('Failed to save initial monitoring session:', dbErr);
+          }
+        }
+
         startInterval(targetId, cleanQuery, searchType);
 
         toast({ title: 'Monitoring Started', description: `Now monitoring ${displayName}. Live scraping every 15 seconds.` });
@@ -340,7 +359,17 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
         addMonitoringSession(sessionData);
         if (currentCase?.id) {
           try {
-            await saveMonitoringSessionToDb(sessionData);
+            if (target.dbSessionId) {
+              await updateMonitoringSessionInDb(target.dbSessionId, {
+                ...sessionData,
+                endedAt: new Date().toISOString(),
+              } as any);
+            } else {
+              await saveMonitoringSessionToDb({
+                ...sessionData,
+                endedAt: new Date().toISOString(),
+              } as any);
+            }
           } catch (dbErr) {
             console.error('Failed to save session to database:', dbErr);
           }
@@ -356,7 +385,7 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
       updateTarget(targetId, { isMonitoring: false, isFetching: false });
       toast({ title: 'Monitoring Stopped & Saved', description: `${target.name} monitoring stopped. Session saved.` });
     },
-    [targets, addMonitoringSession, saveMonitoringSessionToDb, currentCase, updateTarget, toast]
+    [targets, addMonitoringSession, saveMonitoringSessionToDb, updateMonitoringSessionInDb, currentCase, updateTarget, toast]
   );
 
   // ── Restart stopped target ─────────────────────────────────────────────
