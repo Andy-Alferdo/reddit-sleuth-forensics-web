@@ -359,7 +359,17 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
         addMonitoringSession(sessionData);
         if (currentCase?.id) {
           try {
-            await saveMonitoringSessionToDb(sessionData);
+            if (target.dbSessionId) {
+              await updateMonitoringSessionInDb(target.dbSessionId, {
+                ...sessionData,
+                endedAt: new Date().toISOString(),
+              } as any);
+            } else {
+              await saveMonitoringSessionToDb({
+                ...sessionData,
+                endedAt: new Date().toISOString(),
+              } as any);
+            }
           } catch (dbErr) {
             console.error('Failed to save session to database:', dbErr);
           }
@@ -375,7 +385,7 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
       updateTarget(targetId, { isMonitoring: false, isFetching: false });
       toast({ title: 'Monitoring Stopped & Saved', description: `${target.name} monitoring stopped. Session saved.` });
     },
-    [targets, addMonitoringSession, saveMonitoringSessionToDb, currentCase, updateTarget, toast]
+    [targets, addMonitoringSession, saveMonitoringSessionToDb, updateMonitoringSessionInDb, currentCase, updateTarget, toast]
   );
 
   // ── Restart stopped target ─────────────────────────────────────────────
