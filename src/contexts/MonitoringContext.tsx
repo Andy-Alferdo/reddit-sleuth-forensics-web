@@ -309,6 +309,24 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
         setTargets((prev) => [...prev, newTarget]);
         setSelectedTargetId(targetId);
 
+        // Persist session immediately so it appears on the Dashboard while live
+        if (currentCase?.id) {
+          try {
+            const dbId = await saveMonitoringSessionToDb({
+              searchType: newTarget.type,
+              targetName: newTarget.profileData.username || newTarget.profileData.communityName || newTarget.name,
+              profileData: newTarget.profileData,
+              activities: newTarget.activities,
+              wordCloudData: newTarget.wordCloudData,
+              startedAt: newTarget.startedAt,
+              newActivityCount: newTarget.newActivityCount,
+            } as any);
+            if (dbId) updateTarget(targetId, { dbSessionId: dbId });
+          } catch (dbErr) {
+            console.error('Failed to save initial monitoring session:', dbErr);
+          }
+        }
+
         startInterval(targetId, cleanQuery, searchType);
 
         toast({ title: 'Monitoring Started', description: `Now monitoring ${displayName}. Live scraping every 15 seconds.` });
