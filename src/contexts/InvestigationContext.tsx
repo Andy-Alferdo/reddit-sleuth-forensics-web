@@ -489,6 +489,7 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
       monitoringSessions,
       addMonitoringSession,
       saveMonitoringSessionToDb,
+      updateMonitoringSessionInDb,
       clearMonitoringSessions,
       keywordAnalyses,
       addKeywordAnalysis,
