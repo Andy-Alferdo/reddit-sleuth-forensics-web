@@ -1,0 +1,471 @@
+================================================================================
+  INTEL REDDIT — NETLIFY DEPLOYMENT: DATABASE, RLS, EDGE FUNCTIONS GUIDE
+================================================================================
+Last updated: 2026-04-22
+Audience: Developer deploying the React frontend on Netlify while keeping the
+          backend (Postgres + Edge Functions + Auth) on Supabase Cloud.
+
+--------------------------------------------------------------------------------
+  0. THE BIG PICTURE — WHAT GOES WHERE
+--------------------------------------------------------------------------------
+
+Netlify hosts ONLY the static frontend (Vite build output in `dist/`).
+Netlify does NOT host:
+  - The Postgres database
+  - Row Level Security policies
+  - Triggers / SQL functions
+  - Supabase Edge Functions (Deno runtime)
+  - Supabase Auth
+
+All of those live on Supabase Cloud (a hosted Postgres + Deno + GoTrue stack).
+Netlify's frontend talks to Supabase over HTTPS using the publishable anon key.
+
+  ┌──────────────────────┐        HTTPS (anon key + JWT)        ┌────────────────────────┐
+  │  Netlify (static)    │  ───────────────────────────────────▶ │  Supabase Cloud         │
+  │  React + Vite build  │                                       │   - Postgres + RLS      │
+  │  /dist/ from `bun    │  ◀─── JSON / realtime / storage ───── │   - Auth (GoTrue)       │
+  │   run build`         │                                       │   - Edge Functions      │
+  └──────────────────────┘                                       │   - Storage (optional)  │
+            │                                                    └────────────────────────┘
+            │  optional 3rd hop                                              │
+            ▼                                                                ▼
+  ┌──────────────────────┐                                       ┌────────────────────────┐
+  │ Local Python Flask   │  ◀── called from edge function ───── │  Reddit OAuth API       │
+  │ DistilBERT + LIME    │                                       │  (oauth.reddit.com)     │
+  │ (only for sentiment) │                                       └────────────────────────┘
+  └──────────────────────┘
+  NOTE: The local Python server is NOT reachable from Supabase Cloud edge
+        functions. See section 9 for production options.
+
+--------------------------------------------------------------------------------
+  1. NETLIFY-SPECIFIC FRONTEND CONFIG
+--------------------------------------------------------------------------------
+
+1.1  Build settings (Netlify dashboard → Site settings → Build & deploy):
+       Build command:   bun run build      (or `npm run build`)
+       Publish dir:     dist
+       Node version:    20
+       Package manager: Bun (or npm — match `bun.lockb` / `package-lock.json`)
+
+1.2  SPA fallback — REQUIRED for React Router deep links / page refresh.
+     Create `public/_redirects` with one line:
+
+         /*    /index.html   200
+
+     Without this, /dashboard, /case/<id>, etc. return 404 on refresh.
+
+1.3  Environment variables (Netlify → Site settings → Environment variables).
+     These are baked into the static bundle at build time, so they MUST be
+     PUBLIC values only — never service-role keys.
+
+         VITE_SUPABASE_URL              = https://djcdnudwnyhajnzwykoq.supabase.co
+         VITE_SUPABASE_PUBLISHABLE_KEY  = <anon key — safe in browser>
+         VITE_SUPABASE_PROJECT_ID       = djcdnudwnyhajnzwykoq
+
+     Do NOT put `SUPABASE_SERVICE_ROLE_KEY`, `REDDIT_CLIENT_SECRET`,
+     `LOVABLE_API_KEY`, or `RESEND_API_KEY` on Netlify. Those stay as
+     Supabase Edge Function secrets (section 5).
+
+1.4  CORS / domains:
+     Add your Netlify URL to Supabase → Authentication → URL Configuration:
+       - Site URL:           https://<your-site>.netlify.app
+       - Redirect URLs:      https://<your-site>.netlify.app/**
+                             https://<your-custom-domain>/**
+     Otherwise email confirmation, password reset, and OAuth all break.
+
+--------------------------------------------------------------------------------
+  2. WHY RLS BREAKS AFTER A NETLIFY DEPLOY (AND THE FIXES)
+--------------------------------------------------------------------------------
+
+Symptoms users hit most often:
+
+  A. "new row violates row-level security policy for table X"
+  B. Queries return [] when there clearly is data
+  C. "permission denied for schema public"
+  D. Edge function inserts work but client-side inserts fail
+  E. "infinite recursion detected in policy for relation user_roles"
+
+Root causes & fixes:
+
+2.A  INSERT FAILS — the row's `created_by` / `case_id` is null or wrong.
+     RLS policy `WITH CHECK (auth.uid() = created_by)` rejects the row.
+     FIX in client code:
+         await supabase.from('investigation_cases').insert({
+           ...payload,
+           created_by: (await supabase.auth.getUser()).data.user?.id,
+         });
+     For child tables (reddit_posts, monitoring_sessions, etc.) the policy
+     checks that `case_id` belongs to a case the user owns — make sure you
+     pass the active `case_id`.
+
+2.B  SELECT RETURNS EMPTY — user is not actually logged in on Netlify.
+     Check `supabase.auth.getSession()`. After a Netlify deploy, sessions
+     stored under the old domain are gone; force a fresh login.
+     Also confirm the user's case has `created_by = auth.uid()`.
+
+2.C  PERMISSION DENIED — anon key does not have USAGE on schema.
+     Standard Supabase projects already grant this. If you ran a
+     destructive migration, re-grant:
+         GRANT USAGE ON SCHEMA public TO anon, authenticated;
+         GRANT SELECT, INSERT, UPDATE, DELETE
+           ON ALL TABLES IN SCHEMA public TO authenticated;
+
+2.D  EDGE FUNCTIONS WORK BUT CLIENT FAILS — the function uses
+     `SUPABASE_SERVICE_ROLE_KEY` which bypasses RLS. The browser uses the
+     anon key + user JWT and is bound by RLS. This is expected, not a bug.
+     Either (a) fix the missing JWT claim on the client, or
+     (b) move the operation into an edge function intentionally.
+
+2.E  INFINITE RECURSION — never reference the same table from inside its
+     own RLS policy. Use a SECURITY DEFINER function.
+     This project already does this with `public.has_role(uid, role)`.
+     Example correct policy:
+         CREATE POLICY "Admins can view all cases"
+         ON public.investigation_cases FOR SELECT
+         USING (public.has_role(auth.uid(), 'admin'));
+
+GENERAL RLS DEBUG CHECKLIST (run in Supabase SQL editor):
+
+     -- Who am I, according to the DB?
+     SELECT auth.uid(), auth.role();
+
+     -- Does the policy actually let me see my row?
+     SET LOCAL ROLE authenticated;
+     SET LOCAL "request.jwt.claims" =
+        '{"sub":"<user-uuid>","role":"authenticated"}';
+     SELECT * FROM public.investigation_cases;
+
+     -- List policies on a table:
+     SELECT policyname, cmd, qual, with_check
+     FROM pg_policies WHERE tablename = 'reddit_posts';
+
+--------------------------------------------------------------------------------
+  3. CANONICAL DATABASE SHAPE (what Netlify deploy expects to find)
+--------------------------------------------------------------------------------
+
+Schema:  public
+Extensions required:  pgcrypto, pgjwt (auto-installed by Supabase),
+                      uuid-ossp (optional — gen_random_uuid lives in pgcrypto)
+
+ENUM:
+  app_role: 'admin' | 'user'
+
+TABLES (all have RLS ENABLED):
+
+  profiles
+    id uuid PK = auth.users.id
+    email text, full_name text, created_at, updated_at
+
+  user_roles
+    id uuid PK, user_id uuid NOT NULL, role app_role NOT NULL
+    UNIQUE (user_id, role)
+
+  investigation_cases  ← PARENT of every domain table
+    id uuid PK, case_number text UNIQUE, case_name text,
+    created_by uuid NOT NULL, status text DEFAULT 'active',
+    priority, department, lead_investigator, description,
+    is_sensitive bool, case_password_hash text, cache_duration_days int
+
+  reddit_posts            (case_id FK → investigation_cases.id)
+  reddit_comments         (case_id FK)
+  user_profiles_analyzed  (case_id FK, username)
+  analysis_results        (case_id FK, analysis_type, target)
+  monitoring_sessions     (case_id FK, search_type, target_name, activities)
+  investigation_reports   (case_id FK, report_type, selected_modules)
+  audit_logs              (user_id, action_type, resource_type, resource_id)
+  user_invites            (email, invite_token UNIQUE, expires_at, role)
+
+INDEXES (recommended for performance on Netlify-served traffic):
+  CREATE INDEX ON public.reddit_posts (case_id, created_utc DESC);
+  CREATE INDEX ON public.reddit_comments (case_id, created_utc DESC);
+  CREATE INDEX ON public.monitoring_sessions (case_id, started_at DESC);
+  CREATE INDEX ON public.analysis_results (case_id, analyzed_at DESC);
+  CREATE INDEX ON public.audit_logs (user_id, created_at DESC);
+  CREATE INDEX ON public.user_roles (user_id);
+
+--------------------------------------------------------------------------------
+  4. RLS POLICIES — THE COMPLETE SET (copy-paste ready)
+--------------------------------------------------------------------------------
+
+Pattern for every CASE-SCOPED table (posts, comments, profiles_analyzed,
+analyses, sessions, reports):
+
+  ALTER TABLE public.<table> ENABLE ROW LEVEL SECURITY;
+
+  CREATE POLICY "owner_select" ON public.<table>
+    FOR SELECT USING (
+      EXISTS (SELECT 1 FROM public.investigation_cases ic
+              WHERE ic.id = <table>.case_id AND ic.created_by = auth.uid())
+    );
+
+  CREATE POLICY "owner_insert" ON public.<table>
+    FOR INSERT WITH CHECK (
+      EXISTS (SELECT 1 FROM public.investigation_cases ic
+              WHERE ic.id = <table>.case_id AND ic.created_by = auth.uid())
+    );
+
+  CREATE POLICY "owner_delete" ON public.<table>
+    FOR DELETE USING (
+      EXISTS (SELECT 1 FROM public.investigation_cases ic
+              WHERE ic.id = <table>.case_id AND ic.created_by = auth.uid())
+    );
+
+  CREATE POLICY "admin_all" ON public.<table>
+    FOR ALL USING (public.has_role(auth.uid(), 'admin'));
+
+investigation_cases:
+  owner can SELECT/INSERT/UPDATE/DELETE where created_by = auth.uid()
+  admin can ALL via has_role()
+
+user_roles:
+  user can SELECT own row (auth.uid() = user_id)
+  admin can SELECT/INSERT/UPDATE/DELETE all
+
+profiles:
+  user can SELECT/UPDATE own (auth.uid() = id)
+  admin can SELECT/UPDATE all
+  INSERT only by trigger (handle_new_user) — no client policy needed
+
+audit_logs:
+  user can SELECT own (auth.uid() = user_id)
+  admin can SELECT all
+  INSERT permitted to anyone (WITH CHECK true) — written via SECURITY DEFINER
+  NO update, NO delete
+
+user_invites:
+  admin ALL
+  anyone can SELECT where (used_at IS NULL AND expires_at > now())
+
+GOLDEN RULES (these prevent 90% of "RLS broken on Netlify" reports):
+  • Never store roles on `profiles`. Always use `user_roles` + `has_role()`.
+  • Every policy that touches another table must call a SECURITY DEFINER
+    function or use EXISTS — never reference the same table inside its own
+    policy.
+  • Always pass `created_by` / `case_id` from the client; do not rely on
+    defaults.
+  • Service-role key bypasses RLS. Use it ONLY inside edge functions.
+
+--------------------------------------------------------------------------------
+  5. EDGE FUNCTIONS (Supabase, NOT Netlify Functions)
+--------------------------------------------------------------------------------
+
+Location: supabase/functions/<name>/index.ts
+Runtime:  Deno on Supabase Cloud (auto-deployed)
+Auth:     Configured per-function in supabase/config.toml
+
+Functions in this project:
+
+  reddit-scraper          verify_jwt = false
+    Purpose: OAuth to reddit.com, fetch posts/comments/users, persist to
+             reddit_posts / reddit_comments / user_profiles_analyzed.
+    Secrets: REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET,
+             SUPABASE_SERVICE_ROLE_KEY (to bypass RLS for batch writes)
+
+  analyze-content         verify_jwt = false
+    Purpose: Cloud sentiment + LIME explanations via Lovable AI Gateway.
+    Secrets: LOVABLE_API_KEY
+
+  analyze-offline         verify_jwt = false
+    Purpose: Proxy sentiment requests to local Python DistilBERT server.
+    NOTE:    Calls http://host.docker.internal:5000 — only works locally.
+             For Netlify production you must replace this (see section 9).
+
+  data-store              verify_jwt = false
+    Purpose: Centralized writes to investigation tables w/ service role.
+
+  admin-create-user       verify_jwt = false
+    Purpose: Admin creates a user via auth.admin.createUser().
+    Secrets: SUPABASE_SERVICE_ROLE_KEY
+    SECURITY: Must check `has_role(callerId, 'admin')` before creating.
+
+  admin-reset-password    verify_jwt = false
+    Purpose: Admin-triggered password reset.
+    Secrets: SUPABASE_SERVICE_ROLE_KEY
+
+  send-invite-email       verify_jwt = false
+    Purpose: Resend transactional email for new-user invite.
+    Secrets: RESEND_API_KEY, RESEND_FROM
+
+EDGE FUNCTION SECRETS (set in Supabase dashboard → Edge Functions → Secrets,
+NOT in Netlify):
+
+  REDDIT_CLIENT_ID
+  REDDIT_CLIENT_SECRET
+  LOVABLE_API_KEY
+  RESEND_API_KEY
+  RESEND_FROM
+  SUPABASE_URL                 (auto)
+  SUPABASE_ANON_KEY            (auto)
+  SUPABASE_SERVICE_ROLE_KEY    (auto)
+  SUPABASE_DB_URL              (auto)
+
+CORS — every edge function MUST return:
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Headers: authorization, x-client-info, apikey,
+                                content-type
+  ...and respond 200 to OPTIONS preflight. Without this, the Netlify-hosted
+  browser gets blocked by CORS even though the function works in curl.
+
+INVOCATION FROM NETLIFY FRONTEND:
+  import { supabase } from "@/integrations/supabase/client";
+  const { data, error } = await supabase.functions.invoke('reddit-scraper', {
+    body: { case_id, target: 'spez' }
+  });
+  // Never hit /api/<name> or hardcode the function URL.
+
+--------------------------------------------------------------------------------
+  6. TRIGGERS & DATABASE FUNCTIONS
+--------------------------------------------------------------------------------
+
+FUNCTIONS already in the project (all SECURITY DEFINER, search_path = public):
+
+  has_role(_user_id uuid, _role app_role) → boolean
+      Used inside every admin policy. Prevents recursion on user_roles.
+
+  handle_new_user()  TRIGGER FN
+      Fires AFTER INSERT on auth.users.
+      Inserts a row into public.profiles and assigns default role 'user'
+      in public.user_roles.
+
+      TRIGGER (must exist on auth.users):
+        CREATE TRIGGER on_auth_user_created
+          AFTER INSERT ON auth.users
+          FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+      ⚠ If signup works but no profile/role appears, this trigger is
+      missing — re-create it. This is the #1 cause of "RLS denies
+      everything" after a fresh restore.
+
+  update_updated_at_column()  TRIGGER FN
+      Wire on every table that has updated_at:
+        CREATE TRIGGER trg_<table>_updated
+          BEFORE UPDATE ON public.<table>
+          FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+  hash_case_password(text) → text             (bcrypt via pgcrypto)
+  verify_case_password(case_id, text) → bool  (returns true for non-sensitive)
+  generate_invite_token() → text              (32-byte hex)
+  mark_invite_used(token) → bool              (returns false if expired/used)
+  log_audit_event(user_id, action, resource_type, resource_id, details)
+                  → uuid                       (writes to audit_logs)
+
+NO TRIGGERS currently exist beyond `on_auth_user_created`. The project does
+not need cascading triggers because deletes on `investigation_cases` rely on
+ON DELETE CASCADE in the FK definition — verify with:
+
+  SELECT conname, conrelid::regclass, confdeltype
+  FROM pg_constraint WHERE confrelid = 'public.investigation_cases'::regclass;
+
+--------------------------------------------------------------------------------
+  7. SUPABASE AUTH CONFIG (do this BEFORE going live on Netlify)
+--------------------------------------------------------------------------------
+
+  Authentication → Providers:
+    Email/Password = ON
+    "Confirm email" = ON (recommended)
+    Google OAuth   = optional — add Netlify domain to authorized redirects
+                     in Google Cloud Console.
+
+  Authentication → URL Configuration:
+    Site URL          = https://<your-site>.netlify.app
+    Additional redirect URLs:
+      https://<your-site>.netlify.app/**
+      https://<custom-domain>/**
+      http://localhost:5173/**     (for local dev)
+
+  Authentication → Email Templates:
+    Replace {{ .ConfirmationURL }} default to point at your Netlify domain.
+    Enable "Password HIBP Check" (leaked password protection).
+
+--------------------------------------------------------------------------------
+  8. ONE-SHOT MIGRATION SCRIPT (idempotent, safe to re-run)
+--------------------------------------------------------------------------------
+
+Run this in Supabase SQL editor on a fresh project to reproduce the entire
+backend. Keep it under version control as
+`supabase/migrations/00000000000000_init.sql`.
+
+  -- Extensions
+  CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+  -- Enum
+  DO $$ BEGIN
+    CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+  EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+  -- Tables (see section 3 for column list — abbreviated here)
+  CREATE TABLE IF NOT EXISTS public.profiles (...);
+  CREATE TABLE IF NOT EXISTS public.user_roles (...);
+  CREATE TABLE IF NOT EXISTS public.investigation_cases (...);
+  -- ... etc for all 11 tables
+
+  -- Functions  (see section 6 — paste verbatim)
+  CREATE OR REPLACE FUNCTION public.has_role(...) ...;
+  CREATE OR REPLACE FUNCTION public.handle_new_user(...) ...;
+  CREATE OR REPLACE FUNCTION public.update_updated_at_column(...) ...;
+  -- ...
+
+  -- Trigger on auth.users
+  DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+  CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+  -- Enable RLS + policies (see section 4)
+  ALTER TABLE public.investigation_cases ENABLE ROW LEVEL SECURITY;
+  -- ... CREATE POLICY ... for every table
+
+After running, verify:
+  SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname='public';
+  -- rowsecurity must be `t` for every project table.
+
+--------------------------------------------------------------------------------
+  9. THE ONE BIG GOTCHA: LOCAL PYTHON SERVER + NETLIFY
+--------------------------------------------------------------------------------
+
+`analyze-offline` posts to http://host.docker.internal:5000 — that hostname
+is meaningful only inside the local Supabase Docker container. Once you
+deploy to Netlify + Supabase Cloud, the cloud edge function CANNOT reach
+your laptop.
+
+Pick ONE:
+
+  (a) Drop offline analysis in production. Use `analyze-content` (Lovable AI
+      Gateway) only. Frontend logic already supports this fallback.
+
+  (b) Host the Python server publicly. Options:
+        - Fly.io / Railway / Render: deploy `python_ml/model_server_local.py`
+          as a Docker container. Get a public HTTPS URL.
+        - Update `analyze-offline/index.ts` to read the URL from a new
+          secret `LOCAL_MODEL_URL` and POST there.
+        - Add basic auth or a shared bearer token; never expose unauth.
+
+  (c) Tunnel for demos only: `ngrok http 5000` → paste the https URL into
+      a `LOCAL_MODEL_URL` secret. Not for production.
+
+--------------------------------------------------------------------------------
+  10. POST-DEPLOY SMOKE TEST (run from the live Netlify URL)
+--------------------------------------------------------------------------------
+
+  [ ] Sign up with a new email → check `profiles` + `user_roles` rows exist.
+  [ ] Log in → `supabase.auth.getSession()` returns a session.
+  [ ] Create a new case → row in `investigation_cases` with your uid in
+      `created_by`.
+  [ ] Open the case, run a Reddit scrape → rows appear in `reddit_posts`
+      and `reddit_comments` with the correct `case_id`.
+  [ ] Log in as a SECOND user → confirm you cannot see user #1's case
+      (RLS isolation works).
+  [ ] Promote yourself to admin (manually insert into user_roles), reload,
+      confirm admin views show all cases.
+  [ ] Refresh on a deep link like `/case/<id>/analysis` → SPA fallback works
+      (the `_redirects` file is in place).
+  [ ] Check browser network tab → no CORS errors on edge function calls.
+  [ ] Run `tests/database/run_all.sh` against your cloud DB (point the
+      psql connection string at SUPABASE_DB_URL).
+
+If any of the above fails, jump to section 2 and walk the checklist for that
+specific symptom.
+
+================================================================================
+  END OF GUIDE
+================================================================================
