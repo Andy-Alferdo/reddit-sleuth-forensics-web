@@ -122,7 +122,8 @@ interface InvestigationContextType {
   // Monitoring data
   monitoringSessions: MonitoringData[];
   addMonitoringSession: (session: MonitoringData) => void;
-  saveMonitoringSessionToDb: (session: MonitoringData) => Promise<void>;
+  saveMonitoringSessionToDb: (session: MonitoringData) => Promise<string | null>;
+  updateMonitoringSessionInDb: (sessionId: string, updates: Partial<MonitoringData> & { endedAt?: string }) => Promise<void>;
   clearMonitoringSessions: () => void;
   
   // Keyword analysis data
