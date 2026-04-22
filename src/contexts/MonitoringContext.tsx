@@ -131,7 +131,7 @@ const MonitoringContext = createContext<MonitoringContextType | undefined>(undef
 
 export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const { addMonitoringSession, saveMonitoringSessionToDb, currentCase } = useInvestigation();
+  const { addMonitoringSession, saveMonitoringSessionToDb, updateMonitoringSessionInDb, currentCase } = useInvestigation();
 
   const [targets, setTargets] = useState<MonitoringTarget[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
