@@ -131,7 +131,7 @@ const MonitoringContext = createContext<MonitoringContextType | undefined>(undef
 
 export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const { addMonitoringSession, saveMonitoringSessionToDb, updateMonitoringSessionInDb, currentCase } = useInvestigation();
+  const { addMonitoringSession, saveMonitoringSessionToDb, updateMonitoringSessionInDb, saveRedditContentToDb, currentCase } = useInvestigation();
 
   const [targets, setTargets] = useState<MonitoringTarget[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
@@ -164,6 +164,13 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
           const acts = buildActivities(rd.posts, rd.comments);
           const wc = buildWordCloud(rd.posts, rd.comments);
 
+          // Persist freshly-scraped raw posts/comments per cycle
+          if (currentCase?.id) {
+            saveRedditContentToDb(rd.posts || [], rd.comments || [], 'monitoring').catch((e) =>
+              console.error('Monitoring interval: failed to save posts/comments', e)
+            );
+          }
+
           setTargets((prev) =>
             prev.map((t) => {
               if (t.id !== targetId) return t;
@@ -186,7 +193,7 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
 
       intervalsRef.current.set(targetId, intervalId);
     },
-    []
+    [currentCase, saveRedditContentToDb]
   );
 
   // ── Search & add target ───────────────────────────────────────────────────
