@@ -143,32 +143,45 @@ Deno.serve(async (req) => {
 
       // ============ POSTS OPERATIONS ============
       case 'savePosts': {
-        if (!caseId || !data.posts) throw new Error('caseId and posts required');
-        
-        const postsToInsert = data.posts.map((post: any) => ({
-          case_id: caseId,
-          post_id: post.id,
-          author: post.author,
-          subreddit: post.subreddit,
-          title: post.title,
-          content: post.selftext || post.content,
-          score: post.score,
-          num_comments: post.num_comments,
-          permalink: post.permalink,
-          created_utc: post.created_utc ? new Date(post.created_utc * 1000).toISOString() : null,
-          metadata: post.metadata || {},
-          sentiment: post.sentiment,
-          sentiment_explanation: post.sentimentExplanation,
-        }));
+        if (!caseId || !data?.posts) throw new Error('caseId and posts required');
+
+        const source = data.source || null;
+        const rawPosts = Array.isArray(data.posts) ? data.posts : [];
+        const postsToInsert = rawPosts
+          .filter((post: any) => post && (post.id || post.post_id))
+          .map((post: any) => ({
+            case_id: caseId,
+            post_id: String(post.id || post.post_id),
+            author: post.author ?? null,
+            subreddit: post.subreddit ?? null,
+            title: post.title ?? null,
+            content: post.selftext ?? post.content ?? null,
+            score: typeof post.score === 'number' ? post.score : null,
+            num_comments: typeof post.num_comments === 'number' ? post.num_comments : null,
+            permalink: post.permalink ?? null,
+            created_utc: post.created_utc ? new Date(post.created_utc * 1000).toISOString() : null,
+            metadata: { ...(post.metadata || {}), ...(source ? { source } : {}) },
+            sentiment: post.sentiment ?? null,
+            sentiment_explanation: post.sentimentExplanation ?? post.sentiment_explanation ?? null,
+          }));
+
+        if (postsToInsert.length === 0) {
+          result = { inserted: 0, skipped: rawPosts.length };
+          console.log(`[data-store] savePosts: nothing to insert (received ${rawPosts.length})`);
+          break;
+        }
 
         const { data: posts, error } = await supabase
           .from('reddit_posts')
-          .upsert(postsToInsert, { onConflict: 'post_id', ignoreDuplicates: true })
-          .select();
-        
-        if (error) throw error;
-        result = { inserted: posts?.length || 0 };
-        console.log(`[data-store] Saved ${posts?.length} posts`);
+          .upsert(postsToInsert, { onConflict: 'case_id,post_id' })
+          .select('id');
+
+        if (error) {
+          console.error('[data-store] savePosts error:', error);
+          throw error;
+        }
+        result = { inserted: posts?.length || 0, source };
+        console.log(`[data-store] Saved ${posts?.length || 0} posts (source=${source})`);
         break;
       }
 
@@ -188,31 +201,44 @@ Deno.serve(async (req) => {
 
       // ============ COMMENTS OPERATIONS ============
       case 'saveComments': {
-        if (!caseId || !data.comments) throw new Error('caseId and comments required');
-        
-        const commentsToInsert = data.comments.map((comment: any) => ({
-          case_id: caseId,
-          comment_id: comment.id,
-          author: comment.author,
-          subreddit: comment.subreddit,
-          body: comment.body,
-          score: comment.score,
-          link_title: comment.link_title,
-          permalink: comment.permalink,
-          created_utc: comment.created_utc ? new Date(comment.created_utc * 1000).toISOString() : null,
-          metadata: comment.metadata || {},
-          sentiment: comment.sentiment,
-          sentiment_explanation: comment.sentimentExplanation,
-        }));
+        if (!caseId || !data?.comments) throw new Error('caseId and comments required');
+
+        const source = data.source || null;
+        const rawComments = Array.isArray(data.comments) ? data.comments : [];
+        const commentsToInsert = rawComments
+          .filter((comment: any) => comment && (comment.id || comment.comment_id))
+          .map((comment: any) => ({
+            case_id: caseId,
+            comment_id: String(comment.id || comment.comment_id),
+            author: comment.author ?? null,
+            subreddit: comment.subreddit ?? null,
+            body: comment.body ?? null,
+            score: typeof comment.score === 'number' ? comment.score : null,
+            link_title: comment.link_title ?? null,
+            permalink: comment.permalink ?? null,
+            created_utc: comment.created_utc ? new Date(comment.created_utc * 1000).toISOString() : null,
+            metadata: { ...(comment.metadata || {}), ...(source ? { source } : {}) },
+            sentiment: comment.sentiment ?? null,
+            sentiment_explanation: comment.sentimentExplanation ?? comment.sentiment_explanation ?? null,
+          }));
+
+        if (commentsToInsert.length === 0) {
+          result = { inserted: 0, skipped: rawComments.length };
+          console.log(`[data-store] saveComments: nothing to insert (received ${rawComments.length})`);
+          break;
+        }
 
         const { data: comments, error } = await supabase
           .from('reddit_comments')
-          .upsert(commentsToInsert, { onConflict: 'comment_id', ignoreDuplicates: true })
-          .select();
-        
-        if (error) throw error;
-        result = { inserted: comments?.length || 0 };
-        console.log(`[data-store] Saved ${comments?.length} comments`);
+          .upsert(commentsToInsert, { onConflict: 'case_id,comment_id' })
+          .select('id');
+
+        if (error) {
+          console.error('[data-store] saveComments error:', error);
+          throw error;
+        }
+        result = { inserted: comments?.length || 0, source };
+        console.log(`[data-store] Saved ${comments?.length || 0} comments (source=${source})`);
         break;
       }
 
