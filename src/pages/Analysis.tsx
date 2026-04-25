@@ -41,7 +41,7 @@ const Analysis = () => {
   const [activeTab, setActiveTab] = useState('keyword');
   const [visibleCommunities, setVisibleCommunities] = useState(5);
   const { toast } = useToast();
-  const { addKeywordAnalysis, addCommunityAnalysis, addLinkAnalysis, saveKeywordAnalysisToDb, saveCommunityAnalysisToDb, saveLinkAnalysisToDb, currentCase } = useInvestigation();
+  const { addKeywordAnalysis, addCommunityAnalysis, addLinkAnalysis, saveKeywordAnalysisToDb, saveCommunityAnalysisToDb, saveLinkAnalysisToDb, saveRedditContentToDb, currentCase } = useInvestigation();
 
   const [savedKeyword, setSavedKeyword] = useState<any[]>([]);
   const [savedCommunity, setSavedCommunity] = useState<any[]>([]);
@@ -339,6 +339,7 @@ const Analysis = () => {
       // Save to database if active case
       if (currentCase?.id) {
         try { await saveKeywordAnalysisToDb(analysisToSave); } catch (e) { console.error(e); }
+        try { await saveRedditContentToDb(posts, [], 'keyword_analysis'); } catch (e) { console.error('Failed to save keyword posts:', e); }
       }
 
       toast({
@@ -548,6 +549,7 @@ const Analysis = () => {
       // Save to database if active case
       if (currentCase?.id) {
         try { await saveCommunityAnalysisToDb(analysisToSave); } catch (e) { console.error(e); }
+        try { await saveRedditContentToDb(posts, [], 'community_analysis'); } catch (e) { console.error('Failed to save community posts:', e); }
       }
 
       toast({
@@ -667,6 +669,7 @@ const Analysis = () => {
       // Save to database if active case
       if (currentCase?.id) {
         try { await saveLinkAnalysisToDb(analysisToSave); } catch (e) { console.error(e); }
+        try { await saveRedditContentToDb(posts, comments, 'link_analysis'); } catch (e) { console.error('Failed to save link posts/comments:', e); }
       }
 
       toast({
