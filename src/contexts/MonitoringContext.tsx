@@ -332,6 +332,13 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
           } catch (dbErr) {
             console.error('Failed to save initial monitoring session:', dbErr);
           }
+
+          // Persist initial scrape: raw posts/comments
+          try {
+            await saveRedditContentToDb(redditData.posts || [], redditData.comments || [], 'monitoring');
+          } catch (dbErr) {
+            console.error('Failed to save initial monitoring posts/comments:', dbErr);
+          }
         }
 
         startInterval(targetId, cleanQuery, searchType);
@@ -344,7 +351,7 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
         setIsSearching(false);
       }
     },
-    [targets, toast, startInterval]
+    [targets, toast, startInterval, currentCase, saveMonitoringSessionToDb, updateTarget, saveRedditContentToDb]
   );
 
   // ── Stop target ───────────────────────────────────────────────────────────
