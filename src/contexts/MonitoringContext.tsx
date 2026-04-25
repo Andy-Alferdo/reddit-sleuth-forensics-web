@@ -131,7 +131,7 @@ const MonitoringContext = createContext<MonitoringContextType | undefined>(undef
 
 export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
-  const { addMonitoringSession, saveMonitoringSessionToDb, updateMonitoringSessionInDb, currentCase } = useInvestigation();
+  const { addMonitoringSession, saveMonitoringSessionToDb, updateMonitoringSessionInDb, saveRedditContentToDb, currentCase } = useInvestigation();
 
   const [targets, setTargets] = useState<MonitoringTarget[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
@@ -164,6 +164,13 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
           const acts = buildActivities(rd.posts, rd.comments);
           const wc = buildWordCloud(rd.posts, rd.comments);
 
+          // Persist freshly-scraped raw posts/comments per cycle
+          if (currentCase?.id) {
+            saveRedditContentToDb(rd.posts || [], rd.comments || [], 'monitoring').catch((e) =>
+              console.error('Monitoring interval: failed to save posts/comments', e)
+            );
+          }
+
           setTargets((prev) =>
             prev.map((t) => {
               if (t.id !== targetId) return t;
@@ -186,7 +193,7 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
 
       intervalsRef.current.set(targetId, intervalId);
     },
-    []
+    [currentCase, saveRedditContentToDb]
   );
 
   // ── Search & add target ───────────────────────────────────────────────────
@@ -325,6 +332,13 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
           } catch (dbErr) {
             console.error('Failed to save initial monitoring session:', dbErr);
           }
+
+          // Persist initial scrape: raw posts/comments
+          try {
+            await saveRedditContentToDb(redditData.posts || [], redditData.comments || [], 'monitoring');
+          } catch (dbErr) {
+            console.error('Failed to save initial monitoring posts/comments:', dbErr);
+          }
         }
 
         startInterval(targetId, cleanQuery, searchType);
@@ -337,7 +351,7 @@ export const MonitoringProvider = ({ children }: { children: ReactNode }) => {
         setIsSearching(false);
       }
     },
-    [targets, toast, startInterval]
+    [targets, toast, startInterval, currentCase, saveMonitoringSessionToDb, updateTarget, saveRedditContentToDb]
   );
 
   // ── Stop target ───────────────────────────────────────────────────────────

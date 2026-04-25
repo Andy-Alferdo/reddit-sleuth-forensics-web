@@ -56,7 +56,7 @@ const UserProfiling = () => {
   const [postsSort, setPostsSort] = useState<'recent' | 'top' | 'controversial'>('recent');
   const [commentsSort, setCommentsSort] = useState<'recent' | 'top'>('recent');
   const { toast } = useToast();
-  const { addUserProfile, saveUserProfileToDb, currentCase } = useInvestigation();
+  const { addUserProfile, saveUserProfileToDb, saveRedditContentToDb, currentCase } = useInvestigation();
   const [savedProfiles, setSavedProfiles] = useState<any[]>([]);
 
   const [deepAnalysisStates, setDeepAnalysisStates] = useState<Map<string, { isAnalyzing: boolean; result: any; showDeep: boolean; analysisType?: 'lime' | 'shap' }>>(new Map());
@@ -320,6 +320,11 @@ const UserProfiling = () => {
       addUserProfile(profileToSave);
       if (currentCase?.id) {
         try { await saveUserProfileToDb(profileToSave); } catch (dbErr) { console.error('Failed to save profile:', dbErr); }
+        try {
+          await saveRedditContentToDb(redditData.posts || [], redditData.comments || [], 'user_profile');
+        } catch (dbErr) {
+          console.error('Failed to save Reddit posts/comments:', dbErr);
+        }
       }
       toast({ title: "Analysis Complete", description: `Successfully analyzed u/${cleanUsername}` });
     } catch (err: any) {

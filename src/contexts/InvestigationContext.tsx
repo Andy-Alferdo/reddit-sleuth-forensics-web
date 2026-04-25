@@ -143,6 +143,13 @@ interface InvestigationContextType {
   addLinkAnalysis: (analysis: LinkAnalysisData) => void;
   saveLinkAnalysisToDb: (analysis: LinkAnalysisData) => Promise<void>;
   clearLinkAnalyses: () => void;
+
+  // Reddit content persistence (posts + comments) — shared across all modules
+  saveRedditContentToDb: (
+    posts: any[] | undefined | null,
+    comments: any[] | undefined | null,
+    source: 'user_profile' | 'monitoring' | 'keyword_analysis' | 'community_analysis' | 'link_analysis'
+  ) => Promise<{ postsInserted: number; commentsInserted: number }>;
   
   // Summary stats
   getTotalUsersAnalyzed: () => number;
@@ -430,6 +437,57 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
     emitCaseDataUpdated(currentCase.id, 'linkAnalyses');
   }, [currentCase, callDataStore, emitCaseDataUpdated]);
 
+  // Shared saver: persist raw Reddit posts + comments to DB tagged by source module
+  const saveRedditContentToDb = useCallback(
+    async (
+      posts: any[] | undefined | null,
+      comments: any[] | undefined | null,
+      source: 'user_profile' | 'monitoring' | 'keyword_analysis' | 'community_analysis' | 'link_analysis'
+    ) => {
+      if (!currentCase?.id) {
+        return { postsInserted: 0, commentsInserted: 0 };
+      }
+
+      const safePosts = Array.isArray(posts) ? posts : [];
+      const safeComments = Array.isArray(comments) ? comments : [];
+
+      const tasks: Promise<any>[] = [];
+      if (safePosts.length > 0) {
+        tasks.push(
+          callDataStore('savePosts', { posts: safePosts, source }, currentCase.id)
+            .then((r) => ({ kind: 'posts', r }))
+            .catch((e) => ({ kind: 'posts', error: e }))
+        );
+      }
+      if (safeComments.length > 0) {
+        tasks.push(
+          callDataStore('saveComments', { comments: safeComments, source }, currentCase.id)
+            .then((r) => ({ kind: 'comments', r }))
+            .catch((e) => ({ kind: 'comments', error: e }))
+        );
+      }
+
+      const results = await Promise.all(tasks);
+      let postsInserted = 0;
+      let commentsInserted = 0;
+      for (const res of results) {
+        if ((res as any).error) {
+          console.error(`[saveRedditContentToDb] ${(res as any).kind} failed (${source}):`, (res as any).error);
+        } else if (res.kind === 'posts') {
+          postsInserted = res.r?.inserted || 0;
+        } else if (res.kind === 'comments') {
+          commentsInserted = res.r?.inserted || 0;
+        }
+      }
+
+      console.log(
+        `[saveRedditContentToDb] source=${source} → posts: ${postsInserted}/${safePosts.length}, comments: ${commentsInserted}/${safeComments.length}`
+      );
+      return { postsInserted, commentsInserted };
+    },
+    [currentCase, callDataStore]
+  );
+
   const clearUserProfiles = () => setUserProfiles([]);
   const clearMonitoringSessions = () => setMonitoringSessions([]);
   const clearKeywordAnalyses = () => setKeywordAnalyses([]);
@@ -503,6 +561,7 @@ export const InvestigationProvider = ({ children }: { children: ReactNode }) => 
       addLinkAnalysis,
       saveLinkAnalysisToDb,
       clearLinkAnalyses,
+      saveRedditContentToDb,
       getTotalUsersAnalyzed,
       getTotalPostsReviewed,
       getTotalCommunitiesAnalyzed,
