@@ -1,83 +1,73 @@
-# Save All Posts & Comments to Database (Monitoring, User Profiling, All Analyses)
+# Old Reddit Fallback for Hidden Profiles
 
-## Why posts & comments are 0 today
+## The real problem
 
-The `data-store` edge function already has `savePosts` and `saveComments` operations, **but no module in the app actually calls them**. On top of that, those operations use `onConflict: 'post_id'` / `'comment_id'` even though no UNIQUE constraint exists on those columns — so even if they were called, every insert would fail silently. That's why `reddit_posts` and `reddit_comments` always show 0.
+What you're seeing on the screen ("likes to keep their posts hidden") is **not** a private account — Reddit doesn't have truly private profiles. It's a profile preference where the user has disabled "show this profile in search/listings". When that's on:
 
-## What gets saved (for every module)
+- `oauth.reddit.com/user/{name}/about` still returns the profile (so we don't get a 404)
+- `oauth.reddit.com/user/{name}/submitted` and `/comments` return **empty arrays** (zero posts, zero comments)
 
-For each module that fetches Reddit data, we extract every post and comment and persist them into `reddit_posts` / `reddit_comments`, tagged with `case_id` and a `metadata.source` field so we can tell which module brought the data in:
+That's why your scrape "succeeds" but yields 0 posts. Meanwhile `old.reddit.com/user/{name}.json` and `www.reddit.com/user/{name}/submitted/.json` (the public unauthenticated endpoints) often still return the data, because they bypass the newer profile-hiding flag.
 
-| Module | Source tag | What's saved |
-|---|---|---|
-| User Profiling | `user_profile` | All posts + comments fetched for the searched user |
-| Monitoring | `monitoring` | All activities scraped per cycle for each watched target |
-| Keyword Analysis | `keyword_analysis` | All posts/comments returned for the keyword |
-| Community Analysis | `community_analysis` | All posts/comments fetched from the subreddit |
-| Link Analysis | `link_analysis` | All posts/comments collected for the analyzed user |
+## Fix: automatic fallback in the reddit-scraper edge function
 
-Sentiment label + explanation, when available, are also stored on the row.
+Only one file changes: `supabase/functions/reddit-scraper/index.ts`, inside the `type === 'user'` branch.
 
-## Fix steps
+### Step 1 — Detect the "hidden" case
 
-### 1. Database migration — add unique constraints
-Without these, upserts can never succeed. Composite keys so the same Reddit item can exist across different cases:
+After fetching posts and comments via OAuth, check:
 
-```sql
-ALTER TABLE public.reddit_posts
-  ADD CONSTRAINT reddit_posts_case_post_unique UNIQUE (case_id, post_id);
-
-ALTER TABLE public.reddit_comments
-  ADD CONSTRAINT reddit_comments_case_comment_unique UNIQUE (case_id, comment_id);
+```
+if (posts.length === 0 && comments.length === 0)
 ```
 
-(Both tables are currently empty — no cleanup needed.)
+If both are empty *and* the `about` call succeeded (so the user actually exists), trigger the fallback. We don't fall back when the user genuinely just has no activity, because the fallback will also return empty in that case — so it's safe to always try.
 
-### 2. Fix `supabase/functions/data-store/index.ts`
-- Change the upsert conflict targets to `'case_id,post_id'` and `'case_id,comment_id'`.
-- Drop `ignoreDuplicates: true` so `.select()` returns the inserted/updated rows for accurate counts.
-- Filter out items missing an `id` before inserting.
-- Accept an optional `source` field that gets merged into `metadata.source`.
-- Return `{ inserted, errors }` so callers can detect failures.
+### Step 2 — Fallback fetch from old.reddit / www.reddit (no auth)
 
-### 3. Add a single shared saver in `InvestigationContext.tsx`
-Add `saveRedditContentToDb(posts, comments, source)` that:
-- No-ops if no current case.
-- Calls `savePosts` + `saveComments` via `callDataStore` in parallel.
-- Logs the real inserted counts and any errors returned by the edge function.
+Call the public JSON endpoints with a browser-like User-Agent (Reddit blocks default UAs):
 
-Expose it via the context so all modules can call it.
+```
+https://old.reddit.com/user/{username}/submitted.json?limit=100&raw_json=1
+https://old.reddit.com/user/{username}/comments.json?limit=100&raw_json=1
+```
 
-### 4. Wire it into each module
+Headers:
+```
+User-Agent: Mozilla/5.0 (compatible; IntelReddit/1.0)
+Accept: application/json
+```
 
-- **`src/pages/UserProfiling.tsx`** — right after Reddit fetch + analysis succeeds (where it currently logs "Saved posts and comments to database"), call `saveRedditContentToDb(redditData.posts, redditData.comments, 'user_profile')` and log the actual response.
+If `old.reddit.com` returns 429 / 403 / empty, retry once against `www.reddit.com/user/{username}/submitted/.json` (same shape). Both return the same `{ data: { children: [{ data: {...} }] } }` structure as the OAuth endpoints, so the existing `.map((child) => child.data)` parsing works unchanged.
 
-- **`src/pages/Monitoring.tsx`** — after each scrape cycle that produces new activities for a target, split activities into posts vs comments and call the saver with source `'monitoring'`.
+### Step 3 — Tag the source so we can tell where data came from
 
-- **`src/pages/KeywordAnalysis.tsx`** — after results return, save with source `'keyword_analysis'`.
+Annotate each post/comment from the fallback with `_source: 'old_reddit'` (and `'oauth'` for the primary path). The frontend can ignore this, or later display a small "data via public Reddit" badge — your call.
 
-- **`src/pages/CommunityAnalysis.tsx`** — after results return, save with source `'community_analysis'`.
+### Step 4 — Logging & response shape
 
-- **`src/pages/LinkAnalysis.tsx`** — after the user's posts/comments are aggregated for the graph, save with source `'link_analysis'`.
+- Log: `OAuth returned 0 items for {user}, falling back to old.reddit`
+- Log: `old.reddit fallback returned {n} posts, {m} comments`
+- Add a top-level `dataSource: 'oauth' | 'old_reddit' | 'mixed'` field to the response so the UI can know.
+- Response shape and the `RedditPost` / `RedditComment` types stay identical — all downstream code (UserProfiling, Monitoring, Analysis, persistence to `reddit_posts` / `reddit_comments`) keeps working without changes.
 
-In each case, the call is fire-and-forget with proper error logging — it must not block UI rendering.
+### Step 5 — Apply same fallback to monitoring
 
-### 5. Better error visibility
-Replace the existing optimistic `console.log("Saved posts and comments to database")` lines with logs that reflect the actual `inserted` count and surface any error from the edge function, so silent failures like the current one can't recur.
+`MonitoringContext` calls the same edge function with `type: 'user'`, so it inherits the fallback automatically — nothing to wire up there.
 
-## Verification
+## What does NOT change
 
-1. Open any existing case, run a User Profiling search → check `reddit_posts` and `reddit_comments` row counts grow.
-2. Start a Monitoring target and let one scrape cycle complete → rows grow with `metadata.source = 'monitoring'`.
-3. Run Keyword / Community / Link analyses → rows grow with the matching source tags.
-4. Re-running the same search does **not** duplicate rows (composite upsert dedupes by `case_id + post_id` / `comment_id`).
+- No frontend changes required.
+- No database changes required.
+- No new secrets — old.reddit public JSON endpoints are unauthenticated.
+- Subreddit / keyword search paths are untouched (they don't have this hidden-profile problem).
+
+## Caveats to be aware of
+
+- Reddit rate-limits unauthenticated requests fairly aggressively (~10/min per IP). For monitoring loops scraping many users every 15s this could hit limits. We mitigate by **only** falling back when OAuth returns empty, not on every call.
+- If a user truly has zero activity, the fallback also returns empty — that's fine and indistinguishable from the truly-hidden case, but harmless.
+- If both OAuth and old.reddit return empty, we return the same empty result we do today (no behavior change for that edge case).
 
 ## Files Changed
-- New SQL migration: two UNIQUE constraints
-- `supabase/functions/data-store/index.ts` — fix savePosts/saveComments
-- `src/contexts/InvestigationContext.tsx` — add `saveRedditContentToDb`
-- `src/pages/UserProfiling.tsx`
-- `src/pages/Monitoring.tsx`
-- `src/pages/KeywordAnalysis.tsx`
-- `src/pages/CommunityAnalysis.tsx`
-- `src/pages/LinkAnalysis.tsx`
+
+- `supabase/functions/reddit-scraper/index.ts` — add fallback logic in the `type === 'user'` branch
