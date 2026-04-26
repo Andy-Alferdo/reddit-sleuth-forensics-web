@@ -125,8 +125,8 @@ serve(async (req) => {
       });
 
       const postsData = await postsResponse.json();
-      const posts: RedditPost[] = postsData.data?.children?.map((child: any) => child.data) || [];
-      console.log(`Fetched ${posts.length} posts`);
+      let posts: RedditPost[] = postsData.data?.children?.map((child: any) => ({ ...child.data, _source: 'oauth' })) || [];
+      console.log(`Fetched ${posts.length} posts via OAuth`);
 
       // Fetch user comments
       const commentsResponse = await fetch(`https://oauth.reddit.com/user/${username}/comments?limit=100`, {
@@ -137,8 +137,58 @@ serve(async (req) => {
       });
 
       const commentsData = await commentsResponse.json();
-      const comments: RedditComment[] = commentsData.data?.children?.map((child: any) => child.data) || [];
-      console.log(`Fetched ${comments.length} comments`);
+      let comments: RedditComment[] = commentsData.data?.children?.map((child: any) => ({ ...child.data, _source: 'oauth' })) || [];
+      console.log(`Fetched ${comments.length} comments via OAuth`);
+
+      // ===== Fallback: hidden / "keep posts hidden" profiles =====
+      // Reddit OAuth returns empty arrays when a user has disabled "show profile in listings",
+      // even though the user exists and the about endpoint returns 200. Old.reddit and the
+      // unauthenticated www.reddit JSON endpoints often still expose this content.
+      let dataSource: 'oauth' | 'old_reddit' | 'mixed' = 'oauth';
+      if (posts.length === 0 && comments.length === 0) {
+        console.log(`OAuth returned 0 items for u/${username}, falling back to old.reddit / www.reddit`);
+
+        const fallbackHeaders = {
+          'User-Agent': 'Mozilla/5.0 (compatible; IntelReddit/1.0)',
+          'Accept': 'application/json',
+        };
+
+        const tryFetchJson = async (url: string) => {
+          try {
+            const r = await fetch(url, { headers: fallbackHeaders });
+            if (!r.ok) {
+              console.log(`Fallback ${url} -> HTTP ${r.status}`);
+              return null;
+            }
+            return await r.json();
+          } catch (e) {
+            console.log(`Fallback ${url} threw:`, e instanceof Error ? e.message : String(e));
+            return null;
+          }
+        };
+
+        // Try old.reddit first, then www.reddit as a second chance.
+        const fallbackPostsJson =
+          (await tryFetchJson(`https://old.reddit.com/user/${username}/submitted.json?limit=100&raw_json=1`)) ||
+          (await tryFetchJson(`https://www.reddit.com/user/${username}/submitted/.json?limit=100&raw_json=1`));
+
+        const fallbackCommentsJson =
+          (await tryFetchJson(`https://old.reddit.com/user/${username}/comments.json?limit=100&raw_json=1`)) ||
+          (await tryFetchJson(`https://www.reddit.com/user/${username}/comments/.json?limit=100&raw_json=1`));
+
+        const fbPosts: RedditPost[] = fallbackPostsJson?.data?.children
+          ?.map((child: any) => ({ ...child.data, _source: 'old_reddit' })) || [];
+        const fbComments: RedditComment[] = fallbackCommentsJson?.data?.children
+          ?.map((child: any) => ({ ...child.data, _source: 'old_reddit' })) || [];
+
+        console.log(`old.reddit fallback returned ${fbPosts.length} posts, ${fbComments.length} comments`);
+
+        if (fbPosts.length > 0 || fbComments.length > 0) {
+          posts = fbPosts;
+          comments = fbComments;
+          dataSource = 'old_reddit';
+        }
+      }
 
       // Get unique subreddits the user is active in
       const activeSubreddits = new Set<string>();
