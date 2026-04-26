@@ -246,6 +246,7 @@ serve(async (req) => {
         posts,
         comments,
         communityRelations,
+        dataSource,
       };
 
     } else if (type === 'community') {
