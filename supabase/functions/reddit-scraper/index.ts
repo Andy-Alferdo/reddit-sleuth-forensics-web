@@ -191,17 +191,19 @@ serve(async (req) => {
 
         // ===== Tier 3 fallback: author:{username} search =====
         // Some hidden profiles also block /user/{name}/submitted on old.reddit, but
-        // their posts/comments still appear in Reddit search via "author:username".
-        // Use the authenticated OAuth search endpoint (no public rate limits).
+        // their posts still appear in Reddit search via "author:username".
+        // NOTE: Reddit's OAuth /search endpoint silently ignores `type=comment` and
+        // returns posts ("t3_") regardless. There is no reliable public API to
+        // recover comments authored by a hidden user, so we ONLY recover posts here
+        // and intentionally leave `comments` empty rather than duplicating posts.
         if (posts.length === 0 && comments.length === 0) {
-          console.log(`old.reddit also empty for u/${username}, trying author:${username} search fallback`);
+          console.log(`old.reddit also empty for u/${username}, trying author:${username} search fallback (posts only)`);
 
           const searchHeaders = {
             'Authorization': `Bearer ${tokenData.access_token}`,
             'User-Agent': 'IntelReddit/1.0',
           };
 
-          // Search posts authored by user (link type)
           const authorPostsRes = await fetch(
             `https://oauth.reddit.com/search?q=${encodeURIComponent(`author:${username}`)}&limit=100&sort=new&type=link&restrict_sr=false&include_over_18=on`,
             { headers: searchHeaders }
@@ -216,26 +218,11 @@ serve(async (req) => {
             console.log(`author search posts -> HTTP ${authorPostsRes.status}`);
           }
 
-          // Search comments authored by user
-          const authorCommentsRes = await fetch(
-            `https://oauth.reddit.com/search?q=${encodeURIComponent(`author:${username}`)}&limit=100&sort=new&type=comment&restrict_sr=false&include_over_18=on`,
-            { headers: searchHeaders }
-          );
-          let authorComments: RedditComment[] = [];
-          if (authorCommentsRes.ok) {
-            const j = await authorCommentsRes.json();
-            authorComments = (j.data?.children || [])
-              .map((c: any) => ({ ...c.data, _source: 'author_search' }))
-              .filter((c: any) => (c.author || '').toLowerCase() === username.toLowerCase());
-          } else {
-            console.log(`author search comments -> HTTP ${authorCommentsRes.status}`);
-          }
+          console.log(`author:${username} search returned ${authorPosts.length} posts (comments not recoverable for hidden profiles)`);
 
-          console.log(`author:${username} search returned ${authorPosts.length} posts, ${authorComments.length} comments`);
-
-          if (authorPosts.length > 0 || authorComments.length > 0) {
+          if (authorPosts.length > 0) {
             posts = authorPosts;
-            comments = authorComments;
+            comments = []; // explicit: do not duplicate posts as comments
             dataSource = 'author_search';
           }
         }
