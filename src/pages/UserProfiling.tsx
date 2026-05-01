@@ -409,7 +409,7 @@ const UserProfiling = () => {
             </div>
 
             <p className="text-sm text-slate-800 line-clamp-2 mb-1.5 group-hover:text-blue-700 transition-colors">
-              {item.text}
+              {item.text || item.body || (isPost ? '(no text)' : '(comment unavailable)')}
             </p>
             {isPost && item.body && (
               <p className="text-xs text-slate-500 line-clamp-2 mb-1.5">{item.body}</p>
