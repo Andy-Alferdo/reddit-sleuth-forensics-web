@@ -72,24 +72,25 @@ const buildActivities = (posts: any[], comments: any[]): RedditActivity[] => {
     acts.push({
       id: post.id || Math.random().toString(),
       type: 'post',
-      title: post.title,
+      title: post.title || '(no title)',
       body: post.selftext || post.body || post.content || '',
-      subreddit: `r/${post.subreddit}`,
+      subreddit: `r/${post.subreddit || 'unknown'}`,
       timestamp: formatActivityTime(post.created_utc),
-      created_utc: post.created_utc,
-      url: `https://reddit.com${post.permalink}`,
+      created_utc: post.created_utc || 0,
+      url: post.permalink ? `https://reddit.com${post.permalink}` : (post.url || '#'),
     });
   });
   (comments || []).forEach((comment: any) => {
+    const body = comment.body || comment.selftext || '';
     acts.push({
       id: comment.id || Math.random().toString(),
       type: 'comment',
-      title: comment.body.substring(0, 100) + (comment.body.length > 100 ? '...' : ''),
-      body: comment.body || '',
-      subreddit: `r/${comment.subreddit}`,
+      title: body.substring(0, 100) + (body.length > 100 ? '...' : ''),
+      body,
+      subreddit: `r/${comment.subreddit || 'unknown'}`,
       timestamp: formatActivityTime(comment.created_utc),
-      created_utc: comment.created_utc,
-      url: `https://reddit.com${comment.permalink}`,
+      created_utc: comment.created_utc || 0,
+      url: comment.permalink ? `https://reddit.com${comment.permalink}` : '#',
     });
   });
   acts.sort((a, b) => b.created_utc - a.created_utc);
@@ -98,8 +99,8 @@ const buildActivities = (posts: any[], comments: any[]): RedditActivity[] => {
 
 const buildWordCloud = (posts: any[], comments: any[]) => {
   const textContent = [
-    ...(posts || []).map((p: any) => `${p.title} ${p.selftext || ''}`),
-    ...(comments || []).map((c: any) => c.body),
+    ...(posts || []).map((p: any) => `${p.title || ''} ${p.selftext || ''}`),
+    ...(comments || []).map((c: any) => c.body || ''),
   ].join(' ');
   const words = textContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
   const wordFreq: Record<string, number> = {};
