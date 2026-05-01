@@ -99,8 +99,8 @@ const buildActivities = (posts: any[], comments: any[]): RedditActivity[] => {
 
 const buildWordCloud = (posts: any[], comments: any[]) => {
   const textContent = [
-    ...(posts || []).map((p: any) => `${p.title} ${p.selftext || ''}`),
-    ...(comments || []).map((c: any) => c.body),
+    ...(posts || []).map((p: any) => `${p.title || ''} ${p.selftext || ''}`),
+    ...(comments || []).map((c: any) => c.body || ''),
   ].join(' ');
   const words = textContent.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
   const wordFreq: Record<string, number> = {};
