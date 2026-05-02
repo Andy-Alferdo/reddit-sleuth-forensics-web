@@ -82,15 +82,22 @@ const buildActivities = (posts: any[], comments: any[]): RedditActivity[] => {
   });
   (comments || []).forEach((comment: any) => {
     const body = comment.body || comment.selftext || '';
+    const commentUrl = comment.permalink
+      ? `https://reddit.com${comment.permalink}`
+      : comment.context
+        ? `https://reddit.com${comment.context}`
+        : comment.link_permalink
+          ? `https://reddit.com${comment.link_permalink}`
+          : '#';
     acts.push({
       id: comment.id || Math.random().toString(),
       type: 'comment',
-      title: body.substring(0, 100) + (body.length > 100 ? '...' : ''),
+      title: comment.link_title || (body.substring(0, 100) + (body.length > 100 ? '...' : '')),
       body,
       subreddit: `r/${comment.subreddit || 'unknown'}`,
       timestamp: formatActivityTime(comment.created_utc),
       created_utc: comment.created_utc || 0,
-      url: comment.permalink ? `https://reddit.com${comment.permalink}` : '#',
+      url: commentUrl,
     });
   });
   acts.sort((a, b) => b.created_utc - a.created_utc);

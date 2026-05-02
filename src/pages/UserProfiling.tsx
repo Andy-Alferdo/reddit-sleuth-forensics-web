@@ -294,9 +294,13 @@ const UserProfiling = () => {
         })),
         commentSentiments: (analysisData?.commentSentiments || []).map((s: any, i: number) => ({
           ...s,
-          permalink: redditData.comments?.[i]?.permalink || null,
+          body: redditData.comments?.[i]?.body || s.body || s.text || '',
+          text: redditData.comments?.[i]?.body || s.text || '',
+          permalink: redditData.comments?.[i]?.permalink || redditData.comments?.[i]?.context || redditData.comments?.[i]?.link_permalink || null,
+          link_title: redditData.comments?.[i]?.link_title || null,
           created_utc: redditData.comments?.[i]?.created_utc,
           subreddit: redditData.comments?.[i]?.subreddit,
+          score: redditData.comments?.[i]?.score ?? s.score ?? 0,
         })),
         postSentimentBreakdown: analysisData?.sentiment?.postBreakdown || null,
         commentSentimentBreakdown: analysisData?.sentiment?.commentBreakdown || null,
@@ -408,6 +412,10 @@ const UserProfiling = () => {
               </Badge>
             </div>
 
+            {!isPost && item.link_title && (
+              <p className="text-xs text-slate-500 line-clamp-1 mb-1">{item.link_title}</p>
+            )}
+
             <p className="text-sm text-slate-800 line-clamp-2 mb-1.5 group-hover:text-blue-700 transition-colors">
               {item.text || item.body || (isPost ? '(no text)' : '(comment unavailable)')}
             </p>
@@ -449,7 +457,7 @@ const UserProfiling = () => {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (deepState?.showDeep && deepState.analysisType === 'lime') toggleDeepAnalysis(itemKey);
-                  else handleDeepAnalysis(item.text, itemKey);
+                  else handleDeepAnalysis(item.text || item.body || '', itemKey);
                 }}
               >
                 {deepState?.isAnalyzing ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Zap className="h-3 w-3 mr-1" />}
