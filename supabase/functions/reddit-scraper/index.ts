@@ -23,12 +23,16 @@ interface RedditPost {
 }
 
 interface RedditComment {
+  id?: string;
+  author?: string;
   body: string;
   subreddit: string;
   created_utc: number;
   score: number;
   link_title: string;
   permalink: string;
+  context?: string;
+  link_permalink?: string;
 }
 
 serve(async (req) => {
@@ -144,7 +148,7 @@ serve(async (req) => {
       // Reddit OAuth returns empty arrays when a user has disabled "show profile in listings",
       // even though the user exists and the about endpoint returns 200. Old.reddit and the
       // unauthenticated www.reddit JSON endpoints often still expose this content.
-      let dataSource: 'oauth' | 'old_reddit' | 'author_search' | 'www_comment_search' | 'mixed' = 'oauth';
+      let dataSource: 'oauth' | 'old_reddit' | 'author_search' | 'oauth_comment_search' | 'mixed' = 'oauth';
       if (posts.length === 0 && comments.length === 0) {
         console.log(`OAuth returned 0 items for u/${username}, falling back to old.reddit / www.reddit`);
 
@@ -226,48 +230,58 @@ serve(async (req) => {
           }
         }
 
-        // ===== Tier 4 fallback: public www.reddit search for COMMENTS =====
-        // Unlike OAuth /search (which silently ignores type=comment), the public
-        // www.reddit.com/search.json?type=comment endpoint DOES return comments.
-        // We use a plain username query (not "author:") because Reddit's search
-        // matches the comment author field for usernames, and then strictly
-        // filter by exact author match.
+        // ===== Tier 4 fallback: authenticated Reddit search for COMMENTS =====
+        // Hidden-profile comments can still surface in Reddit search results even
+        // when /user/{name}/comments is empty. We query the authenticated search
+        // endpoint with multiple query/type combinations and keep only exact-author
+        // comment hits so we don't accidentally treat matching posts as comments.
         if (comments.length === 0) {
-          console.log(`Trying www.reddit search.json type=comment for u/${username}`);
-          const wwwHeaders = {
-            'User-Agent': 'Mozilla/5.0 (compatible; IntelReddit/1.0)',
-            'Accept': 'application/json',
+          console.log(`Trying authenticated Reddit search fallback for comments of u/${username}`);
+
+          const queryVariants = [username, `author:${username}`];
+          const typeVariants = ['comment', 'comments'];
+          const searchHeaders = {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'User-Agent': 'IntelReddit/1.0',
           };
 
-          const tryCommentSearch = async (url: string) => {
-            try {
-              const r = await fetch(url, { headers: wwwHeaders });
-              if (!r.ok) {
-                console.log(`Comment search ${url} -> HTTP ${r.status}`);
-                return null;
+          const dedupedComments = new Map<string, RedditComment>();
+
+          for (const q of queryVariants) {
+            for (const searchType of typeVariants) {
+              try {
+                const url = `https://oauth.reddit.com/search?q=${encodeURIComponent(q)}&limit=100&sort=new&t=all&type=${encodeURIComponent(searchType)}&restrict_sr=false&include_over_18=on&raw_json=1`;
+                const res = await fetch(url, { headers: searchHeaders });
+                if (!res.ok) {
+                  console.log(`OAuth comment search ${q} (${searchType}) -> HTTP ${res.status}`);
+                  continue;
+                }
+
+                const json = await res.json();
+                const exactAuthorComments: RedditComment[] = (json?.data?.children || [])
+                  .filter((child: any) => child?.kind === 't1' || child?.data?.name?.startsWith('t1_') || !!child?.data?.body)
+                  .map((child: any) => ({ ...child.data, _source: 'oauth_comment_search' }))
+                  .filter((c: any) => (c.author || '').toLowerCase() === username.toLowerCase());
+
+                console.log(`OAuth comment search ${q} (${searchType}) returned ${exactAuthorComments.length} exact-author comments`);
+
+                exactAuthorComments.forEach((comment: any) => {
+                  const key = comment.id || comment.name || comment.permalink || `${comment.created_utc}-${comment.body}`;
+                  if (!dedupedComments.has(key)) dedupedComments.set(key, comment);
+                });
+              } catch (e) {
+                console.log(`OAuth comment search ${q} threw:`, e instanceof Error ? e.message : String(e));
               }
-              return await r.json();
-            } catch (e) {
-              console.log(`Comment search ${url} threw:`, e instanceof Error ? e.message : String(e));
-              return null;
             }
-          };
+          }
 
-          // Try both query forms: plain username, and author:username
-          const searchJson =
-            (await tryCommentSearch(`https://www.reddit.com/search.json?q=${encodeURIComponent(username)}&type=comment&sort=new&limit=100&raw_json=1`)) ||
-            (await tryCommentSearch(`https://old.reddit.com/search.json?q=${encodeURIComponent(username)}&type=comment&sort=new&limit=100&raw_json=1`)) ||
-            (await tryCommentSearch(`https://www.reddit.com/search.json?q=${encodeURIComponent(`author:${username}`)}&type=comment&sort=new&limit=100&raw_json=1`));
+          const searchedComments = Array.from(dedupedComments.values()).sort((a, b) => (b.created_utc || 0) - (a.created_utc || 0));
 
-          const searchedComments: RedditComment[] = (searchJson?.data?.children || [])
-            .map((c: any) => ({ ...c.data, _source: 'www_comment_search' }))
-            .filter((c: any) => (c.author || '').toLowerCase() === username.toLowerCase());
-
-          console.log(`www.reddit comment search returned ${searchedComments.length} comments for u/${username}`);
+          console.log(`OAuth search fallback returned ${searchedComments.length} comments for u/${username}`);
 
           if (searchedComments.length > 0) {
             comments = searchedComments;
-            dataSource = dataSource === 'oauth' ? 'www_comment_search' as any : 'mixed';
+            dataSource = dataSource === 'oauth' ? 'oauth_comment_search' : 'mixed';
           }
         }
       }
