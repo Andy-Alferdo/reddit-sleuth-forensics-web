@@ -230,6 +230,46 @@ serve(async (req) => {
           }
         }
 
+        const parseRssComments = (xml: string): RedditComment[] => {
+          const decodeHtml = (input: string) => input
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&amp;/g, '&');
+
+          const stripHtml = (input: string) => decodeHtml(input)
+            .replace(/<!--.*?-->/gs, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          return Array.from(xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)).map((match) => {
+            const entry = match[1];
+            const id = entry.match(/<id>(.*?)<\/id>/)?.[1]?.replace(/^t1_/, '') || crypto.randomUUID();
+            const title = decodeHtml(entry.match(/<title>(.*?)<\/title>/)?.[1] || '');
+            const linkHref = decodeHtml(entry.match(/<link[^>]*href="([^"]+)"/)?.[1] || '');
+            const contentHtml = entry.match(/<content[^>]*type="html">([\s\S]*?)<\/content>/)?.[1] || '';
+            const updated = entry.match(/<updated>(.*?)<\/updated>/)?.[1] || '';
+            const subreddit = decodeHtml(entry.match(/<category[^>]*term="([^"]+)"/)?.[1] || 'unknown');
+            const body = stripHtml(contentHtml);
+            const permalink = linkHref ? new URL(linkHref).pathname : '';
+            const linkTitle = title.includes(' on ') ? title.split(' on ').slice(1).join(' on ') : title;
+
+            return {
+              id,
+              author: username,
+              body,
+              subreddit,
+              created_utc: updated ? Math.floor(new Date(updated).getTime() / 1000) : 0,
+              score: 0,
+              link_title: linkTitle,
+              permalink,
+              _source: 'comment_rss',
+            } as RedditComment;
+          }).filter((comment) => !!comment.body && !!comment.permalink);
+        };
+
         // ===== Tier 4 fallback: authenticated Reddit search for COMMENTS =====
         // Hidden-profile comments can still surface in Reddit search results even
         // when /user/{name}/comments is empty. We query the authenticated search
@@ -282,6 +322,41 @@ serve(async (req) => {
           if (searchedComments.length > 0) {
             comments = searchedComments;
             dataSource = dataSource === 'oauth' ? 'oauth_comment_search' : 'mixed';
+          }
+        }
+
+        // ===== Tier 5 fallback: comments RSS =====
+        if (comments.length === 0) {
+          console.log(`Trying RSS fallback for comments of u/${username}`);
+          const rssHeaders = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'application/atom+xml,application/xml,text/xml;q=0.9,*/*;q=0.8',
+          };
+
+          const tryFetchRss = async (url: string) => {
+            try {
+              const res = await fetch(url, { headers: rssHeaders });
+              if (!res.ok) {
+                console.log(`Comment RSS ${url} -> HTTP ${res.status}`);
+                return null;
+              }
+              return await res.text();
+            } catch (e) {
+              console.log(`Comment RSS ${url} threw:`, e instanceof Error ? e.message : String(e));
+              return null;
+            }
+          };
+
+          const rssXml =
+            (await tryFetchRss(`https://www.reddit.com/user/${username}/comments/.rss`)) ||
+            (await tryFetchRss(`https://old.reddit.com/user/${username}/comments/.rss`));
+
+          const rssComments = rssXml ? parseRssComments(rssXml) : [];
+          console.log(`Comment RSS returned ${rssComments.length} comments for u/${username}`);
+
+          if (rssComments.length > 0) {
+            comments = rssComments;
+            dataSource = dataSource === 'oauth' ? 'old_reddit' : 'mixed';
           }
         }
       }
