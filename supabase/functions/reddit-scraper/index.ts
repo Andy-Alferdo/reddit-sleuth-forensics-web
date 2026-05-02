@@ -144,7 +144,7 @@ serve(async (req) => {
       // Reddit OAuth returns empty arrays when a user has disabled "show profile in listings",
       // even though the user exists and the about endpoint returns 200. Old.reddit and the
       // unauthenticated www.reddit JSON endpoints often still expose this content.
-      let dataSource: 'oauth' | 'old_reddit' | 'author_search' | 'mixed' = 'oauth';
+      let dataSource: 'oauth' | 'old_reddit' | 'author_search' | 'www_comment_search' | 'mixed' = 'oauth';
       if (posts.length === 0 && comments.length === 0) {
         console.log(`OAuth returned 0 items for u/${username}, falling back to old.reddit / www.reddit`);
 
