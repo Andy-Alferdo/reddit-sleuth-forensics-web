@@ -222,8 +222,52 @@ serve(async (req) => {
 
           if (authorPosts.length > 0) {
             posts = authorPosts;
-            comments = []; // explicit: do not duplicate posts as comments
             dataSource = 'author_search';
+          }
+        }
+
+        // ===== Tier 4 fallback: public www.reddit search for COMMENTS =====
+        // Unlike OAuth /search (which silently ignores type=comment), the public
+        // www.reddit.com/search.json?type=comment endpoint DOES return comments.
+        // We use a plain username query (not "author:") because Reddit's search
+        // matches the comment author field for usernames, and then strictly
+        // filter by exact author match.
+        if (comments.length === 0) {
+          console.log(`Trying www.reddit search.json type=comment for u/${username}`);
+          const wwwHeaders = {
+            'User-Agent': 'Mozilla/5.0 (compatible; IntelReddit/1.0)',
+            'Accept': 'application/json',
+          };
+
+          const tryCommentSearch = async (url: string) => {
+            try {
+              const r = await fetch(url, { headers: wwwHeaders });
+              if (!r.ok) {
+                console.log(`Comment search ${url} -> HTTP ${r.status}`);
+                return null;
+              }
+              return await r.json();
+            } catch (e) {
+              console.log(`Comment search ${url} threw:`, e instanceof Error ? e.message : String(e));
+              return null;
+            }
+          };
+
+          // Try both query forms: plain username, and author:username
+          const searchJson =
+            (await tryCommentSearch(`https://www.reddit.com/search.json?q=${encodeURIComponent(username)}&type=comment&sort=new&limit=100&raw_json=1`)) ||
+            (await tryCommentSearch(`https://old.reddit.com/search.json?q=${encodeURIComponent(username)}&type=comment&sort=new&limit=100&raw_json=1`)) ||
+            (await tryCommentSearch(`https://www.reddit.com/search.json?q=${encodeURIComponent(`author:${username}`)}&type=comment&sort=new&limit=100&raw_json=1`));
+
+          const searchedComments: RedditComment[] = (searchJson?.data?.children || [])
+            .map((c: any) => ({ ...c.data, _source: 'www_comment_search' }))
+            .filter((c: any) => (c.author || '').toLowerCase() === username.toLowerCase());
+
+          console.log(`www.reddit comment search returned ${searchedComments.length} comments for u/${username}`);
+
+          if (searchedComments.length > 0) {
+            comments = searchedComments;
+            dataSource = dataSource === 'oauth' ? 'www_comment_search' as any : 'mixed';
           }
         }
       }
